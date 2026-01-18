@@ -9,7 +9,8 @@ Memory Mesh is a **portable semantic memory system for AI agents** with automati
 **Key characteristics:**
 - 100% local-first (no API keys required for default config)
 - Agent-discoverable CLI interface (agents read `tools/memory_mesh.js` source to understand the API)
-- NPM-installable YAMO skills (yamo-super, scrubber) included in package
+- NPM-installable YAMO skills (yamo-super v2.1.0, scrubber) with automatic memory integration
+- Workflow pattern recognition - automatically learns from past executions
 - ES Module codebase targeting Node.js 18+
 - No transpilation - TypeScript is used only for type checking
 

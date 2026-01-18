@@ -4,10 +4,12 @@ Portable, semantic memory system for AI agents with automatic Layer 0 sanitizati
 
 ## Features
 
-- **Persistent Vector Storage**: Powered by LanceDB.
-- **Layer 0 Scrubber**: Automatically sanitizes, deduplicates, and cleans content.
+- **Persistent Vector Storage**: Powered by LanceDB for semantic search.
+- **Layer 0 Scrubber**: Automatically sanitizes, deduplicates, and cleans content before embedding.
 - **Local Embeddings**: Runs 100% locally using ONNX (no API keys required).
 - **Portable CLI**: Simple JSON-based interface for any agent or language.
+- **YAMO Skills Integration**: Includes yamo-super workflow system with automatic memory learning.
+- **Pattern Recognition**: Workflows automatically store and retrieve execution patterns for optimization.
 
 ## Installation
 
@@ -65,15 +67,23 @@ The setup script will:
 
 ### 3. Use the Skills
 
-Your skills are now available in Claude Code:
+Your skills are now available in Claude Code with automatic memory integration:
 
 ```bash
 # Use yamo-super workflow system
+# Automatically retrieves similar past workflows and stores execution patterns
 claude /yamo-super
 
-# Use scrubber skill
+# Use scrubber skill for content sanitization
 claude /scrubber content="raw text"
 ```
+
+**Memory Integration Features:**
+- **Workflow Orchestrator**: Searches for similar past workflows before starting
+- **Design Phase**: Stores validated designs with metadata
+- **Debug Phase**: Retrieves similar bug patterns and stores resolutions
+- **Review Phase**: Stores code review outcomes and quality metrics
+- **Complete Workflow**: Stores full execution pattern for future optimization
 
 YAMO agents will automatically find tools in `tools/memory_mesh.js` and `tools/scrubber.js`.
 
