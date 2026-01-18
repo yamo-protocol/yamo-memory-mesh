@@ -3,7 +3,7 @@ name: yamo-super
 description: YamoSuper is a comprehensive AI coding workflow system that orchestrates the complete software development lifecycle through specialized agents managing brainstorming, git worktree isolation, implementation planning, dual execution modes (fresh-subagent-per-task with two-stage review or batch with checkpoints), strict test-driven development, systematic debugging, and pre-merge quality gates—all designed to enable autonomous execution while maintaining human oversight and enforcing YAGNI/DRY best practices.
 ---
 
-when improving or creating new code follow the this yamo-skill:
+For all code improvement or creation tasks, strictly adhere to the logic, agents, and constraints defined in this Yamo Skill:
 
 metadata:
   name;YamoSuper;
