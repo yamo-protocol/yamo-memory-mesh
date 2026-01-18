@@ -7,7 +7,8 @@
   "types": "index.d.ts",
   "bin": {
     "memory-mesh": "./bin/memory_mesh.js",
-    "scrubber": "./bin/scrubber.js"
+    "scrubber": "./bin/scrubber.js",
+    "memory-mesh-setup": "./bin/setup.js"
   },
   "files": [
     "lib/",

@@ -45,31 +45,37 @@ const results = await mesh.search('query');
 To use MemoryMesh with your Claude Code skills (like `yamo-super`) in a new project:
 
 ### 1. Install the Package
-This installs the heavy dependencies (LanceDB, ONNX) and binaries.
 
 ```bash
 npm install @yamo/memory-mesh
-# Or install locally if developing:
-# npm install /path/to/memory-mesh
 ```
 
-### 2. Setup the CLI Adapter
-YAMO skills learn how to use the memory system by reading the source code of the CLI adapter. You must ensure `tools/memory_mesh.js` exists in your project so the agent can "see" the interface.
+### 2. Run Setup
 
-**Quick Setup:**
-```bash
-mkdir -p tools
-cp node_modules/@yamo/memory-mesh/bin/memory_mesh.js tools/memory_mesh.js
-```
-
-### 3. Run Your Skill
-Your `yamo-super` skill (or any skill referencing `memory_script;tools/memory_mesh.js`) will now work automatically.
+This installs YAMO skills to `~/.claude/skills/memory-mesh/` and tools to `./tools/`:
 
 ```bash
-claude "Run yamo-super task='Setup CI pipeline'"
+npx memory-mesh-setup
 ```
 
-The agent will read `tools/memory_mesh.js`, understand how to call it, and execute memory operations which are handled by the installed `@yamo/memory-mesh` package.
+The setup script will:
+- Copy YAMO skills (`yamo-super`, `scrubber`) to Claude Code
+- Copy CLI tools to your project's `tools/` directory
+- Prompt before overwriting existing files
+
+### 3. Use the Skills
+
+Your skills are now available in Claude Code:
+
+```bash
+# Use yamo-super workflow system
+claude /yamo-super
+
+# Use scrubber skill
+claude /scrubber content="raw text"
+```
+
+YAMO agents will automatically find tools in `tools/memory_mesh.js` and `tools/scrubber.js`.
 
 ## Docker
 
