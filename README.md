@@ -119,8 +119,7 @@ Memory Mesh implements YAMO v2.1.0 compliance with:
 - Automatic workflow pattern storage for continuous learning
 
 **Related YAMO Projects:**
-- [yamo-skills](https://github.com/yamo-protocol/yamo-skills) - Collection of YAMO protocol skills
-- [yamo-chain](https://github.com/yamo-protocol/yamo-chain) - Blockchain integration for agent provenance
+- [yamo-chain](https://github.com/yamo-protocol/yamo-protocol) - Blockchain integration for agent provenance
 
 ## Documentation
 
