@@ -38,5 +38,8 @@ tmp/
 temp/
 *.tmp
 
+# CLI / Skills
+tools/
+
 # LanceDB
 *.lance/
