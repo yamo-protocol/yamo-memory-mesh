@@ -27,9 +27,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build package
-        run: npm run build
-
       - name: Exchange OIDC token for npm
         id: exchange_token
         uses: actions/github-script@v7
