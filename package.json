@@ -1,0 +1,32 @@
+{
+  "name": "@yamo/memory-mesh",
+  "version": "2.0.0",
+  "description": "Portable semantic memory system with Layer 0 Scrubber for YAMO agents",
+  "type": "module",
+  "main": "lib/memory/index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "memory-mesh": "./bin/memory_mesh.js",
+    "scrubber": "./bin/scrubber.js"
+  },
+  "files": [
+    "lib/",
+    "bin/",
+    "skills/",
+    "index.d.ts"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.23.0",
+    "@xenova/transformers": "^2.17.0",
+    "apache-arrow": "^17.0.0",
+    "onnxruntime-node": "^1.18.0"
+  },
+  "author": "Soverane Labs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

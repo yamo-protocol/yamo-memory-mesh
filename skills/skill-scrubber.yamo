@@ -1,0 +1,41 @@
+metadata:
+  name;Scrubber;
+  version;1.0.0;
+  description;A utility skill that sanitizes text or files using S-MORA Layer 0 Scrubber principles (removing PII, boilerplate, and normalizing structure).;
+  author;Soverane Labs;
+  license;MIT;
+  tags;utility;sanitization;cleaning;security;
+  capabilities;scrub_text;scrub_file;
+  parameters:
+    content:
+      type;string;
+      required;false;
+      description;Raw text content to scrub.;
+    file_path:
+      type;string;
+      required;false;
+      description;Path to a file to scrub.;
+  environment:
+    requires_filesystem;true;
+  dependencies:
+    required:
+      - node >=18.0.0;
+      - tools/scrubber.js;
+---
+agent: ScrubbingAgent;
+intent: sanitize_input_content;
+context:
+  raw_text;provided_by_user.content;
+  target_file;provided_by_user.file_path;
+  scrubber_tool;tools/scrubber.js;
+constraints:
+  - if_file_provided;use_tool_scrub_file_mode;
+  - if_text_provided;use_tool_scrub_mode;
+  - if_both;prefer_file;
+  - remove_boilerplate_and_pii;
+  - normalize_structure;
+  - return_cleaned_json_result;
+priority: high;
+output: scrubbed_result.json;
+log: content_scrubbed;original_length;cleaned_length;
+handoff: End;
