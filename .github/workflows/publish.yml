@@ -3,24 +3,41 @@ name: Publish to npm
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*'
 
 permissions:
-  id-token: write  # Required for OIDC
+  id-token: write  # Required for npm provenance
   contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
 
-      - name: Publish package
-        run: npm publish --provenance --access public
+      - name: Install latest npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build package
+        run: npm run build
+
+      - name: Exchange OIDC token for npm
+        id: exchange_token
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const oidc = await core.getIDToken()
+            core.exportVariable('OIDC_TOKEN', oidc)
+            core.setSecret(oidc)
+
+      - name: Publish to npm
+        run: npm publish --access public
