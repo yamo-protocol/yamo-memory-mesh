@@ -2,6 +2,8 @@
 
 Portable, semantic memory system for AI agents with automatic Layer 0 sanitization.
 
+Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent agent collaboration with structured workflows and immutable provenance.
+
 ## Features
 
 - **Persistent Vector Storage**: Powered by LanceDB for semantic search.
@@ -93,4 +95,36 @@ YAMO agents will automatically find tools in `tools/memory_mesh.js` and `tools/s
 docker run -v $(pwd)/data:/app/runtime/data \
   yamo/memory-mesh store "Content"
 ```
+
+## About YAMO Protocol
+
+Memory Mesh is built on the **YAMO (Yet Another Markup for Orchestration) Protocol** - a structured language for transparent AI agent collaboration with immutable provenance tracking.
+
+**YAMO Protocol Features:**
+- **Structured Agent Workflows**: Semicolon-terminated constraints, explicit handoff chains
+- **Meta-Reasoning Traces**: Hypothesis, rationale, confidence, and observation annotations
+- **Blockchain Integration**: Immutable audit trails via Model Context Protocol (MCP)
+- **Multi-Agent Coordination**: Designed for transparent collaboration across organizational boundaries
+
+**Learn More:**
+- **YAMO Protocol Organization**: [github.com/yamo-protocol](https://github.com/yamo-protocol)
+- **Protocol Specification**: See the YAMO RFC documents for core syntax and semantics
+- **Ecosystem**: Explore other YAMO-compliant tools and skills
+
+Memory Mesh implements YAMO v2.1.0 compliance with:
+- MemorySystemInitializer agent for graceful degradation
+- Context passing between agents (`from_AgentName.output`)
+- Structured logging with meta-reasoning
+- Priority levels and constraint-based execution
+- Automatic workflow pattern storage for continuous learning
+
+**Related YAMO Projects:**
+- [yamo-skills](https://github.com/yamo-protocol/yamo-skills) - Collection of YAMO protocol skills
+- [yamo-chain](https://github.com/yamo-protocol/yamo-chain) - Blockchain integration for agent provenance
+
+## Documentation
+
+- **Architecture Guide**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Comprehensive system architecture (1,118 lines)
+- **Development Guide**: [CLAUDE.md](CLAUDE.md) - Guide for Claude Code development
+- **Marketplace**: [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) - Plugin metadata
 
