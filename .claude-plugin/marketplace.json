@@ -1,0 +1,286 @@
+{
+  "id": "yamo-memory-mesh",
+  "name": "Memory Mesh",
+  "version": "2.1.0",
+  "author": {
+    "name": "Soverane Labs",
+    "url": "https://github.com/yamo-protocol"
+  },
+  "description": "Portable semantic memory system for AI agents with automatic Layer 0 sanitization, local embeddings, and YAMO workflow integration. Enables agents to learn from past executions through pattern recognition.",
+  "longDescription": "Memory Mesh combines LanceDB vector storage, local ONNX embeddings (Xenova/all-MiniLM-L6-v2), and a deterministic 6-stage content scrubber to create a self-improving semantic memory system for AI agents.\n\nKey capabilities:\n- **Persistent Vector Storage**: LanceDB with 384-dimensional semantic search\n- **Layer 0 Scrubber**: Deterministic 6-stage preprocessing (structural cleaning → semantic filtering → normalization → chunking → annotation → validation)\n- **Local Embeddings**: 100% local operation using ONNX (no API keys required)\n- **YAMO Skills**: Includes yamo-super v2.1.0 workflow system with automatic memory integration\n- **Pattern Recognition**: Learns from workflow executions, bug resolutions, and code reviews\n- **Self-Improving**: Future workflows benefit from historical patterns\n\nMemory integration at 5 critical workflow stages:\n1. WorkflowOrchestrator: Searches similar past workflows for context-aware decisions\n2. DocumentationAgent: Stores design summaries with commit metadata\n3. DebuggingAgent: Retrieves similar bugs and stores resolutions\n4. CodeReviewAgent: Stores quality metrics and outcomes\n5. WorkflowMemoryStore: Aggregates complete execution patterns\n\nArchitecture:\n- Scrubber-first design (clean before embedding for consistency)\n- Multi-provider fallback (Local ONNX → Ollama → OpenAI → Cohere)\n- Dual-cache strategy (embedding LRU + query TTL)\n- YAMO protocol compliant (structured logging, meta-reasoning, graceful degradation)",
+  "license": "MIT",
+  "homepage": "https://github.com/yamo-protocol/yamo-memory-mesh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yamo-protocol/yamo-memory-mesh.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yamo-protocol/yamo-memory-mesh/issues"
+  },
+  "keywords": [
+    "memory",
+    "semantic-search",
+    "vector-database",
+    "lancedb",
+    "embeddings",
+    "onnx",
+    "scrubber",
+    "yamo",
+    "workflow",
+    "pattern-recognition",
+    "self-improving",
+    "ai-agents",
+    "local-first",
+    "tdd",
+    "debugging",
+    "code-review"
+  ],
+  "categories": [
+    "memory",
+    "workflow",
+    "utilities"
+  ],
+  "skills": [
+    {
+      "name": "yamo-super",
+      "version": "2.1.0",
+      "description": "Comprehensive AI coding workflow system with brainstorming, git worktree isolation, implementation planning, TDD, debugging, and code review - all with automatic memory learning",
+      "file": "skills/SKILL.md",
+      "capabilities": [
+        "brainstorm_design",
+        "write_implementation_plan",
+        "execute_plan_batch",
+        "test_driven_development",
+        "systematic_debugging",
+        "code_review",
+        "git_worktree",
+        "retrieve_workflow_patterns",
+        "store_execution_history",
+        "semantic_memory"
+      ],
+      "memoryIntegration": true
+    },
+    {
+      "name": "scrubber",
+      "version": "1.0.0",
+      "description": "Content sanitization using Layer 0 Scrubber principles (removes PII, boilerplate, normalizes structure)",
+      "file": "skills/skill-scrubber.yamo",
+      "capabilities": [
+        "scrub_text",
+        "scrub_file",
+        "remove_pii",
+        "normalize_content"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "memory_mesh.js",
+      "description": "CLI interface for memory operations (store, search)",
+      "path": "tools/memory_mesh.js",
+      "commands": [
+        {
+          "name": "store",
+          "description": "Store content with metadata in semantic memory",
+          "usage": "node tools/memory_mesh.js store <content> [metadata_json]"
+        },
+        {
+          "name": "search",
+          "description": "Search memories using semantic similarity",
+          "usage": "node tools/memory_mesh.js search <query> [limit]"
+        }
+      ]
+    },
+    {
+      "name": "scrubber.js",
+      "description": "Standalone content scrubber CLI",
+      "path": "tools/scrubber.js",
+      "commands": [
+        {
+          "name": "scrub",
+          "description": "Sanitize and clean raw content",
+          "usage": "node tools/scrubber.js scrub <content>"
+        }
+      ]
+    }
+  ],
+  "installation": {
+    "type": "npm",
+    "command": "npm install @yamo/memory-mesh",
+    "postInstall": "npx memory-mesh-setup",
+    "steps": [
+      "Install package: npm install @yamo/memory-mesh",
+      "Run setup: npx memory-mesh-setup",
+      "Skills installed to: ~/.claude/skills/memory-mesh/",
+      "Tools installed to: ./tools/",
+      "Ready to use: /yamo-super in Claude Code"
+    ]
+  },
+  "requirements": {
+    "node": ">=18.0.0",
+    "git": ">=2.30.0",
+    "platform": [
+      "linux",
+      "darwin",
+      "win32"
+    ],
+    "dependencies": [
+      "@lancedb/lancedb",
+      "@xenova/transformers",
+      "apache-arrow",
+      "onnxruntime-node"
+    ]
+  },
+  "features": [
+    {
+      "name": "Persistent Vector Storage",
+      "description": "LanceDB-powered semantic search with 384-dimensional embeddings"
+    },
+    {
+      "name": "Layer 0 Scrubber",
+      "description": "6-stage deterministic preprocessing: structural → semantic → normalize → chunk → annotate → validate"
+    },
+    {
+      "name": "Local Embeddings",
+      "description": "100% local operation using ONNX (Xenova/all-MiniLM-L6-v2), no API keys required"
+    },
+    {
+      "name": "Automatic Memory Learning",
+      "description": "Workflows automatically store and retrieve execution patterns for optimization"
+    },
+    {
+      "name": "Pattern Recognition",
+      "description": "Semantic search finds similar workflows, bugs, and code reviews from history"
+    },
+    {
+      "name": "Multi-Provider Fallback",
+      "description": "Local ONNX → Ollama → OpenAI → Cohere embedding chain for reliability"
+    },
+    {
+      "name": "YAMO Protocol Compliant",
+      "description": "Structured logging, meta-reasoning traces, graceful degradation"
+    },
+    {
+      "name": "Self-Improving System",
+      "description": "Each execution improves future workflow efficiency through learned patterns"
+    }
+  ],
+  "useCases": [
+    {
+      "title": "Workflow Optimization",
+      "description": "yamo-super learns from past executions: searches similar workflows before starting, adapts proven task breakdowns, stores complete execution patterns",
+      "example": "Execute mode workflows learn that 'npm installable features' take ~45min, 5 tasks, with high success rate when following proven structure"
+    },
+    {
+      "title": "Accelerated Debugging",
+      "description": "Searches for similar error signatures before debugging, retrieves past solutions, stores resolutions for future reference",
+      "example": "TypeError search finds similar bug (score: 1.36) with known resolution: 'Added initialization check'"
+    },
+    {
+      "title": "Design Pattern Library",
+      "description": "Stores validated designs with architecture, components, and commit metadata for reuse across projects",
+      "example": "NPM installable skills system design stored with metadata enables similar packaging features to reference proven approaches"
+    },
+    {
+      "title": "Code Review Learning",
+      "description": "Stores review outcomes with quality ratings, issue counts, and approval status to inform quality standards",
+      "example": "Past reviews establish quality baselines that future reviews can reference and maintain"
+    },
+    {
+      "title": "Cross-Session Knowledge",
+      "description": "Semantic memory persists across sessions, enabling long-term learning and continuous improvement",
+      "example": "Memories survive restarts, allowing agents to build on past work weeks or months later"
+    }
+  ],
+  "performance": {
+    "embedding": {
+      "local_onnx": {
+        "avgTime": "150ms",
+        "cacheHitRate": "85%",
+        "model": "Xenova/all-MiniLM-L6-v2",
+        "dimensions": 384
+      },
+      "ollama": {
+        "avgTime": "300ms",
+        "cacheHitRate": "80%",
+        "dimensions": 768
+      },
+      "openai": {
+        "avgTime": "500ms",
+        "model": "text-embedding-3-small",
+        "dimensions": 1536
+      }
+    },
+    "search": {
+      "cold": "200ms (150ms embed + 50ms search)",
+      "warm_query_cache": "<5ms",
+      "warm_embedding_cache": "50ms"
+    },
+    "scrubber": {
+      "processing": "3-5ms per document",
+      "stages": 6
+    },
+    "storage": {
+      "vector_size": "~4KB per 384-dim entry",
+      "metadata_overhead": "~500 bytes per entry"
+    }
+  },
+  "security": {
+    "features": [
+      "Error sanitization (redacts tokens, API keys, JWTs)",
+      "Metadata sanitization (prevents prototype pollution)",
+      "Content limits (100KB max per entry)",
+      "PII removal (emails, phones, credit cards)",
+      "Local-first operation (no data leaves machine by default)"
+    ]
+  },
+  "documentation": {
+    "readme": "README.md",
+    "architecture": "docs/ARCHITECTURE.md",
+    "claudeGuide": "CLAUDE.md",
+    "examples": [
+      "Search workflows: node tools/memory_mesh.js search 'workflow execute npm' 3",
+      "Store memory: node tools/memory_mesh.js store 'content' '{\"tag\":\"test\"}'",
+      "Use yamo-super: /yamo-super in Claude Code",
+      "Scrub content: /scrubber content='raw text'"
+    ]
+  },
+  "changelog": {
+    "2.1.0": {
+      "date": "2026-01-18",
+      "changes": [
+        "Added automatic memory integration to yamo-super skill",
+        "MemorySystemInitializer agent for graceful degradation",
+        "WorkflowOrchestrator searches similar past workflows",
+        "DocumentationAgent stores design summaries",
+        "DebuggingAgent retrieves/stores bug patterns",
+        "CodeReviewAgent stores quality metrics",
+        "WorkflowMemoryStore aggregates complete execution patterns",
+        "Comprehensive ARCHITECTURE.md documentation (1,118 lines)"
+      ]
+    },
+    "2.0.6": {
+      "date": "2026-01-18",
+      "changes": [
+        "NPM-installable skills system",
+        "Interactive setup script (npx memory-mesh-setup)",
+        "Automatic skill and tool installation",
+        "Updated README with setup workflow",
+        "Created CLAUDE.md architecture guide"
+      ]
+    }
+  },
+  "support": {
+    "documentation": "https://github.com/yamo-protocol/yamo-memory-mesh#readme",
+    "issues": "https://github.com/yamo-protocol/yamo-memory-mesh/issues",
+    "discussions": "https://github.com/yamo-protocol/yamo-memory-mesh/discussions"
+  },
+  "metadata": {
+    "publishedAt": "2026-01-18T21:00:00Z",
+    "updatedAt": "2026-01-18T21:00:00Z",
+    "downloads": 0,
+    "stars": 0,
+    "verified": false,
+    "featured": false
+  }
+}
