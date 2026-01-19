@@ -65,21 +65,18 @@ async function copyWithPrompt(src, dest, label) {
 async function installSkills() {
   log('\n📦 Installing YAMO Skills...', 'blue');
 
-  const claudeSkillsDir = join(homedir(), '.claude', 'skills', 'memory-mesh');
-
-  // Check if Claude Code is installed
-  const claudeDir = join(homedir(), '.claude');
-  if (!existsSync(claudeDir)) {
-    log('⚠  Claude Code not detected (~/.claude not found)', 'yellow');
-    log('   Skills will be skipped. Install Claude Code first.', 'yellow');
-    return { installed: 0, skipped: 0 };
-  }
-
-  // Create skills directory
-  if (!existsSync(claudeSkillsDir)) {
-    mkdirSync(claudeSkillsDir, { recursive: true });
-    log(`  ✓ Created ${claudeSkillsDir}`, 'green');
-  }
+  const targetDirs = [
+    {
+      name: 'Claude Code',
+      base: join(homedir(), '.claude'),
+      skills: join(homedir(), '.claude', 'skills', 'yamo-super')
+    },
+    {
+      name: 'Gemini CLI',
+      base: join(homedir(), '.gemini'),
+      skills: join(homedir(), '.gemini', 'skills', 'yamo-super')
+    }
+  ];
 
   const skillsSourceDir = join(packageRoot, 'skills');
   if (!existsSync(skillsSourceDir)) {
@@ -87,23 +84,41 @@ async function installSkills() {
     return { installed: 0, skipped: 0 };
   }
 
-  // Copy all skill files
-  const skillFiles = readdirSync(skillsSourceDir).filter(f =>
-    f.endsWith('.md') || f.endsWith('.yamo')
-  );
+  const skillFiles = readdirSync(skillsSourceDir);
+  let totalInstalled = 0;
+  let totalSkipped = 0;
+  let detectedCount = 0;
 
-  let installed = 0;
-  let skipped = 0;
+  for (const target of targetDirs) {
+    // Check if the CLI environment is detected
+    if (!existsSync(target.base)) {
+      continue;
+    }
 
-  for (const file of skillFiles) {
-    const src = join(skillsSourceDir, file);
-    const dest = join(claudeSkillsDir, file);
-    const success = await copyWithPrompt(src, dest, file);
-    if (success) installed++;
-    else skipped++;
+    detectedCount++;
+    log(`  Installing to ${target.name}...`, 'blue');
+
+    // Create skills directory
+    if (!existsSync(target.skills)) {
+      mkdirSync(target.skills, { recursive: true });
+      log(`  ✓ Created ${target.skills}`, 'green');
+    }
+
+    for (const file of skillFiles) {
+      const src = join(skillsSourceDir, file);
+      const dest = join(target.skills, file);
+      const success = await copyWithPrompt(src, dest, `${target.name}: ${file}`);
+      if (success) totalInstalled++;
+      else totalSkipped++;
+    }
   }
 
-  return { installed, skipped };
+  if (detectedCount === 0) {
+    log('⚠  No supported AI environment detected (~/.claude or ~/.gemini not found)', 'yellow');
+    log('   Skills will be skipped.', 'yellow');
+  }
+
+  return { installed: totalInstalled, skipped: totalSkipped };
 }
 
 async function installTools() {
@@ -147,11 +162,13 @@ function showUsage() {
   const pkg = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf-8'));
 
   log('\n✨ Setup Complete!', 'bright');
-  log('\nYAMO Skills installed to: ~/.claude/skills/memory-mesh/', 'blue');
+  log('\nYAMO Skills installed to AI CLI environments:', 'blue');
+  log('  • ~/.claude/skills/yamo-super/', 'blue');
+  log('  • ~/.gemini/skills/yamo-super/', 'blue');
   log('Tools installed to: ./tools/', 'blue');
 
   log('\n📚 Usage:', 'bright');
-  log('  • Use /yamo-super in Claude Code for workflow automation');
+  log('  • Use /yamo-super in Claude or Gemini for workflow automation');
   log('  • Use /scrubber skill for content sanitization');
   log('  • Call tools/memory_mesh.js for memory operations');
 
@@ -167,7 +184,7 @@ async function main() {
   log('╚════════════════════════════════════════╝', 'bright');
 
   try {
-    // Install skills to ~/.claude/skills/memory-mesh/
+    // Install skills to ~/.claude/skills/yamo-super/
     const skillResults = await installSkills();
 
     // Install tools to ./tools/
