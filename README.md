@@ -12,6 +12,8 @@ Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent a
 - **Portable CLI**: Simple JSON-based interface for any agent or language.
 - **YAMO Skills Integration**: Includes yamo-super workflow system with automatic memory learning.
 - **Pattern Recognition**: Workflows automatically store and retrieve execution patterns for optimization.
+- **LLM-Powered Reflections**: Generate insights from memories using configurable LLM providers.
+- **YAMO Audit Trail**: Automatic emission of structured blocks for all memory operations.
 
 ## Installation
 
@@ -42,6 +44,63 @@ import { MemoryMesh } from '@yamo/memory-mesh';
 const mesh = new MemoryMesh();
 await mesh.add('Content', { meta: 'data' });
 const results = await mesh.search('query');
+```
+
+### Enhanced Reflections with LLM
+
+MemoryMesh supports LLM-powered reflection generation that synthesizes insights from stored memories:
+
+```javascript
+import { MemoryMesh } from '@yamo/memory-mesh';
+
+// Enable LLM integration (requires API key or local model)
+const mesh = new MemoryMesh({
+  enableLLM: true,
+  llmProvider: 'openai',  // or 'anthropic', 'ollama'
+  llmApiKey: process.env.OPENAI_API_KEY,
+  llmModel: 'gpt-4o-mini'
+});
+
+// Store some memories
+await mesh.add('Bug: type mismatch in keyword search', { type: 'bug' });
+await mesh.add('Bug: missing content field', { type: 'bug' });
+
+// Generate reflection (automatically stores result to memory)
+const reflection = await mesh.reflect({ topic: 'bugs', lookback: 10 });
+
+console.log(reflection.reflection);
+// Output: "Synthesized from 2 memories: Bug: type mismatch..., Bug: missing content..."
+
+console.log(reflection.confidence);  // 0.85
+console.log(reflection.yamoBlock);    // YAMO audit trail
+```
+
+**CLI Usage:**
+
+```bash
+# With LLM (default)
+memory-mesh reflect '{"topic": "bugs", "limit": 10}'
+
+# Without LLM (prompt-only for external LLM)
+memory-mesh reflect '{"topic": "bugs", "llm": false}'
+```
+
+### YAMO Audit Trail
+
+MemoryMesh automatically emits YAMO blocks for all operations when enabled:
+
+```javascript
+const mesh = new MemoryMesh({ enableYamo: true });
+
+// All operations now emit YAMO blocks
+await mesh.add('Memory content', { type: 'event' });      // emits 'retain' block
+await mesh.search('query');                                 // emits 'recall' block
+await mesh.reflect({ topic: 'test' });                      // emits 'reflect' block
+
+// Query YAMO log
+const yamoLog = await mesh.getYamoLog({ operationType: 'reflect', limit: 10 });
+console.log(yamoLog);
+// [{ id, agentId, operationType, yamoText, timestamp, ... }]
 ```
 
 ## Using in a Project
@@ -126,4 +185,67 @@ Memory Mesh implements YAMO v2.1.0 compliance with:
 - **Architecture Guide**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Comprehensive system architecture (1,118 lines)
 - **Development Guide**: [CLAUDE.md](CLAUDE.md) - Guide for Claude Code development
 - **Marketplace**: [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) - Plugin metadata
+
+## Configuration
+
+### LLM Provider Configuration
+
+```bash
+# Required for LLM-powered reflections
+LLM_PROVIDER=openai          # Provider: 'openai', 'anthropic', 'ollama'
+LLM_API_KEY=sk-...            # API key for OpenAI/Anthropic
+LLM_MODEL=gpt-4o-mini         # Model name
+LLM_BASE_URL=https://...      # Optional: Custom API base URL
+```
+
+**Supported Providers:**
+- **OpenAI**: GPT-4, GPT-4o-mini, etc.
+- **Anthropic**: Claude 3.5 Haiku, Sonnet, Opus
+- **Ollama**: Local models (llama3.2, mistral, etc.)
+
+### YAMO Configuration
+
+```bash
+# Optional YAMO settings
+ENABLE_YAMO=true              # Enable YAMO block emission (default: true)
+YAMO_DEBUG=true               # Enable verbose YAMO logging
+```
+
+### LanceDB Configuration
+
+```bash
+# Vector database settings
+LANCEDB_URI=./runtime/data/lancedb
+LANCEDB_MEMORY_TABLE=memory_entries
+```
+
+### Embedding Configuration
+
+```bash
+# Embedding model settings
+EMBEDDING_MODEL_TYPE=local    # 'local', 'openai', 'cohere', 'ollama'
+EMBEDDING_MODEL_NAME=Xenova/all-MiniLM-L6-v2
+EMBEDDING_DIMENSION=384
+```
+
+### Example .env File
+
+```bash
+# LLM for reflections
+LLM_PROVIDER=openai
+LLM_API_KEY=sk-your-key-here
+LLM_MODEL=gpt-4o-mini
+
+# YAMO audit
+ENABLE_YAMO=true
+YAMO_DEBUG=false
+
+# Vector DB
+LANCEDB_URI=./data/lancedb
+
+# Embeddings (local default)
+EMBEDDING_MODEL_TYPE=local
+EMBEDDING_MODEL_NAME=Xenova/all-MiniLM-L6-v2
+```
+
 
