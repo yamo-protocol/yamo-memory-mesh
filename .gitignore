@@ -38,6 +38,10 @@ tmp/
 temp/
 *.tmp
 
+# AI Context
+CLAUDE.md
+GEMINI.md
+
 # CLI / Skills
 tools/
 
