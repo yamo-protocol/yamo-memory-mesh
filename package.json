@@ -1,6 +1,6 @@
 {
   "name": "@yamo/memory-mesh",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Portable semantic memory system with Layer 0 Scrubber for YAMO agents",
   "type": "module",
   "main": "lib/memory/index.js",
