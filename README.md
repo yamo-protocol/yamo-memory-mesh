@@ -31,9 +31,6 @@ memory-mesh store "My important memory" '{"tag":"test"}'
 
 # Search memories
 memory-mesh search "query" 5
-
-# Scrub content only
-scrubber scrub "Raw text content"
 ```
 
 ### Node.js API
@@ -134,9 +131,6 @@ Your skills are now available in Claude Code with automatic memory integration:
 # Use yamo-super workflow system
 # Automatically retrieves similar past workflows and stores execution patterns
 claude /yamo-super
-
-# Use scrubber skill for content sanitization
-claude /scrubber content="raw text"
 ```
 
 **Memory Integration Features:**
@@ -146,7 +140,7 @@ claude /scrubber content="raw text"
 - **Review Phase**: Stores code review outcomes and quality metrics
 - **Complete Workflow**: Stores full execution pattern for future optimization
 
-YAMO agents will automatically find tools in `tools/memory_mesh.js` and `tools/scrubber.js`.
+YAMO agents will automatically find tools in `tools/memory_mesh.js`.
 
 ## Docker
 

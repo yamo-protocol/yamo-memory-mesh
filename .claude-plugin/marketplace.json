@@ -60,18 +60,6 @@
       ],
       "memoryIntegration": true
     },
-    {
-      "name": "scrubber",
-      "version": "1.0.0",
-      "description": "Content sanitization using Layer 0 Scrubber principles (removes PII, boilerplate, normalizes structure)",
-      "file": "skills/skill-scrubber.yamo",
-      "capabilities": [
-        "scrub_text",
-        "scrub_file",
-        "remove_pii",
-        "normalize_content"
-      ]
-    }
   ],
   "tools": [
     {
@@ -88,18 +76,6 @@
           "name": "search",
           "description": "Search memories using semantic similarity",
           "usage": "node tools/memory_mesh.js search <query> [limit]"
-        }
-      ]
-    },
-    {
-      "name": "scrubber.js",
-      "description": "Standalone content scrubber CLI",
-      "path": "tools/scrubber.js",
-      "commands": [
-        {
-          "name": "scrub",
-          "description": "Sanitize and clean raw content",
-          "usage": "node tools/scrubber.js scrub <content>"
         }
       ]
     }
@@ -241,8 +217,7 @@
     "examples": [
       "Search workflows: node tools/memory_mesh.js search 'workflow execute npm' 3",
       "Store memory: node tools/memory_mesh.js store 'content' '{\"tag\":\"test\"}'",
-      "Use yamo-super: /yamo-super in Claude Code",
-      "Scrub content: /scrubber content='raw text'"
+      "Use yamo-super: /yamo-super in Claude Code"
     ]
   },
   "changelog": {

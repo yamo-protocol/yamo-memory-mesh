@@ -133,8 +133,7 @@ async function installTools() {
   }
 
   const toolFiles = [
-    { src: 'memory_mesh.js', name: 'Memory Mesh CLI' },
-    { src: 'scrubber.js', name: 'Scrubber CLI' }
+    { src: 'memory_mesh.js', name: 'Memory Mesh CLI' }
   ];
 
   let installed = 0;
@@ -169,7 +168,6 @@ function showUsage() {
 
   log('\n📚 Usage:', 'bright');
   log('  • Use /yamo-super in Claude or Gemini for workflow automation');
-  log('  • Use /scrubber skill for content sanitization');
   log('  • Call tools/memory_mesh.js for memory operations');
 
   log('\n🔗 Learn more:', 'bright');
