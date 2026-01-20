@@ -1,8 +1,8 @@
-# Release Notes v2.2.0 - LLM-Powered Reflections with YAMO Audit Trail
+# Release Notes v2.3.2 - LLM-Powered Reflections with YAMO Audit Trail
 
 **Release Date**: 2026-01-20
-**Version**: 2.2.0
-**Commit**: 08669b8
+**Version**: 2.3.2
+**Commit**: 96e86b5
 
 ---
 
@@ -254,7 +254,7 @@ async getYamoLog(options)      // New: audit log retrieval
 - Added quick setup examples
 
 ### package.json
-**Changes:** Version bump 2.1.3 → 2.2.0
+**Changes:** Version bump 2.1.3 → 2.3.2
 
 ---
 
@@ -557,7 +557,7 @@ const mesh = new MemoryMesh({
 
 ## Migration Guide
 
-### From v2.1.x to v2.2.0
+### From v2.1.x to v2.3.2
 
 **No breaking changes** - existing code works without modification.
 
@@ -574,7 +574,7 @@ cp .env.example .env
 // Before (v2.1.x)
 const mesh = new MemoryMesh();
 
-// After (v2.2.0) - LLM enabled by default
+// After (v2.3.2) - LLM enabled by default
 const mesh = new MemoryMesh({
   enableLLM: true
 });
@@ -648,7 +648,7 @@ const log = await mesh.getYamoLog({ limit: 10 });
 - `add()`: Emits YAMO retain blocks
 - `search()`: Emits YAMO recall blocks
 - README: Added LLM and YAMO documentation
-- package.json: Version bump to 2.2.0
+- package.json: Version bump to 2.3.2
 
 ### Fixed
 - Keyword search type handling bug
@@ -664,4 +664,4 @@ const log = await mesh.getYamoLog({ limit: 10 });
 
 ---
 
-**End of Release Notes v2.2.0**
+**End of Release Notes v2.3.2**
