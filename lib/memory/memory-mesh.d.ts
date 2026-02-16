@@ -106,6 +106,18 @@ export declare class MemoryMesh {
         created_at: string;
     }>;
     /**
+     * Semantic alias for add().
+     * @param content - The text content to store
+     * @param metadata - Optional metadata
+     * @returns Promise with memory record
+     */
+    ingest(content: any, metadata?: {}): Promise<{
+        id: any;
+        content: string;
+        metadata: {};
+        created_at: string;
+    }>;
+    /**
      * Reflect on recent memories
      */
     reflect(options?: {}): Promise<{

@@ -438,6 +438,15 @@ export class MemoryMesh {
         }
     }
     /**
+     * Semantic alias for add().
+     * @param content - The text content to store
+     * @param metadata - Optional metadata
+     * @returns Promise with memory record
+     */
+    async ingest(content, metadata = {}) {
+        return this.add(content, metadata);
+    }
+    /**
      * Reflect on recent memories
      */
     async reflect(options = {}) {
