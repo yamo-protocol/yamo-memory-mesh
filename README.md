@@ -245,7 +245,7 @@ LANCEDB_URI=./data/lancedb
 
 # Embeddings (local default)
 EMBEDDING_MODEL_TYPE=local
-EMBEDDING_MODEL_NAME=Xenova/all-MiniLM-L6-v2
+EMBEDDING_MODEL_NAME=hf_ggml-org_embeddinggemma-300m-qat-Q8_0.gguf
 ```
 
 
