@@ -8,43 +8,26 @@ import { Normalizer } from "./stages/normalizer.js";
 import { Chunker } from "./stages/chunker.js";
 import { MetadataAnnotator } from "./stages/metadata-annotator.js";
 import { Validator } from "./stages/validator.js";
-import { ScrubberTelemetry, TelemetrySummary, StageSummary } from "./telemetry.js";
-import { ScrubberConfig } from "./config/defaults.js";
-export interface ScrubberDocument {
-    content: string;
-    source: string;
-    type: string;
-}
-export interface Chunk {
-    text: string;
-    [key: string]: any;
-}
-export interface ScrubberResult {
-    chunks: Chunk[];
-    metadata: {
-        source: string;
-        type: string;
-        processingTimestamp: string;
-        [key: string]: any;
-    };
-    telemetry: Partial<Record<string, StageSummary>> & {
-        totalDuration?: number;
-    };
-    success?: boolean;
-    error?: string;
-}
 export declare class Scrubber {
-    config: ScrubberConfig;
+    config: any;
     stages: any;
-    telemetry: ScrubberTelemetry;
-    constructor(config?: Partial<ScrubberConfig>);
+    telemetry: any;
+    constructor(config?: {});
     /**
      * Main entry point - process a raw document
      * @param {Object} document - { content: string, source: string, type: 'html'|'md'|'txt' }
      * @returns {Promise<Object>} - { chunks: Array, metadata: Object, telemetry: Object }
      */
-    process(document: ScrubberDocument): Promise<ScrubberResult>;
-    _executeStage<T>(stageName: string, stageFn: () => Promise<T> | T): Promise<T>;
+    process(document: any): Promise<{
+        chunks: any[];
+        metadata: {
+            source: any;
+            type: any;
+            processingTimestamp: string;
+        };
+        telemetry: {};
+    }>;
+    _executeStage(stageName: any, stageFn: any): Promise<any>;
     _initializeStages(): {
         structural: StructuralCleaner;
         semantic: SemanticFilter;
@@ -53,7 +36,7 @@ export declare class Scrubber {
         metadata: MetadataAnnotator;
         validator: Validator;
     };
-    getMetrics(): TelemetrySummary;
+    getMetrics(): any;
     healthCheck(): Promise<{
         status: string;
     }>;

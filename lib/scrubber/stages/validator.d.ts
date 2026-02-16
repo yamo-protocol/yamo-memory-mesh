@@ -1,18 +1,17 @@
 /**
- * Type definitions for validator.js
+ * S-MORA Layer 0 Scrubber - Stage 6: Validation
+ * @module smora/scrubber/stages/validator
  */
-
-export interface ValidatorConfig {
-  strict?: boolean;
-  [key: string]: any;
-}
-
-export interface ValidationResult {
-  valid: boolean;
-  errors?: string[];
-}
-
-export class Validator {
-  constructor(config?: ValidatorConfig);
-  validate(content: string): Promise<ValidationResult>;
+export declare class Validator {
+    constructor(config: any);
+    /**
+     * Validate chunks
+     * @param {Array} chunks - Array of chunks
+     * @returns {Promise<Array>} - Validated chunks
+     */
+    validate(chunks: any): Promise<any[]>;
+    _validateChunk(chunk: any): {
+        valid: boolean;
+        errors: any[];
+    };
 }

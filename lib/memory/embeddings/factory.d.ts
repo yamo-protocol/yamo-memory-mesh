@@ -2,55 +2,53 @@
  * EmbeddingFactory - Multi-provider embedding with automatic fallback
  * Manages primary and fallback embedding services
  */
-import EmbeddingService, { ServiceConfig, ServiceStats } from "./service.js";
-export interface FactoryStats {
-    configured: boolean;
-    primary: ServiceStats | null;
-    fallbacks: ServiceStats[];
-}
-export interface InitResult {
-    success: boolean;
-    primary: string | null;
-    fallbacks: string[];
-}
+import EmbeddingService from "./service.js";
 declare class EmbeddingFactory {
-    primaryService: EmbeddingService | null;
-    fallbackServices: EmbeddingService[];
-    configured: boolean;
-    ServiceClass: typeof EmbeddingService;
+    primaryService: any;
+    fallbackServices: any;
+    configured: any;
+    ServiceClass: any;
     constructor(ServiceClass?: typeof EmbeddingService);
     /**
      * Configure embedding services with fallback chain
      * @param {Array} configs - Array of { modelType, modelName, priority, apiKey }
      * @returns {Object} Success status
      */
-    configure(configs: ServiceConfig[]): {
+    configure(configs: any): {
         success: boolean;
     };
     /**
      * Initialize all configured services
      * @returns {Promise<Object>} Initialization status
      */
-    init(): Promise<InitResult>;
+    init(): Promise<{
+        success: boolean;
+        primary: any;
+        fallbacks: any;
+    }>;
     /**
      * Generate embedding with automatic fallback
      * @param {string} text - Text to embed
      * @param {Object} options - Options
      * @returns {Promise<number[]>} Embedding vector
      */
-    embed(text: string, options?: any): Promise<number[]>;
+    embed(text: any, options?: {}): Promise<any>;
     /**
      * Generate embeddings for batch of texts
      * @param {string[]} texts - Texts to embed
      * @param {Object} options - Options
      * @returns {Promise<number[][]>} Array of embedding vectors
      */
-    embedBatch(texts: string[], options?: any): Promise<number[][]>;
+    embedBatch(texts: any, options?: {}): Promise<any>;
     /**
      * Get factory statistics
      * @returns {Object} Statistics
      */
-    getStats(): FactoryStats;
+    getStats(): {
+        configured: any;
+        primary: any;
+        fallbacks: any;
+    };
     /**
      * Clear all caches
      */

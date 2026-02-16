@@ -8,7 +8,6 @@
  * - text-embedding-3-small: 1536 dimensions
  */
 import * as arrow from "apache-arrow";
-import * as lancedb from "@lancedb/lancedb";
 /**
  * Default vector dimension (all-MiniLM-L6-v2)
  */
@@ -16,38 +15,48 @@ export declare const DEFAULT_VECTOR_DIMENSION = 384;
 /**
  * Common embedding model dimensions
  */
-export declare const EMBEDDING_DIMENSIONS: Record<string, number>;
+export declare const EMBEDDING_DIMENSIONS: {
+    "Xenova/all-MiniLM-L6-v2": number;
+    "Xenova/all-mpnet-base-v2": number;
+    "Xenova/distiluse-base-multilingual-cased-v1": number;
+    "sentence-transformers/all-MiniLM-L6-v2": number;
+    "sentence-transformers/all-mpnet-base-v2": number;
+    "openai/text-embedding-3-small": number;
+    "openai/text-embedding-3-large": number;
+    "cohere/embed-english-light-v3.0": number;
+    "cohere/embed-english-v3.0": number;
+};
 /**
  * Get dimension for a given embedding model
  * @param {string} modelName - Embedding model name or path
  * @returns {number} Vector dimension
  */
-export declare function getEmbeddingDimension(modelName?: string): number;
+export declare function getEmbeddingDimension(modelName: any): any;
 /**
  * Create a memory schema with a specific vector dimension
  * @param {number} vectorDim - Vector dimension (e.g., 384, 768, 1536)
  * @returns {arrow.Schema} Arrow schema with specified dimension
  */
-export declare function createMemorySchema(vectorDim?: number): arrow.Schema;
+export declare function createMemorySchema(vectorDim?: number): arrow.Schema<any>;
 /**
  * Create V2 memory schema with automatic recall fields
  * All new fields are nullable for backward compatibility
  * @param {number} vectorDim - Vector dimension (e.g., 384, 768, 1536)
  * @returns {arrow.Schema} Arrow schema with V2 fields
  */
-export declare function createMemorySchemaV2(vectorDim?: number): arrow.Schema;
+export declare function createMemorySchemaV2(vectorDim?: number): arrow.Schema<any>;
 /**
  * Create schema for synthesized skills (Recursive Skill Synthesis)
  * @param {number} vectorDim - Vector dimension for intent embedding
  * @returns {arrow.Schema} Arrow schema
  */
-export declare function createSynthesizedSkillSchema(vectorDim?: number): arrow.Schema;
+export declare function createSynthesizedSkillSchema(vectorDim?: number): arrow.Schema<any>;
 /**
  * Check if a table is using V2 schema
  * @param {arrow.Schema} schema - Table schema to check
  * @returns {boolean} True if V2 schema detected
  */
-export declare function isSchemaV2(schema: arrow.Schema): boolean;
+export declare function isSchemaV2(schema: any): any;
 /**
  * Memory table schema using Apache Arrow format (default 384 dimensions)
  * @deprecated Use createMemorySchema(vectorDim) for dynamic dimensions
@@ -76,7 +85,7 @@ export declare const INDEX_CONFIG: {
  * @throws {Error} If table creation fails
  * @deprecated Use createMemoryTableWithDimension() for dynamic dimensions
  */
-export declare function createMemoryTable(db: lancedb.Connection, tableName?: string): Promise<lancedb.Table>;
+export declare function createMemoryTable(db: any, tableName?: string): Promise<any>;
 /**
  * Creates a memory table in LanceDB with a specific vector dimension
  * @param {lancedb.Connection} db - LanceDB connection
@@ -85,7 +94,7 @@ export declare function createMemoryTable(db: lancedb.Connection, tableName?: st
  * @returns {Promise<lancedb.Table>} The created or opened table
  * @throws {Error} If table creation fails
  */
-export declare function createMemoryTableWithDimension(db: lancedb.Connection, tableName: string, vectorDim: number): Promise<lancedb.Table>;
+export declare function createMemoryTableWithDimension(db: any, tableName: any, vectorDim: any): Promise<any>;
 declare const _default: {
     MEMORY_SCHEMA: arrow.Schema<any>;
     INDEX_CONFIG: {
@@ -106,6 +115,16 @@ declare const _default: {
     isSchemaV2: typeof isSchemaV2;
     getEmbeddingDimension: typeof getEmbeddingDimension;
     DEFAULT_VECTOR_DIMENSION: number;
-    EMBEDDING_DIMENSIONS: Record<string, number>;
+    EMBEDDING_DIMENSIONS: {
+        "Xenova/all-MiniLM-L6-v2": number;
+        "Xenova/all-mpnet-base-v2": number;
+        "Xenova/distiluse-base-multilingual-cased-v1": number;
+        "sentence-transformers/all-MiniLM-L6-v2": number;
+        "sentence-transformers/all-mpnet-base-v2": number;
+        "openai/text-embedding-3-small": number;
+        "openai/text-embedding-3-large": number;
+        "cohere/embed-english-light-v3.0": number;
+        "cohere/embed-english-v3.0": number;
+    };
 };
 export default _default;

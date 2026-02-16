@@ -2,43 +2,31 @@
  * Simple Keyword Search Engine (In-Memory)
  * Provides basic TF-IDF style retrieval to complement vector search
  */
-export interface KeywordDoc {
-    content: string;
-    metadata?: any;
-}
-export interface KeywordSearchResult extends KeywordDoc {
-    id: string;
-    score: number;
-    matches: string[];
-}
-export interface SearchOptions {
-    limit?: number;
-}
 export declare class KeywordSearch {
-    index: Map<string, Map<string, number>>;
-    docLengths: Map<string, number>;
-    idf: Map<string, number>;
-    docs: Map<string, KeywordDoc>;
-    isDirty: boolean;
+    index: any;
+    docLengths: any;
+    idf: any;
+    docs: any;
+    isDirty: any;
     constructor();
     /**
      * Tokenize text into normalized terms
      * @param {string} text
      * @returns {string[]} tokens
      */
-    tokenize(text: string): string[];
+    tokenize(text: any): any;
     /**
      * Add a document to the index
      * @param {string} id
      * @param {string} content
      * @param {Object} [metadata]
      */
-    add(id: string, content: string, metadata?: any): void;
+    add(id: any, content: any, metadata?: {}): void;
     /**
      * Remove a document
      * @param {string} id
      */
-    remove(id: string): void;
+    remove(id: any): void;
     /**
      * Recalculate IDF scores
      */
@@ -49,14 +37,10 @@ export declare class KeywordSearch {
      * @param {Object} options
      * @returns {Array<{id: string, score: number, matches: string[], content: string, metadata: Object}>}
      */
-    search(query: string, options?: SearchOptions): KeywordSearchResult[];
+    search(query: any, options?: {}): any[];
     /**
      * Bulk load records
      * @param {Array} records
      */
-    load(records: {
-        id: string;
-        content: string;
-        metadata?: any;
-    }[]): void;
+    load(records: any): void;
 }

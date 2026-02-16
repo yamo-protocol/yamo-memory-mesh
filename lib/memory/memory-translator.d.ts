@@ -1,11 +1,6 @@
 /**
  * MemoryTranslator - Converts memories to YAMO agent format
  */
-export interface TranslationOptions {
-    mode?: string;
-    includeMetadata?: boolean;
-    maxContentLength?: number;
-}
 export declare class MemoryTranslator {
     #private;
     /**
@@ -14,6 +9,6 @@ export declare class MemoryTranslator {
      * @param {TranslationOptions} options - Translation options
      * @returns {string} Formatted YAMO agent context
      */
-    static toYAMOContext(memories: any[], options?: TranslationOptions): string;
+    static toYAMOContext(memories: any, options?: {}): string;
 }
 export default MemoryTranslator;

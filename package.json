@@ -16,7 +16,9 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test test/*.test.js",
+    "test": "npm run build && npx tsx --test test/**/*.test.ts",
+    "test:unit": "npx tsx --test test/unit/*.test.ts",
+    "test:e2e": "npm run build && npx tsx --test test/e2e/*.test.ts",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },

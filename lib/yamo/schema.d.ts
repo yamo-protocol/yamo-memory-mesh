@@ -6,13 +6,12 @@
  * YAMO blocks provide audit trail for all memory operations.
  */
 import * as arrow from "apache-arrow";
-import * as lancedb from "@lancedb/lancedb";
 /**
  * Create YAMO blocks table schema
  * Defines the structure for storing YAMO protocol blocks
  * @returns {arrow.Schema} Arrow schema for YAMO blocks
  */
-export declare function createYamoSchema(): arrow.Schema;
+export declare function createYamoSchema(): arrow.Schema<any>;
 /**
  * Create YAMO blocks table in LanceDB
  * Creates the table if it doesn't exist, opens it if it does
@@ -22,16 +21,15 @@ export declare function createYamoSchema(): arrow.Schema;
  * @returns {Promise<lancedb.Table>} The created or opened table
  * @throws {Error} If table creation fails
  */
-export declare function createYamoTable(db: lancedb.Connection, tableName?: string): Promise<lancedb.Table>;
-export interface YamoRecordValidationResult {
-    valid: boolean;
-    errors: string[];
-}
+export declare function createYamoTable(db: any, tableName?: string): Promise<any>;
 /**
  * Validate a YAMO block record before insertion
  * Checks for required fields and valid values
  */
-export declare function validateYamoRecord(record: any): YamoRecordValidationResult;
+export declare function validateYamoRecord(record: any): {
+    valid: boolean;
+    errors: any[];
+};
 /**
  * Generate a YAMO block ID
  * Creates a unique ID for a YAMO block
@@ -39,7 +37,7 @@ export declare function validateYamoRecord(record: any): YamoRecordValidationRes
  * @param {string} operationType - Type of operation
  * @returns {string} Generated YAMO block ID
  */
-export declare function generateYamoId(operationType: string): string;
+export declare function generateYamoId(operationType: any): string;
 /**
  * Check if a table uses YAMO schema
  * Detects if a table has the YAMO block schema structure
@@ -47,7 +45,7 @@ export declare function generateYamoId(operationType: string): string;
  * @param {arrow.Schema} schema - Table schema to check
  * @returns {boolean} True if YAMO schema detected
  */
-export declare function isYamoSchema(schema: arrow.Schema): boolean;
+export declare function isYamoSchema(schema: any): any;
 declare const _default: {
     createYamoSchema: typeof createYamoSchema;
     createYamoTable: typeof createYamoTable;

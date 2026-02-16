@@ -1,71 +1,22 @@
 /**
- * LanceDB Client Wrapper
- *
- * A comprehensive wrapper around LanceDB JavaScript SDK providing:
- * - Connection management with pooling and retries
- * - CRUD operations for memory entries
- * - Vector similarity search with filtering
- * - Database statistics and monitoring
- *
- * @class LanceDBClient
- */
-import * as lancedb from "@lancedb/lancedb";
-/**
- * LanceDB driver interface for dependency injection/testing
- */
-export interface LanceDBDriver {
-    connect(uri: string): Promise<lancedb.Connection>;
-}
-export interface ClientConfig {
-    uri?: string;
-    tableName?: string;
-    maxRetries?: number;
-    retryDelay?: number;
-    vectorDimension?: number;
-    driver?: LanceDBDriver;
-}
-export interface MemoryEntry {
-    id: string;
-    vector: number[];
-    content: string;
-    metadata?: string | Record<string, any> | null;
-    created_at?: Date | string;
-    updated_at?: Date | string;
-}
-export interface SearchResult extends MemoryEntry {
-    score?: number;
-}
-export interface SearchOptions {
-    limit?: number;
-    metric?: string;
-    nprobes?: number;
-    filter?: string | null;
-}
-export interface Stats {
-    tableName: string;
-    uri: string;
-    count: number;
-    isConnected: boolean;
-}
-/**
  * LanceDB Client wrapper class
  */
 export declare class LanceDBClient {
-    uri: string;
-    tableName: string;
-    maxRetries: number;
-    retryDelay: number;
-    vectorDimension: number;
-    driver: LanceDBDriver;
-    db: lancedb.Connection | null;
-    table: lancedb.Table | null;
-    isConnected: boolean;
-    private tempDir?;
+    uri: any;
+    tableName: any;
+    maxRetries: any;
+    retryDelay: any;
+    vectorDimension: any;
+    driver: any;
+    db: any;
+    table: any;
+    isConnected: any;
+    tempDir: any;
     /**
      * Create a new LanceDBClient instance
      * @param {Object} [config={}] - Configuration object
      */
-    constructor(config?: ClientConfig);
+    constructor(config?: {});
     /**
      * Connect to LanceDB and initialize table
      * Creates the database directory and table if they don't exist
@@ -84,20 +35,14 @@ export declare class LanceDBClient {
      * @returns {Promise<Object>} Result with id and success status
      * @throws {StorageError} If add operation fails
      */
-    add(data: MemoryEntry): Promise<{
-        id: string;
-        success: boolean;
-    }>;
+    add(data: any): Promise<any>;
     /**
      * Add multiple memory entries in batch
      * @param {Array<Object>} records - Array of entry data objects
      * @returns {Promise<Object>} Result with count of added records
      * @throws {StorageError} If batch add fails
      */
-    addBatch(records: MemoryEntry[]): Promise<{
-        count: number;
-        success: boolean;
-    }>;
+    addBatch(records: any): Promise<any>;
     /**
      * Search for similar vectors
      * @param {Array<number>} vector - Query vector (384 dimensions)
@@ -105,32 +50,27 @@ export declare class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with scores
      * @throws {QueryError} If search fails
      */
-    search(vector: number[], options?: SearchOptions): Promise<SearchResult[]>;
+    search(vector: any, options?: {}): Promise<any>;
     /**
      * Get a record by ID
      * @param {string} id - Record ID
      * @returns {Promise<Object|null>} Record object or null if not found
      * @throws {QueryError} If query fails
      */
-    getById(id: string): Promise<MemoryEntry | null>;
+    getById(id: any): Promise<any>;
     /**
      * Get all records from the database
      * @param {Object} options - Options
      * @returns {Promise<Array<Object>>} Array of all records
      */
-    getAll(options?: {
-        limit?: number;
-    }): Promise<MemoryEntry[]>;
+    getAll(options?: {}): Promise<any>;
     /**
      * Delete a record by ID
      * @param {string} id - Record ID to delete
      * @returns {Promise<Object>} Result with success status
      * @throws {StorageError} If delete fails
      */
-    delete(id: string): Promise<{
-        id: string;
-        success: boolean;
-    }>;
+    delete(id: any): Promise<any>;
     /**
      * Update an existing record
      * @param {string} id - Record ID to update
@@ -138,22 +78,19 @@ export declare class LanceDBClient {
      * @returns {Promise<Object>} Result with success status
      * @throws {StorageError} If update fails
      */
-    update(id: string, data: Partial<MemoryEntry>): Promise<{
-        id: string;
-        success: boolean;
-    }>;
+    update(id: any, data: any): Promise<any>;
     /**
      * Get database statistics
      * @returns {Promise<Object>} Statistics including count, size, etc.
      * @throws {QueryError} If stats query fails
      */
-    getStats(): Promise<Stats>;
+    getStats(): Promise<any>;
     /**
      * Sanitize an ID to prevent SQL injection
      * Removes any characters that aren't alphanumeric, underscore, or hyphen
      * @private
      */
-    _sanitizeId(id: string): string;
+    _sanitizeId(id: any): any;
     /**
      * Validate a record object
      * @private
@@ -168,7 +105,7 @@ export declare class LanceDBClient {
      * Sleep for a specified duration
      * @private
      */
-    _sleep(ms: number): Promise<void>;
+    _sleep(ms: any): Promise<unknown>;
     /**
      * Check if an error is retryable (transient network/connection issues)
      * @private
@@ -178,6 +115,6 @@ export declare class LanceDBClient {
      * Retry an operation with exponential backoff
      * @private
      */
-    _retryOperation<T>(operation: () => Promise<T>, maxRetries?: number, baseDelay?: number): Promise<T>;
+    _retryOperation(operation: any, maxRetries: any, baseDelay: any): Promise<any>;
 }
 export default LanceDBClient;

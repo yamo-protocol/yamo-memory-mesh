@@ -1,85 +1,35 @@
 /**
- * Memory Mesh - Vector Memory Storage with LanceDB
- * Provides persistent semantic memory for YAMO OS using LanceDB backend
- *
- * CLI Interface:
- *   node tools/memory_mesh.js ingest '{"content": "...", "metadata": {...}}'
- *   node tools/memory_mesh.js search '{"query": "...", "limit": 10}'
- *   node tools/memory_mesh.js get '{"id": "..."}'
- *   node tools/memory_mesh.js delete '{"id": "..."}'
- *   node tools/memory_mesh.js stats '{}'
- *
- * Also supports STDIN input for YAMO skill compatibility:
- *   echo '{"action": "ingest", "content": "..."}' | node tools/memory_mesh.js
- */
-import { LanceDBClient } from "./adapters/client.js";
-import { Config } from "./adapters/config.js";
-import EmbeddingFactory from "./embeddings/factory.js";
-import { Scrubber } from "../scrubber/scrubber.js";
-import { KeywordSearch } from "./search/keyword-search.js";
-import { LLMClient } from "../llm/client.js";
-import * as lancedb from "@lancedb/lancedb";
-export interface MemoryMeshOptions {
-    enableYamo?: boolean;
-    enableLLM?: boolean;
-    enableMemory?: boolean;
-    agentId?: string;
-    llmProvider?: string;
-    llmApiKey?: string;
-    llmModel?: string;
-    llmMaxTokens?: number;
-    skill_directories?: string | string[];
-    dbDir?: string;
-}
-export interface MemoryEntry {
-    id: string;
-    content: string;
-    vector: number[];
-    metadata: string;
-}
-export interface SearchResult extends MemoryEntry {
-    score: number;
-    [key: string]: any;
-}
-export interface CacheEntry {
-    result: SearchResult[];
-    timestamp: number;
-}
-/**
  * MemoryMesh class for managing vector memory storage
  */
 export declare class MemoryMesh {
-    client: LanceDBClient | null;
-    config: Config | null;
-    embeddingFactory: EmbeddingFactory;
-    keywordSearch: KeywordSearch;
-    isInitialized: boolean;
-    vectorDimension: number;
-    enableYamo: boolean;
-    enableLLM: boolean;
-    enableMemory: boolean;
-    agentId: string;
-    yamoTable: lancedb.Table | null;
-    skillTable: lancedb.Table | null;
-    llmClient: LLMClient | null;
-    scrubber: Scrubber;
-    queryCache: Map<string, CacheEntry>;
-    cacheConfig: {
-        maxSize: number;
-        ttlMs: number;
-    };
-    skillDirectories: string[];
-    dbDir?: string;
+    client: any;
+    config: any;
+    embeddingFactory: any;
+    keywordSearch: any;
+    isInitialized: any;
+    vectorDimension: any;
+    enableYamo: any;
+    enableLLM: any;
+    enableMemory: any;
+    agentId: any;
+    yamoTable: any;
+    skillTable: any;
+    llmClient: any;
+    scrubber: any;
+    queryCache: any;
+    cacheConfig: any;
+    skillDirectories: any;
+    dbDir: any;
     /**
      * Create a new MemoryMesh instance
      * @param {Object} [options={}]
      */
-    constructor(options?: MemoryMeshOptions);
+    constructor(options?: {});
     /**
      * Generate a cache key from query and options
      * @private
      */
-    _generateCacheKey(query: string, options?: any): string;
+    _generateCacheKey(query: any, options?: {}): string;
     /**
      * Get cached result if valid
      * @private
@@ -88,12 +38,12 @@ export declare class MemoryMesh {
      * where another operation could observe the key as missing. We use a try-finally
      * pattern to ensure atomicity at the application level.
      */
-    _getCachedResult(key: string): SearchResult[] | null;
+    _getCachedResult(key: any): any;
     /**
      * Cache a search result
      * @private
      */
-    _cacheResult(key: string, result: SearchResult[]): void;
+    _cacheResult(key: any, result: any): void;
     /**
      * Clear all cached results
      */
@@ -101,17 +51,21 @@ export declare class MemoryMesh {
     /**
      * Get cache statistics
      */
-    getCacheStats(): any;
+    getCacheStats(): {
+        size: any;
+        maxSize: any;
+        ttlMs: any;
+    };
     /**
      * Validate and sanitize metadata to prevent prototype pollution
      * @private
      */
-    _validateMetadata(metadata: any): Record<string, any>;
+    _validateMetadata(metadata: any): {};
     /**
      * Sanitize and validate content before storage
      * @private
      */
-    _sanitizeContent(content: string): string;
+    _sanitizeContent(content: any): string;
     /**
      * Initialize the LanceDB client
      */
@@ -145,46 +99,116 @@ export declare class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    add(content: string, metadata?: any): Promise<any>;
+    add(content: any, metadata?: {}): Promise<{
+        id: any;
+        content: string;
+        metadata: {};
+        created_at: string;
+    }>;
     /**
      * Reflect on recent memories
      */
-    reflect(options?: any): Promise<any>;
+    reflect(options?: {}): Promise<{
+        topic: any;
+        count: number;
+        context: {
+            content: any;
+            type: any;
+            id: any;
+        }[];
+        prompt: string;
+        id?: undefined;
+        reflection?: undefined;
+        confidence?: undefined;
+        sourceMemoryCount?: undefined;
+        yamoBlock?: undefined;
+        createdAt?: undefined;
+    } | {
+        id: string;
+        topic: any;
+        reflection: string;
+        confidence: number;
+        sourceMemoryCount: number;
+        yamoBlock: any;
+        createdAt: string;
+        count?: undefined;
+        context?: undefined;
+        prompt?: undefined;
+    }>;
     /**
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    ingestSkill(yamoText: string, metadata?: any, sourceFilePath?: string): Promise<any>;
+    ingestSkill(yamoText: any, metadata: {}, sourceFilePath: any): Promise<{
+        id: string;
+        name: any;
+        intent: any;
+    }>;
     /**
      * Recursive Skill Synthesis
      */
-    synthesize(options?: any): Promise<any>;
+    synthesize(options?: {}): Promise<{
+        status: string;
+        analysis: string;
+        skill_id: string;
+        skill_name: any;
+        yamo_text: string;
+        error?: undefined;
+    } | {
+        status: string;
+        analysis: string;
+        skill_name: any;
+        skill_id?: undefined;
+        yamo_text?: undefined;
+        error?: undefined;
+    } | {
+        status: string;
+        error: any;
+        analysis: string;
+        skill_id?: undefined;
+        skill_name?: undefined;
+        yamo_text?: undefined;
+    } | {
+        status: string;
+        analysis: string;
+        skill_id?: undefined;
+        skill_name?: undefined;
+        yamo_text?: undefined;
+        error?: undefined;
+    }>;
     /**
      * Update reliability
      */
-    updateSkillReliability(id: string, success: boolean): Promise<any>;
+    updateSkillReliability(id: any, success: any): Promise<{
+        id: any;
+        reliability: any;
+        use_count: any;
+    }>;
     /**
      * Prune skills
      */
-    pruneSkills(threshold?: number): Promise<any>;
+    pruneSkills(threshold?: number): Promise<{
+        pruned_count: number;
+        total_remaining: number;
+    }>;
     /**
      * List all synthesized skills
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    listSkills(options?: any): Promise<any[]>;
+    listSkills(options?: {}): Promise<any>;
     /**
      * Search for synthesized skills by semantic intent
      * @param {string} query - Search query (intent description)
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    searchSkills(query: string, options?: any): Promise<any[]>;
+    searchSkills(query: any, options?: {}): Promise<any>;
     /**
      * Get recent YAMO logs for the heartbeat
      * @param {Object} options
      */
-    getYamoLog(options?: any): Promise<any[]>;
+    getYamoLog(options?: {}): Promise<any>;
     /**
      * Emit a YAMO block to the YAMO blocks table
      * @private
@@ -192,7 +216,7 @@ export declare class MemoryMesh {
      * Note: YAMO emission is non-critical - failures are logged but don't throw
      * to prevent disrupting the main operation.
      */
-    _emitYamoBlock(operationType: string, memoryId: string | undefined, yamoText: string): Promise<void>;
+    _emitYamoBlock(operationType: any, memoryId: any, yamoText: any): Promise<void>;
     /**
      * Search memory using hybrid vector + keyword search with Reciprocal Rank Fusion (RRF).
      *
@@ -232,19 +256,53 @@ export declare class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    search(query: string, options?: any): Promise<SearchResult[]>;
-    _normalizeScores(results: SearchResult[]): SearchResult[];
+    search(query: any, options?: {}): Promise<any>;
+    _normalizeScores(results: any): any;
     /**
      * Tokenize query for keyword matching (private helper for searchSkills)
      * Converts text to lowercase tokens, filtering out short tokens and punctuation.
      * Handles camelCase/PascalCase by splitting on uppercase letters.
      */
-    private _tokenizeQuery;
-    formatResults(results: SearchResult[]): string;
-    get(id: string): Promise<any>;
-    getAll(options?: any): Promise<any>;
-    stats(): Promise<any>;
-    _parseEmbeddingConfig(): any[];
+    _tokenizeQuery(text: any): any;
+    formatResults(results: any): string;
+    get(id: any): Promise<{
+        id: any;
+        content: any;
+        metadata: any;
+        created_at: any;
+        updated_at: any;
+    }>;
+    getAll(options?: {}): Promise<any>;
+    stats(): Promise<{
+        count: number;
+        totalMemories: number;
+        totalSkills: number;
+        tableName: string;
+        uri: string;
+        isConnected: boolean;
+        embedding: {
+            configured: boolean;
+            primary: any;
+            fallbacks: any[];
+        };
+        status: string;
+    } | {
+        count: any;
+        totalMemories: any;
+        totalSkills: number;
+        tableName: any;
+        uri: any;
+        isConnected: any;
+        embedding: any;
+        status?: undefined;
+    }>;
+    _parseEmbeddingConfig(): {
+        modelType: string;
+        modelName: string;
+        dimension: number;
+        priority: number;
+        apiKey: string;
+    }[];
     /**
      * Close database connections and release resources
      *

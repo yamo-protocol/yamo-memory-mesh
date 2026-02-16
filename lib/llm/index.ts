@@ -1,10 +1,9 @@
+// @ts-nocheck
 /**
  * YAMO LLM Module
  * Large Language Model client abstraction
  */
-
 export { LLMClient } from "./client.js";
-
 /**
  * Self-RefiningExtractor is now implemented as a YAMO skill.
  * Use: skill-self-refining-extractor.yamo

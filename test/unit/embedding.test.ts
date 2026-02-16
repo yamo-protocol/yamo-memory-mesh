@@ -1,9 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import EmbeddingFactory from '../lib/embeddings/factory.js';
+import EmbeddingFactory from '../../lib/memory/embeddings/factory.js';
 
 class MockService {
-  constructor(config) {
+  modelName: string;
+  initialized: boolean;
+  failInit: boolean;
+  failEmbed: boolean;
+
+  constructor(config: any) {
     this.modelName = config.modelName;
     this.initialized = false;
     this.failInit = config.modelName.includes('fail-init');
@@ -15,18 +20,21 @@ class MockService {
     this.initialized = true;
   }
 
-  async embed(text) {
+  async embed(text: string) {
     if (this.failEmbed) throw new Error('Embed failed');
     return [0.1, 0.2, 0.3];
   }
   
   getStats() { return {}; }
   clearCache() {}
+  async embedBatch(texts: string[]) {
+    return texts.map(() => [0.1, 0.2, 0.3]);
+  }
 }
 
 describe('EmbeddingFactory', () => {
   it('should configure services by priority', async () => {
-    const factory = new EmbeddingFactory(MockService);
+    const factory = new (EmbeddingFactory as any)(MockService);
     factory.configure([
       { modelName: 'low-prio', priority: 2 },
       { modelName: 'high-prio', priority: 1 }
@@ -37,7 +45,7 @@ describe('EmbeddingFactory', () => {
   });
 
   it('should fallback if primary fails', async () => {
-    const factory = new EmbeddingFactory(MockService);
+    const factory = new (EmbeddingFactory as any)(MockService);
     factory.configure([
       { modelName: 'fail-embed', priority: 1 },
       { modelName: 'backup', priority: 2 }

@@ -1,103 +1,78 @@
 /**
- * LLM Client - Multi-provider LLM API client for reflection generation
- *
- * Supports:
- * - OpenAI (GPT-4, GPT-4o-mini, etc.)
- * - Anthropic (Claude)
- * - Ollama (local models)
- * - Graceful fallback when LLM unavailable
- */
-export interface LLMConfig {
-    provider?: string;
-    apiKey?: string;
-    model?: string;
-    baseUrl?: string;
-    timeout?: number;
-    maxRetries?: number;
-    maxTokens?: number;
-}
-export interface ReflectionResult {
-    reflection: string;
-    confidence: number;
-}
-export interface LLMStats {
-    totalRequests: number;
-    successfulRequests: number;
-    failedRequests: number;
-    fallbackCount: number;
-}
-/**
  * LLMClient provides unified interface for calling various LLM providers
  * to generate reflections from memory contexts.
  */
 export declare class LLMClient {
-    provider: string;
-    apiKey: string;
-    model: string;
-    baseUrl: string;
-    timeout: number;
-    maxRetries: number;
-    maxTokens: number;
-    stats: LLMStats;
+    provider: any;
+    apiKey: any;
+    model: any;
+    baseUrl: any;
+    timeout: any;
+    maxRetries: any;
+    maxTokens: any;
+    stats: any;
     /**
      * Create a new LLMClient instance
      */
-    constructor(config?: LLMConfig);
+    constructor(config?: {});
     /**
      * Get default model for provider
      * @private
      */
-    _getDefaultModel(): string;
+    _getDefaultModel(): any;
     /**
      * Get default base URL for provider
      * @private
      */
-    _getDefaultBaseUrl(): string;
+    _getDefaultBaseUrl(): any;
     /**
      * Generate reflection from memories
      * Main entry point for reflection generation
      */
-    reflect(prompt: string, memories: any[]): Promise<ReflectionResult>;
+    reflect(prompt: any, memories: any): Promise<any>;
     /**
      * Format memories for LLM consumption
      * @private
      */
-    _formatMemoriesForLLM(prompt: string, memories: any[]): string;
+    _formatMemoriesForLLM(prompt: any, memories: any): string;
     /**
      * Call LLM with retry logic
      * @private
      */
-    _callWithRetry(systemPrompt: string, userContent: string): Promise<string>;
+    _callWithRetry(systemPrompt: any, userContent: any): Promise<any>;
     /**
      * Call LLM based on provider
      * @private
      */
-    _callLLM(systemPrompt: string, userContent: string): Promise<string>;
+    _callLLM(systemPrompt: any, userContent: any): Promise<any>;
     /**
      * Call OpenAI API
      * @private
      */
-    _callOpenAI(systemPrompt: string, userContent: string): Promise<string>;
+    _callOpenAI(systemPrompt: any, userContent: any): Promise<any>;
     /**
      * Call Anthropic (Claude) API
      * @private
      */
-    _callAnthropic(systemPrompt: string, userContent: string): Promise<string>;
+    _callAnthropic(systemPrompt: any, userContent: any): Promise<any>;
     /**
      * Call Ollama (local) API
      * @private
      */
-    _callOllama(systemPrompt: string, userContent: string): Promise<string>;
+    _callOllama(systemPrompt: any, userContent: any): Promise<any>;
     /**
      * Fallback when LLM fails
      * @private
      */
-    _fallback(reason: string, memories?: any[]): ReflectionResult;
+    _fallback(reason: any, memories?: any[]): {
+        reflection: string;
+        confidence: number;
+    };
     /**
      * Sleep utility
      * @private
      */
-    _sleep(ms: number): Promise<void>;
+    _sleep(ms: any): Promise<unknown>;
     /**
      * Get client statistics
      * @returns {Object} Statistics
