@@ -5,7 +5,7 @@
  * Delegates to the core CLI handler in lib/memory/memory-mesh.js
  */
 
-import { run } from '../lib/memory/memory-mesh.js';
+import { run } from '@yamo/memory-mesh';
 
 // Execute the main CLI handler
 run().catch(err => {
