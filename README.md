@@ -217,9 +217,15 @@ LANCEDB_MEMORY_TABLE=memory_entries
 
 ```bash
 # Embedding model settings
-EMBEDDING_MODEL_TYPE=local    # 'local', 'openai', 'cohere', 'ollama'
-EMBEDDING_MODEL_NAME=Xenova/all-MiniLM-L6-v2
+EMBEDDING_MODEL_TYPE=local    # 'local', 'ollama', 'openai', 'cohere'
+
+# Recommended: Gemma-300m for v3.0 Singularity Fidelity (matches OpenClaw)
+EMBEDDING_MODEL_NAME=hf_ggml-org_embeddinggemma-300m-qat-Q8_0.gguf
 EMBEDDING_DIMENSION=384
+
+# Lightweight Default (fallback)
+# EMBEDDING_MODEL_NAME=Xenova/all-MiniLM-L6-v2
+# EMBEDDING_DIMENSION=384
 ```
 
 ### Example .env File

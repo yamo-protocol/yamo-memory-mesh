@@ -113,8 +113,9 @@ User/Agent Request
 ┌──────────────────────────────────────────────────────────┐
 │ EmbeddingFactory.embed(cleaned_content)                  │
 │                                                           │
-│ Try Primary Service (Local ONNX)                         │
-│   - Model: Xenova/all-MiniLM-L6-v2                       │
+│ Try Primary Service (Local GGUF/ONNX)                    │
+│   - High-Fidelity: Gemma-300m (GGUF)                     │
+│   - Lightweight: Xenova/all-MiniLM-L6-v2 (ONNX)          │
 │   - Dimension: 384                                       │
 │   - Check LRU cache (1000 entries)                       │
 │   - If cached: return immediately                        │
