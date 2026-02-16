@@ -21,7 +21,7 @@ Memory Mesh is a **self-improving semantic memory system** for AI agents that co
 ┌─────────────────────────────────────────────────────────────┐
 │  CLI Adapter Layer (tools/memory_mesh.js)                  │
 │  - Agent-discoverable interface                             │
-│  - JSON-based store/search operations                       │
+│  - Flag-based store/search operations                       │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -852,12 +852,12 @@ constraints:
 
 ### 6. Agent-Discoverable CLI
 
-**Decision:** Agents read `tools/memory_mesh.js` source code to understand API.
+**Decision:** Agents read `bin/memory_mesh.js` source code to understand API.
 
 **Rationale:**
 - No schema/docs needed - code IS the spec
 - Self-describing interface
-- Portable across languages (JSON I/O)
+- Portable across languages (Flag-based protocol)
 
 **Trade-off:**
 - Agents must parse JavaScript
@@ -1083,7 +1083,7 @@ const health = await memoryMesh.healthCheck();
 
 ```bash
 export YAMO_DEBUG=true
-node tools/memory_mesh.js store "content" '{"tag":"test"}'
+node tools/memory_mesh.sh store --content "content" --type "test"
 
 # Output:
 [DEBUG] MemoryMesh: Initializing...

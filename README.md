@@ -27,10 +27,10 @@ npm install @yamo/memory-mesh
 
 ```bash
 # Store a memory (automatically scrubbed & embedded)
-memory-mesh store "My important memory" '{"tag":"test"}'
+memory-mesh store --content "My important memory" --type "insight" --rationale "Documentation upgrade"
 
 # Search memories
-memory-mesh search "query" 5
+memory-mesh search "query" --limit 5
 ```
 
 ### Node.js API
