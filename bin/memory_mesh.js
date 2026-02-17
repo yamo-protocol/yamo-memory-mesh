@@ -53,7 +53,64 @@ program
     }
   });
 
-// 2. Search Command
+// 2. Directory Ingest Command
+program
+  .command('ingest-dir')
+  .description('Recursively ingest a directory of files')
+  .argument('<path>', 'Directory path to ingest')
+  .option('-e, --extension <ext>', 'Filter by file extension (e.g., .yamo, .md)', '')
+  .option('-t, --type <type>', 'Memory type for all files', 'documentation')
+  .option('-r, --recursive', 'Ingest subdirectories', false)
+  .action(async (dirPath, options) => {
+    const mesh = new MemoryMesh();
+    try {
+      const absolutePath = path.resolve(dirPath);
+      if (!fs.existsSync(absolutePath)) {
+        throw new Error(`Directory not found: ${absolutePath}`);
+      }
+
+      const files = [];
+      const walk = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory() && options.recursive) {
+            walk(fullPath);
+          } else if (entry.isFile()) {
+            if (!options.extension || entry.name.endsWith(options.extension)) {
+              files.push(fullPath);
+            }
+          }
+        }
+      };
+
+      walk(absolutePath);
+      process.stdout.write(`[MemoryMesh] Found ${files.length} files to ingest...\n`);
+
+      for (const file of files) {
+        const content = fs.readFileSync(file, 'utf-8');
+        if (!content.trim()) continue;
+
+        const metadata = {
+          source: path.relative(process.cwd(), file),
+          ingested_at: new Date().toISOString(),
+          type: options.type
+        };
+
+        const record = await mesh.add(content, metadata);
+        process.stdout.write(`  ✓ Ingested: ${metadata.source} (${record.id})\n`);
+      }
+
+      process.stdout.write(`[MemoryMesh] Completed bulk ingestion of ${files.length} files.\n`);
+    } catch (err) {
+      console.error(`❌ Error: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 3. Search Command
 program
   .command('search')
   .description('Perform semantic recall')
