@@ -1,16 +1,24 @@
-# MemoryMesh
+# MemoryMesh (v3.1.0 Singularity Edition)
 
-Portable, semantic memory system for AI agents with automatic Layer 0 sanitization.
+Portable, semantic memory system for AI agents with automatic Layer 0 sanitization and **Autonomous Kernel Integration**.
 
 Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent agent collaboration with structured workflows and immutable provenance.
+
+## 🌌 Singularity Edition Highlights
+
+- **Intelligent Installer**: Automatically detects OpenClaw workspaces and performs a full kernel upgrade.
+- **YAMO Unified OS (v3.0)**: Natively includes the complete Macro (Specification) and Micro (Execution) workflow suite.
+- **Ghost Protection**: Self-healing `AGENTS.md` injection to prevent narrative drift and maintain cognitive alignment.
+- **Autonomous Bootstrap**: Deploys `BOOTSTRAP.yamo` as the primary agent entry point for protocol-native execution.
+- **Surgical Deployment**: Intelligently skips global CLI clutter when working in project-specific modes.
 
 ## Features
 
 - **Persistent Vector Storage**: Powered by LanceDB for semantic search.
 - **Layer 0 Scrubber**: Automatically sanitizes, deduplicates, and cleans content before embedding.
 - **Local Embeddings**: Runs 100% locally using ONNX (no API keys required).
-- **Portable CLI**: Simple JSON-based interface for any agent or language.
-- **YAMO Skills Integration**: Includes yamo-super workflow system with automatic memory learning.
+- **Portable CLI**: Simple flag-based interface for any agent or language (`tools/memory_mesh.mjs`).
+- **YAMO Skills Integration**: Includes the Unified OS workflow system with automatic memory learning.
 - **Pattern Recognition**: Workflows automatically store and retrieve execution patterns for optimization.
 - **LLM-Powered Reflections**: Generate insights from memories using configurable LLM providers.
 - **YAMO Audit Trail**: Automatic emission of structured blocks for all memory operations.
@@ -23,14 +31,28 @@ npm install @yamo/memory-mesh
 
 ## Usage
 
+### 🚀 Singularity Setup (OpenClaw)
+
+To upgrade your workspace to v3.1 fidelity:
+
+```bash
+npx memory-mesh-setup
+```
+
+The installer will:
+1.  Configure your `.env` substrate.
+2.  Deploy the **BOOTSTRAP.yamo** kernel entry point.
+3.  Inject **Ghost Protection** into `AGENTS.md`.
+4.  Deploy **Native Kernel Modules** to `yamo-native-agent/`.
+
 ### CLI
 
 ```bash
 # Store a memory (automatically scrubbed & embedded)
-memory-mesh store --content "My important memory" --type "insight" --rationale "Documentation upgrade"
+node tools/memory_mesh.mjs store --content "My important memory" --type "insight"
 
 # Search memories
-memory-mesh search "query" --limit 5
+node tools/memory_mesh.mjs search "query" --limit 5
 ```
 
 ### Node.js API
