@@ -1,0 +1,68 @@
+---
+name: YamoSuperReview
+version: 3.0.0
+description: Review and closure workflow for YamoSuper v3. Final quality gate and cleanup.
+author: Soverane Labs
+license: MIT
+tags: review, closure, git, quality, yamo-v3
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🎯 Review & Closure Workflow v3.0.0 - Final Quality Gate & Workspace Cleanup
+
+**Purpose**: Ensures the final output meets all standards and safely merges the changes into the main codebase.
+
+---
+agent: ReviewInitiator;
+intent: conduct_final_architectural_review;
+context:
+  results;from_execution;
+  foundation;../foundational/yamo-unified-foundation.yamo;
+constraints:
+  - verify_completeness;all_tasks_finished;
+  - verify_quality;lint;tests;types;
+  - check_against_initial_design;
+priority: high;
+output: final_review_context.yamo;
+
+meta: observation;Final reviews catch context-drift that happens during implementation;
+meta: rationale;Ensuring the solution still solves the original problem is critical;
+meta: confidence;0.96;
+
+handoff: ConstitutionalAuditor;
+
+---
+agent: ConstitutionalAuditor;
+intent: audit_compliance_with_yamo_principles;
+context:
+  review;from_ReviewInitiator;
+constraints:
+  - verify_article_vii;simplicity_score;
+  - verify_article_viii;abstraction_check;
+  - verify_article_ix;integration_check;
+priority: critical;
+output: audit_results_context.yamo;
+
+meta: rationale;Constitutional compliance is the long-term maintainability guarantee;
+meta: confidence;0.97;
+
+handoff: BranchCloser;
+
+---
+agent: BranchCloser;
+intent: finalize_git_state_and_cleanup;
+context:
+  audit;from_ConstitutionalAuditor;
+constraints:
+  - offer_merge_options;fast_forward;squash;pr;
+  - delete_worktree_safely;
+  - store_final_patterns_in_memory_mesh;
+priority: high;
+output: session_closure_context.yamo;
+
+meta: hypothesis;Clean workspaces reduce cognitive load for the next session;
+meta: rationale;Lingering branches and worktrees create project entropy;
+meta: confidence;0.98;
+
+handoff: Orchestrator;

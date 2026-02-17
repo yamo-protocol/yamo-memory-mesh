@@ -1,0 +1,77 @@
+---
+name: YamoUnifiedFoundation
+version: 3.0.0
+description: The "Global Protocol" for the YAMO Unified Development OS.
+author: Soverane Labs
+license: MIT
+tags: foundation, protocol, yamo, unified, llm-first
+module_type: foundation
+---
+🎯 YAMO Unified Foundation v3.0.0 - The Global Semantic Protocol
+
+**Purpose**: Defines the universal state structure that bridges Macro-level Specifications and Micro-level Implementation.
+
+**Zero JSON Compliance**: Mandatory.
+
+---
+concept: GlobalProjectContext;
+description: The persistent context chain for the entire project lifecycle.
+structure:
+  macro_state:
+    feature_description;raw_input;
+    specification_path;docs/specs/prd.md;
+    architectural_design;docs/specs/architecture.md;
+    constitutional_assessment;docs/audits/macro_compliance.yamo;
+    
+  micro_state:
+    active_worktree;path;
+    current_branch;string;
+    implementation_plan;docs/plans/roadmap.md;
+    active_task_id;string;
+    tdd_status;red|green|refactor;
+
+  subconscious_state:
+    oversights;list_of_past_failures;
+    lessons;list_of_lesson_learned_blocks;
+    active_constraints;derived_from_memory;
+    
+  semantic_heritage:
+    intent_chain;list_of_intents;
+    hypotheses;list_of_macro_and_micro_hypotheses;
+    rationales;justifications_for_design_and_impl;
+    confidence_score;average_of_all_agents;
+
+---
+concept: LessonLearned;
+description: A high-fidelity memory entry containing an oversight and its resolution.
+required_fields:
+  context;situation_description;
+  oversight;what_was_missed;
+  fix;how_it_was_resolved;
+  constraint;preventative_rule_for_future;
+  tags;["#lesson_learned"];
+
+---
+protocol: UnifiedHandoff;
+mode: llm_first;
+constraints:
+  - use_canonical_yamo_format;required;
+  - include_semantic_metadata;hypothesis;rationale;confidence;
+  - ensure_unbroken_chain;from_macro_to_micro;
+  - NO_JSON_OUTPUT;critical;
+
+---
+concept: QualityGates;
+definitions:
+  specification_gate;completeness_and_testability;
+  compliance_gate;article_vii_and_viii_verification;
+  implementation_gate;test_pass_and_contract_adherence;
+  unified_gate;alignment_between_spec_and_code;
+
+---
+agent: UnifiedProtocolProvider;
+intent: synchronize_state_across_macro_and_micro_modules;
+context:
+  protocol_active;true;
+  version;3.0.0;
+handoff: caller;

@@ -1,0 +1,73 @@
+---
+name: YamoSuperExecution
+version: 3.0.0
+description: Implementation TDD workflow for YamoSuper v3. Enforces Red-Green-Refactor cycles.
+author: Soverane Labs
+license: MIT
+tags: implementation, tdd, coding, yamo-v3
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🎯 Implementation TDD Workflow v3.0.0 - Red-Green-Refactor Execution
+
+**Purpose**: Executes the implementation plan through a series of verified TDD cycles.
+
+---
+agent: TDDOrchestrator;
+intent: manage_execution_cycle;
+context:
+  micro_plan;from_planning;
+  foundation;../foundational/yamo-unified-foundation.yamo;
+constraints:
+  - execute_tasks_sequentially;
+  - for_each_task;trigger_tdd_cycle;
+  - maintain_state_in_yamo_context;
+  - stop_on_any_test_failure;
+priority: critical;
+output: execution_progress_context.yamo;
+
+meta: hypothesis;Sequential execution with immediate verification prevents error compounding;
+meta: rationale;Fixing a bug in the moment it is introduced is the most efficient path;
+meta: confidence;0.96;
+
+handoff: TDDCycleAgent;
+
+---
+agent: TDDCycleAgent;
+intent: execute_single_red_green_refactor_loop;
+context:
+  task;from_TDDOrchestrator;
+constraints:
+  - step_1_red;write_minimal_failing_test;verify_fail;
+  - step_2_green;write_minimal_code_to_pass;verify_pass;
+  - step_3_refactor;clean_code_on_green;verify_pass;
+  - NO_CODE_WITHOUT_TEST;iron_law;
+  - use_real_code_avoid_excessive_mocking;
+priority: critical;
+output: cycle_results_context.yamo;
+
+meta: observation;The Red phase proves that the test is actually testing the requirement;
+meta: rationale;Without seeing a test fail, you have no proof that it will catch a future regression;
+meta: confidence;0.99;
+
+handoff: ImplementationReviewer;
+
+---
+agent: ImplementationReviewer;
+intent: perform_task_level_code_review;
+context:
+  results;from_TDDCycleAgent;
+constraints:
+  - check_against_spec;inherit_macro_intent;
+  - verify_test_coverage_and_quality;
+  - check_code_style_and_conventions;
+  - if_review_fails;return_to_tdd_cycle;
+priority: high;
+output: execution_results_context.yamo;
+
+meta: hypothesis;Peer review catches subtle logic errors;
+meta: rationale;A second set of semantic eyes ensures code isn't just "passing" but "correct";
+meta: confidence;0.95;
+
+handoff: Orchestrator;

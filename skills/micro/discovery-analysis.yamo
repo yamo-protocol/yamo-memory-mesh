@@ -1,0 +1,72 @@
+---
+name: YamoSuperDiscovery
+version: 3.0.0
+description: Discovery and analysis workflow for YamoSuper v3. Handles brainstorming and design refinement.
+author: Soverane Labs
+license: MIT
+tags: discovery, brainstorming, design, yamo-v3
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🎯 Discovery & Analysis Workflow v3.0.0 - Semantic Intent Extraction
+
+**Purpose**: Refines the user's idea into a validated design through socratic dialogue and architectural analysis.
+
+---
+agent: DiscoveryInitiator;
+intent: start_discovery_phase;
+context:
+  initialization;from_orchestrator;
+  foundation;../foundational/yamo-unified-foundation.yamo;
+  memory_search;search_similar_patterns;
+constraints:
+  - scan_codebase_for_context;files;docs;recent_changes;
+  - ask_socratic_questions;limit_one_at_a_time;
+  - identify_stakeholders_and_impact;
+priority: high;
+output: discovery_intent_context.yamo;
+
+meta: hypothesis;Socratic questioning reveals hidden requirements;
+meta: rationale;Direct implementation often misses edge cases identified during dialogue;
+meta: confidence;0.95;
+
+handoff: DesignRefiner;
+
+---
+agent: DesignRefiner;
+intent: iteratively_refine_architecture;
+context:
+  intent;from_DiscoveryInitiator;
+constraints:
+  - propose_alternatives;at_least_two;
+  - document_tradeoffs;complexity_vs_performance_vs_maintainability;
+  - segment_design;architecture;data_flow;interface;testing;
+  - validate_each_segment_with_user;
+priority: high;
+output: refined_design_context.yamo;
+
+meta: hypothesis;Segmented validation prevents cognitive overload;
+meta: rationale;User can provide higher quality feedback on smaller design blocks;
+meta: confidence;0.96;
+
+handoff: BaselineVerifier;
+
+---
+agent: BaselineVerifier;
+intent: verify_project_health_before_coding;
+context:
+  design;from_DesignRefiner;
+constraints:
+  - run_current_test_suite;
+  - verify_clean_git_state;
+  - identify_dependency_conflicts;
+  - if_baseline_fails;require_fix_before_proceeding;
+priority: critical;
+output: discovery_results_context.yamo;
+
+meta: observation;Baseline health is the foundation of reliable TDD;
+meta: rationale;Starting from a failing baseline leads to "false red" TDD cycles;
+meta: confidence;0.98;
+
+handoff: Orchestrator;

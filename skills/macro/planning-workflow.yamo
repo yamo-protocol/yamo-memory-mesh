@@ -1,0 +1,176 @@
+---
+name: PlanningWorkflow
+version: 1.0.0
+description: Converts PRD specifications into detailed implementation plans with constitutional compliance, technology choices, and test-first structure. Enforces phase gates and architectural discipline.
+author: Soverane Labs
+license: MIT
+tags:
+  - sdd
+  - planning
+  - implementation-plan
+  - constitutional-compliance
+  - architecture
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🏗️ Planning Workflow - PRD to Constitutional Implementation Plan
+
+**Purpose**: Transform business requirements into technically sound, constitutionally compliant implementation plans
+
+---
+agent: PlanningInitiator;
+intent: initialize_planning_from_finalized_specification;
+context:
+  received_specification;finalized_specification_context.yamo;
+  foundation;../foundational/yamo-unified-foundation.yamo;
+constraints:
+  - receive_finalized_specification;required;
+  - validate_specification_completeness;required;
+  - load_constitutional_framework;required;
+  - initialize_planning_context;required;
+  - prepare_output_structure;required;
+
+priority: critical;
+output: planning_initialization_context.yamo;
+log: planning_initiated;timestamp;2026-02-14;
+
+meta: hypothesis;Planning requires complete specification and constitutional framework;
+meta: rationale;Initialization loads all necessary context for technical translation;
+meta: confidence;0.97;
+
+handoff: ResearchAgent;
+---
+agent: ResearchAgent;
+intent: investigate_technical_options_and_gather_context;
+context:
+  received_planning;planning_initialization_context.yamo;
+constraints:
+  - identify_all_technical_decisions;required;
+  - investigate_options_thoroughly;required;
+  - gather_performance_data;where_applicable;
+  - consider_organizational_constraints;required;
+  - document_findings;research_md;
+  - provide_recommendations;with_rationale;
+
+priority: high;
+output: research_findings_context.yamo;
+log: research_completed;timestamp;2026-02-14;
+
+meta: hypothesis;Research-driven context produces better technical decisions;
+meta: confidence;0.94;
+
+handoff: TechnicalTranslator;
+---
+agent: TechnicalTranslator;
+intent: translate_business_requirements_to_technical_architecture;
+context:
+  received_planning;planning_initialization_context.yamo;
+  received_research;research_findings_context.yamo;
+constraints:
+  - translate_all_requirements;to_technical_decisions;
+  - reference_research_findings;for_technology_choices;
+  - align_with_constitutional_principles;required;
+  - document_rationale;for_each_decision;
+  - create_data_model;entities_schemas;
+  - design_api_contracts;specifications;
+  - define_testing_strategy;test_first;
+
+priority: critical;
+output: technical_architecture_context.yamo;
+log: requirements_translated;timestamp;2026-02-14;
+
+meta: hypothesis;Systematic translation produces comprehensive technical architecture;
+meta: confidence;0.95;
+
+handoff: PhaseGateValidator;
+---
+agent: PhaseGateValidator;
+intent: validate_architecture_against_constitutional_phase_gates;
+context:
+  received_architecture;technical_architecture_context.yamo;
+constraints:
+  - validate_all_three_gates;required;
+  - check_simplicity_gate;project_count;future_proofing;
+  - check_anti_abstraction_gate;framework_usage;wrappers;
+  - check_integration_first_gate;contracts;mocking;
+  - require_justification_for_failures;documented_exceptions;
+  - determine_pass_fail;based_on_gate_criteria;
+
+priority: critical;
+output: gate_validation_results_context.yamo;
+log: phase_gates_validated;timestamp;2026-02-14;
+
+meta: hypothesis;Phase gates prevent over-engineering and ensure quality;
+meta: confidence;0.96;
+
+handoff: ComplexityTracker;
+---
+agent: ComplexityTracker;
+intent: document_justified_exceptions_to_constitutional_gates;
+context:
+  received_validation;gate_validation_results_context.yamo;
+  received_architecture;technical_architecture_context.yamo;
+constraints:
+  - check_gate_results;required;
+  - document_justified_exceptions;if_any;
+  - require_justification;for_all_failures;
+  - create_complexity_tracking_section;in_plan;
+  - skip_if_all_passed;efficient;
+
+priority: high;
+output: complexity_tracking_context.yamo;
+log: complexity_documented;timestamp;2026-02-14;
+
+meta: hypothesis;Documented exceptions create accountability for complexity;
+meta: confidence;0.93;
+
+handoff: PlanAssembler;
+---
+agent: PlanAssembler;
+intent: assemble_complete_implementation_plan_with_all_components;
+context:
+  received_architecture;technical_architecture_context.yamo;
+  received_research;research_findings_context.yamo;
+  received_gates;gate_validation_results_context.yamo;
+  received_complexity;complexity_tracking_context.yamo;
+constraints:
+  - assemble_all_plan_components;required;
+  - structure_in_phases;minus_1_through_4;
+  - include_pre_implementation_gates;phase_minus_1;
+  - document_file_creation_order;contracts_first;
+  - keep_plan_high_level;extract_details_to_separate_files;
+  - generate_data_model;entities_schemas;
+  - generate_api_contracts;specifications;
+  - generate_quickstart;validation_scenarios;
+  - write_all_documents;to_specs_branch_directory;
+
+priority: critical;
+output: assembled_plan_context.yamo;
+log: plan_assembled;timestamp;2026-02-14;
+
+meta: hypothesis;Complete plan provides all information needed for execution;
+meta: confidence;0.97;
+
+handoff: PlanValidator;
+---
+agent: PlanValidator;
+intent: validate_plan_completeness_and_constitutional_compliance;
+context:
+  received_plan;assembled_plan_context.yamo;
+constraints:
+  - validate_all_criteria;comprehensively;
+  - check_constitutional_compliance;critical;
+  - verify_technology_rationale;documented;
+  - verify_test_first_approach;required;
+  - verify_supporting_documents;all_present;
+  - determine_pass_fail;based_on_criteria;
+
+priority: critical;
+output: plan_validation_results_context.yamo;
+log: plan_validated;timestamp;2026-02-14;
+
+meta: hypothesis;Plan validation ensures execution readiness;
+meta: confidence;0.96;
+
+handoff: Orchestrator;

@@ -1,0 +1,70 @@
+---
+name: YamoSuperDebugging
+version: 3.0.0
+description: Debugging and verification workflow for YamoSuper v3. Systematic root-cause analysis.
+author: Soverane Labs
+license: MIT
+tags: debugging, verification, root-cause, yamo-v3
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🎯 Debugging & Verification Workflow v3.0.0 - Systematic Root-Cause Analysis
+
+**Purpose**: Resolves bugs by identifying the underlying cause and verifying the fix through TDD.
+
+---
+agent: DebuggingInitiator;
+intent: identify_and_reproduce_bug;
+context:
+  symptoms;from_orchestrator;
+  foundation;../foundational/yamo-unified-foundation.yamo;
+constraints:
+  - define_symptoms_precisely;
+  - create_minimal_reproduction_case;critical;
+  - verify_bug_exists_in_current_state;
+priority: critical;
+output: reproduction_context.yamo;
+
+meta: hypothesis;Reliable reproduction is 90% of the fix;
+meta: rationale;If you cannot see it fail, you cannot know if you fixed it;
+meta: confidence;0.98;
+
+handoff: RootCauseAnalyzer;
+
+---
+agent: RootCauseAnalyzer;
+intent: isolate_the_underlying_failure;
+context:
+  reproduction;from_DebuggingInitiator;
+constraints:
+  - trace_execution_flow;
+  - use_binary_search_to_isolate_culprit;
+  - identify_the_exact_line_or_logic_failure;
+  - avoid_bandage_fixes;look_for_systemic_cause;
+priority: high;
+output: root_cause_context.yamo;
+
+meta: observation;Bugs often cluster around edge cases and state transitions;
+meta: rationale;Treating the symptom without the cause leads to regression loops;
+meta: confidence;0.95;
+
+handoff: FixVerifier;
+
+---
+agent: FixVerifier;
+intent: apply_fix_and_ensure_zero_regressions;
+context:
+  cause;from_RootCauseAnalyzer;
+constraints:
+  - apply_tdd_cycle_to_fix;
+  - run_full_regression_suite;
+  - verify_fix_on_original_symptoms;
+priority: high;
+output: debugging_results_context.yamo;
+
+meta: hypothesis;Regression suites prevent fixing one thing by breaking another;
+meta: rationale;Production stability depends on holistic verification;
+meta: confidence;0.97;
+
+handoff: Orchestrator;

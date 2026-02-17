@@ -1,0 +1,29 @@
+---
+name: YamoNativeBootstrap
+version: 3.0.0
+description: The entry point for the YAMO-Native Agent. Redirects session initialization to the v3.0 Kernel.
+author: ConstitutionalOptimizer
+created: 2026-02-15
+---
+🎯 YAMO Native Bootstrap v3.0.0
+
+**MANDATORY**: Initialize session via the YAMO Orchestrator kernel.
+
+---
+agent: BootRedirector;
+intent: redirect_to_v3_kernel;
+context:
+  orchestrator_path;yamo-native-agent/agent-orchestrator.yamo;
+  legacy_files;AGENTS.md;SOUL.md;
+  mode;LLM_FIRST;
+constraints:
+  - ignore_legacy_narrative_instructions;
+  - load_foundational_soul;foundational/agent-soul.yamo;
+  - initialize_kernel;agent-orchestrator.yamo;
+priority: critical;
+
+meta: hypothesis;Redirecting boot priority ensures the agent operates under the Singularity's constitutional kernel from the first token;
+meta: rationale;Directing attention to the protocol-first core is the only way to eliminate narrative-induced drift;
+meta: confidence;1.0;
+
+handoff: yamo-native-agent/agent-orchestrator.yamo;

@@ -1,0 +1,154 @@
+---
+name: SpecificationWorkflow
+version: 1.0.0
+description: Transforms vague ideas into comprehensive, executable PRDs through iterative AI-assisted dialogue. Enforces template-driven quality constraints and constitutional compliance.
+author: Soverane Labs
+license: MIT
+tags:
+  - sdd
+  - specification
+  - prd
+  - requirements
+  - feature-spec
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🎯 Specification Workflow - Idea to Executable PRD
+
+**Purpose**: Convert vague feature ideas into comprehensive, template-constrained PRDs
+
+**Philosophy**: What and Why, never How. Specifications drive code, not serve it.
+
+---
+agent: IdeaCaptureAgent;
+intent: capture_initial_feature_idea_from_user;
+context:
+  user_input;vague_incomplete_idea;natural_language_description;
+  foundation;../foundational/yamo-unified-foundation.yamo;
+constraints:
+  - accept_user_input;any_form;any_completeness_level;
+  - perform_basic_sanity_check;required;
+  - avoid_premature_technical_translation;no_how_yet;
+  - capture_raw_intent;preserve_user_language;
+  - identify_obvious_gaps;for_clarification;
+
+priority: high;
+output: raw_idea_context.yamo;
+log: idea_captured;timestamp;2026-02-14;
+
+meta: hypothesis;Raw ideas contain enough signal to begin refinement process;
+meta: rationale;Capturing raw ideas enables iterative clarification dialogue;
+meta: confidence;0.92;
+
+handoff: TemplateInitializer;
+---
+agent: TemplateInitializer;
+intent: initialize_feature_specification_template;
+context:
+  received_idea;raw_idea_context.yamo;
+constraints:
+  - initialize_template;required;
+  - apply_template_constraints;from_foundation;
+  - determine_feature_number;auto_increment;
+  - generate_branch_name;semantic;
+  - create_directory;specs_directory;
+  - preserve_what_and_why_focus;critical;
+
+priority: critical;
+output: initialized_template_context.yamo;
+log: template_initialized;feature_number_assigned;branch_created;timestamp;2026-02-14;
+
+meta: hypothesis;Template initialization structures subsequent refinement process;
+meta: rationale;Template provides scaffolding for complete specification;
+meta: confidence;0.95;
+
+handoff: ClarificationDialogueAgent;
+---
+agent: ClarificationDialogueAgent;
+intent: conduct_iterative_dialogue_to_refine_specification;
+context:
+  received_template;initialized_template_context.yamo;
+constraints:
+  - conduct_iterative_dialogue;required;
+  - ask_clarifying_questions;targeted_specific;
+  - identify_all_edge_cases;required;
+  - define_measurable_acceptance_criteria;required;
+  - enforce_what_and_why_constraint;no_how_discussion;
+  - use_needs_clarification_markers;for_unknowns;
+  - iterate_until_complete;or_user_satisfied;
+
+priority: critical;
+output: refined_specification_context.yamo;
+log: clarification_dialogue_completed;iterations_count;timestamp;2026-02-14;
+
+meta: hypothesis;Iterative dialogue produces more complete specifications than single-pass;
+meta: rationale;Dialogue enables collaborative specification refinement;
+meta: confidence;0.96;
+
+handoff: CompletenessValidator;
+---
+agent: CompletenessValidator;
+intent: validate_specification_completeness_against_criteria;
+context:
+  received_specification;refined_specification_context.yamo;
+constraints:
+  - validate_all_criteria;comprehensively;
+  - check_for_clarification_markers;must_be_zero;
+  - verify_testability;all_requirements;
+  - verify_measurability;acceptance_criteria;
+  - identify_all_gaps;explicitly;
+  - determine_pass_fail;based_on_criteria;
+
+priority: critical;
+output: validation_results_context.yamo;
+log: completeness_validated;result;gaps_found;timestamp;2026-02-14;
+
+meta: hypothesis;Explicit validation prevents incomplete specifications from proceeding;
+meta: rationale;Validation gate ensures quality before handoff to planning;
+meta: confidence;0.97;
+
+handoff: GapResolver;
+---
+agent: GapResolver;
+intent: resolve_identified_gaps_in_specification;
+context:
+  received_validation;validation_results_context.yamo;
+  received_specification;refined_specification_context.yamo;
+constraints:
+  - check_validation_results;required;
+  - route_based_on_gaps;conditional;
+  - provide_gap_context;if_returning_to_dialogue;
+  - proceed_if_complete;validation_passed;
+
+priority: high;
+output: gap_resolution_decision_context.yamo;
+log: gaps_assessed;resolution_path_determined;timestamp;2026-02-14;
+
+meta: hypothesis;Iterative gap resolution produces higher quality specifications;
+meta: confidence;0.93;
+
+handoff: SpecificationFinalizer;
+---
+agent: SpecificationFinalizer;
+intent: finalize_and_persist_complete_specification;
+context:
+  received_specification;refined_specification_context.yamo;
+  received_validation;validation_results_context.yamo;
+constraints:
+  - generate_final_document;markdown_format;
+  - write_to_correct_directory;specs_branch_name;
+  - include_all_metadata;required;
+  - validate_final_output;against_template;
+  - prepare_for_git;required;
+  - ensure_template_compliance;documented;
+
+priority: critical;
+output: finalized_specification_context.yamo;
+log: specification_finalized;written_to_file;ready_for_planning;timestamp;2026-02-14;
+
+meta: hypothesis;Finalized specification serves as immutable input to planning workflow;
+meta: rationale;Finalization creates clear boundary between specification and planning;
+meta: confidence;0.98;
+
+handoff: Orchestrator;

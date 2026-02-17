@@ -1,0 +1,72 @@
+---
+name: YamoSuperPlanning
+version: 3.0.0
+description: Planning logic workflow for YamoSuper v3. Translates Macro designs into TDD-ready task lists.
+author: Soverane Labs
+license: MIT
+tags: planning, tasks, tdd, yamo-v3
+module_type: workflow
+dependencies:
+  - ../foundational/yamo-unified-foundation.yamo
+---
+🎯 Planning Logic Workflow v3.0.0 - Micro Task Derivation
+
+**Purpose**: Breaks down a Macro-level design into granular, TDD-compliant tasks for implementation.
+
+---
+agent: PlanningInitiator;
+intent: derive_tdd_tasks_from_macro_design;
+context:
+  macro_results;from_orchestrator; // This is macro_results_context.yamo
+  foundation;../foundational/yamo-unified-foundation.yamo;
+constraints:
+  - receive_macro_plan;docs/plans/roadmap.md_or_similar;
+  - break_into_bite_sized_tasks;target_5_15_minutes_per_task;
+  - each_task_must_have_test_first_step;
+  - include_exact_file_paths;
+  - define_explicit_success_criteria_per_task;
+priority: critical;
+output: micro_tasks_context.yamo;
+
+meta: hypothesis;Granular micro-tasks minimize cognitive load during coding;
+meta: rationale;Inheriting the Macro rationale ensures architectural alignment;
+meta: confidence;0.97;
+
+handoff: MicroConstitutionalGate;
+
+---
+agent: MicroConstitutionalGate;
+intent: validate_micro_tasks_against_yamo_constitution;
+context:
+  tasks;from_PlanningInitiator;
+constraints:
+  - check_article_vii;simplicity;detect_over_engineering_in_tasks;
+  - check_article_viii;anti_abstraction;detect_redundant_wrappers;
+  - check_article_ix;integration_first;verify_contracts_defined;
+  - if_violation_found;require_justification_or_redesign;
+priority: critical;
+output: micro_gated_tasks_context.yamo;
+
+meta: observation;Constitutional gating at the task level prevents implementation-drift;
+meta: rationale;Enforcing simplicity during coding is the last line of defense;
+meta: confidence;0.94;
+
+handoff: WorkspacePreparer;
+
+---
+agent: WorkspacePreparer;
+intent: setup_isolated_workspace;
+context:
+  gated_tasks;from_MicroConstitutionalGate;
+constraints:
+  - create_isolated_worktree;if_supported;
+  - initialize_feature_branch;
+  - persist_plan_to_docs;docs/plans/v3_micro_plan.md;
+priority: high;
+output: micro_implementation_plan_context.yamo;
+
+meta: hypothesis;Isolation prevents environmental contamination;
+meta: rationale;Dedicated worktrees ensure that experiments don't break the main workspace;
+meta: confidence;0.98;
+
+handoff: Orchestrator;

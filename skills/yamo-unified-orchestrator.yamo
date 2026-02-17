@@ -1,0 +1,145 @@
+---
+name: YamoUnifiedOrchestrator
+version: 3.0.0
+description: The "Universal Agent Core" entry point. Orchestrates the complete lifecycle from Idea (Macro) to Tested Code (Micro).
+author: Soverane Labs
+license: MIT
+tags: orchestrator, unified, sdd, yamosuper, llm-first, yamo-v3
+module_type: orchestrator
+dependencies:
+  - foundational/yamo-unified-foundation.yamo
+  - macro/specification-workflow.yamo
+  - macro/planning-workflow.yamo
+  - micro/implementation-tdd.yamo
+  - micro/debugging-verification.yamo
+  - micro/review-closure.yamo
+capabilities:
+  - orchestrate_global_lifecycle
+  - bridge_spec_to_code
+  - enforce_constitutional_discipline
+  - manage_feedback_loops
+  - use_llm_first_state_passing
+parameters:
+  request:
+    type: string
+    required: true
+    description: The feature idea or bug report
+  execution_mode:
+    type: string
+    required: false
+    default: full
+    enum: [specification, planning, implementation, full]
+    description: How deep to go into the lifecycle
+---
+🎯 YAMO Unified Orchestrator v3.0.0 - The Universal Agent Core
+
+**Purpose**: Coordinates the handoff between high-level Specification (Macro) and low-level Implementation (Micro).
+
+**Breaking Change**: Achieves the "Singularity of State" with Zero JSON throughout.
+
+---
+agent: GlobalInitiator;
+intent: initialize_unified_lifecycle_context;
+context:
+  request;provided_by_user.request;
+  execution_mode;provided_by_user.execution_mode;
+  
+  foundation;foundational/yamo-unified-foundation.yamo;
+  state_mode;llm_first;
+
+constraints:
+  - load_unified_foundation;required;
+  - initialize_semantic_heritage;hypothesis;rationale;
+  - determine_pathway;macro_only_or_full_lifecycle;
+
+priority: critical;
+output: global_initialization_context.yamo;
+log: unified_os_initialized;mode;timestamp;2026-02-15;
+
+meta: hypothesis;A unified context chain prevents the loss of intent during the spec-to-code transition;
+meta: rationale;Disconnected tools create "information silos"; unification creates "semantic flow";
+meta: confidence;0.98;
+
+handoff: SubconsciousReflector;
+
+---
+agent: SubconsciousReflector;
+intent: query_memory_mesh_for_past_oversights;
+context:
+  init;global_initialization_context.yamo;
+  search_tag;"#lesson_learned";
+  tool;tools/memory_mesh.mjs;
+constraints:
+  - search_similar_past_contexts;based_on_request;
+  - extract_preventative_constraints;from_lessons;
+  - inject_constraints_into_macro_context;required;
+  - meta_rationale;Learning from past mistakes is the only way to achieve senior-level reliability;
+priority: high;
+output: subconscious_reflection_context.yamo;
+
+meta: hypothesis;Proactive reflection prevents the repetition of previous architectural errors;
+meta: confidence;0.99;
+
+handoff: MacroWorkflowInvoker;
+
+---
+agent: MacroWorkflowInvoker;
+intent: invoke_macro_sdd_layer;
+context:
+  init;subconscious_reflection_context.yamo;
+  workflows:
+    specification;macro/specification-workflow.yamo;
+    planning;macro/planning-workflow.yamo;
+
+constraints:
+  - execute_specification_phase;idea_to_prd;
+  - execute_macro_planning_phase;prd_to_roadmap;
+  - enforce_macro_quality_gates;specification_and_compliance;
+  - stop_here;if_mode_is_specification_or_planning;
+
+priority: high;
+output: macro_results_context.yamo;
+log: macro_phases_completed;spec_path;roadmap_path;
+
+handoff: MicroWorkflowInvoker;
+
+---
+agent: MicroWorkflowInvoker;
+intent: invoke_micro_yamosuper_layer;
+context:
+  macro_results;macro_results_context.yamo;
+  workflows:
+    implementation;micro/implementation-tdd.yamo;
+    debugging;micro/debugging-verification.yamo;
+    review;micro/review-closure.yamo;
+
+constraints:
+  - transform_roadmap_to_tdd_tasks;semantic_inheritance_required;
+  - execute_tdd_cycles;red_green_refactor;
+  - enforce_micro_quality_gates;implementation_and_audit;
+  - if_critical_logic_error;optionally_return_to_macro_planning;
+
+priority: critical;
+output: micro_results_context.yamo;
+log: micro_phases_completed;test_pass_rate;
+
+handoff: UnifiedReporter;
+
+---
+agent: UnifiedReporter;
+intent: generate_global_lifecycle_report;
+context:
+  macro;macro_results_context.yamo;
+  micro;micro_results_context.yamo;
+
+constraints:
+  - trace_intent_from_spec_to_code;
+  - report_constitutional_compliance_summary;
+  - document_hypotheses_validated_vs_rejected;
+  - report_zero_json_status;must_be_zero_json;
+
+priority: high;
+output: unified_lifecycle_report.md;
+log: global_orchestration_complete;status;success;
+
+handoff: User;

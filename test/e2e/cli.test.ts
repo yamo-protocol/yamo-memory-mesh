@@ -29,43 +29,37 @@ describe('MemoryMesh E2E (CLI)', () => {
   });
 
   it('should report statistics for an empty database', () => {
-    const output = execSync(`node ${BIN_PATH} stats '{}'`, { encoding: 'utf8' });
-    const jsonStart = output.indexOf('{');
-    const jsonEnd = output.lastIndexOf('}') + 1;
-    const result = JSON.parse(output.substring(jsonStart, jsonEnd));
-    
-    assert.strictEqual(result.status, 'ok');
-    assert.strictEqual(result.stats.count, 0);
+    const output = execSync(`node ${BIN_PATH} stats`, { encoding: 'utf8' });
+
+    assert.ok(output.includes('[MemoryMesh] Total Memories:'));
+    assert.ok(output.includes('[MemoryMesh] DB Path:'));
+    assert.ok(output.includes('[MemoryMesh] Status:'));
   });
 
   it('should store and retrieve a memory', () => {
     // 1. Store memory
-    const storePayload = JSON.stringify({
-      content: "YAMO Singularity is the future of agentic orchestration.",
-      metadata: { type: "test", importance: 1.0 }
-    });
-    
-    const storeOutput = execSync(`node ${BIN_PATH} store '${storePayload}'`, { encoding: 'utf8' });
+    const storeOutput = execSync(
+      `node ${BIN_PATH} store --content "YAMO Singularity is the future of agentic orchestration." --type test`,
+      { encoding: 'utf8' }
+    );
     assert.ok(storeOutput.includes('Ingested record'));
 
     // 2. Search memory
-    const searchPayload = JSON.stringify({
-      query: "What is the future of orchestration?",
-      limit: 1
-    });
-    
-    const searchOutput = execSync(`node ${BIN_PATH} search '${searchPayload}'`, { encoding: 'utf8' });
-    assert.ok(searchOutput.includes('Found 1 matches'));
+    const searchOutput = execSync(
+      `node ${BIN_PATH} search "What is the future of orchestration?" --limit 1`,
+      { encoding: 'utf8' }
+    );
+    assert.ok(searchOutput.includes('Found'));
     assert.ok(searchOutput.includes('YAMO Singularity'));
   });
 
-  it('should handle invalid JSON gracefully', () => {
+  it('should require --content flag for store command', () => {
     try {
-      execSync(`node ${BIN_PATH} store 'invalid-json'`, { stdio: 'pipe' });
+      execSync(`node ${BIN_PATH} store`, { stdio: 'pipe' });
       assert.fail('Should have failed');
     } catch (error: any) {
       const stderr = error.stderr.toString();
-      assert.ok(stderr.includes('Invalid JSON argument'));
+      assert.ok(stderr.includes("required option '-c, --content <text>' not specified"));
     }
   });
 });

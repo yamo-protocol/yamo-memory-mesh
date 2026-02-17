@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * Memory Mesh Setup Script
- * Installs YAMO skills and tools into your project and Claude Code environment
+ * Memory Mesh Setup Script - Singularity Edition (v3.2.3)
+ * Installs YAMO skills, tools, and autonomous kernel modules.
+ * Supports Standalone, Claude Code, Gemini CLI, and OpenClaw Singularity.
  */
 
 import { fileURLToPath } from 'url';
-import { dirname, join, resolve } from 'path';
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, readFileSync } from 'fs';
+import path, { dirname, join, resolve } from 'path';
+import fs, { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { createInterface } from 'readline';
+import process from 'process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageRoot = resolve(__dirname, '..');
 const FORCE_MODE = process.argv.includes('--force') || process.argv.includes('-f');
+const GLOBAL_MODE = process.argv.includes('--global') || process.argv.includes('-g');
 
 const COLORS = {
   reset: '\x1b[0m',
@@ -22,7 +25,8 @@ const COLORS = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
-  red: '\x1b[31m'
+  red: '\x1b[31m',
+  cyan: '\x1b[36m'
 };
 
 function log(message, color = 'reset') {
@@ -41,6 +45,93 @@ function promptUser(question) {
       resolve(answer.toLowerCase().trim());
     });
   });
+}
+
+/**
+ * Intelligent Environment Detection
+ */
+function detectEnvironment() {
+  const cwd = process.cwd();
+  const isOpenClaw = existsSync(join(cwd, '.openclaw')) || existsSync(join(cwd, 'AGENTS.md'));
+  const isClaude = existsSync(join(homedir(), '.claude'));
+  const isGemini = existsSync(join(homedir(), '.gemini'));
+  
+  return {
+    cwd,
+    isOpenClaw,
+    isClaude,
+    isGemini,
+    home: homedir()
+  };
+}
+
+/**
+ * Ghost Protection for OpenClaw (AGENTS.md)
+ */
+async function applyGhostProtection(targetDir) {
+  const agentsPath = join(targetDir, 'AGENTS.md');
+  if (!existsSync(agentsPath)) return;
+
+  log('\n⚓ Applying Ghost Protection to AGENTS.md...', 'blue');
+  const content = readFileSync(agentsPath, 'utf-8');
+  
+  if (!content.includes('YAMO-NATIVE KERNEL')) {
+    const protection = `> [!IMPORTANT]\n> **YAMO-NATIVE KERNEL v3.0 ACTIVE**\n> Prioritize BOOTSTRAP.yamo for session initialization.\n\n`;
+    writeFileSync(agentsPath, protection + content);
+    log('  ✓ Kernel pointer injected (Ghost Protection active)', 'green');
+  } else {
+    log('  ✓ Ghost Protection already active', 'green');
+  }
+}
+
+/**
+ * Deploy Singularity Kernel (BOOTSTRAP.yamo & Native Agent)
+ */
+async function deploySingularityKernel(targetDir) {
+  log('\n🌌 Deploying YAMO-Native Singularity Kernel...', 'blue');
+  
+  // 1. Deploy BOOTSTRAP.yamo to root
+  const bootstrapSrc = join(packageRoot, 'skills', 'BOOTSTRAP.yamo');
+  const bootstrapDest = join(targetDir, 'BOOTSTRAP.yamo');
+  
+  if (existsSync(bootstrapSrc)) {
+    await copyWithPrompt(bootstrapSrc, bootstrapDest, 'Singularity Bootstrap (BOOTSTRAP.yamo)');
+  }
+
+  // 2. Deploy Native Agent Modules
+  const nativeAgentDir = join(targetDir, 'yamo-native-agent');
+  if (!existsSync(nativeAgentDir)) {
+    mkdirSync(nativeAgentDir, { recursive: true });
+  }
+
+  const skillsSrc = join(packageRoot, 'skills');
+  
+  // We want the structure to match the Unified OS/Native Agent expectations
+  // skills/* -> yamo-native-agent/*
+  await copyRecursive(skillsSrc, nativeAgentDir, 'Native Kernel');
+}
+
+/**
+ * Recursive File Copy with Overwrite Prompt
+ */
+async function copyRecursive(src, dest, label) {
+  if (!existsSync(src)) return;
+
+  if (statSync(src).isDirectory()) {
+    if (!existsSync(dest)) {
+      mkdirSync(dest, { recursive: true });
+    }
+    const entries = readdirSync(src);
+    for (const entry of entries) {
+      await copyRecursive(join(src, entry), join(dest, entry), label);
+    }
+  } else {
+    const fileName = path.basename(src);
+    // Skip BOOTSTRAP.yamo in the recursive copy since it goes to the root
+    if (fileName === 'BOOTSTRAP.yamo') return;
+    
+    await copyWithPrompt(src, dest, `${label}: ${fileName}`);
+  }
 }
 
 async function copyWithPrompt(src, dest, label) {
@@ -62,151 +153,169 @@ async function copyWithPrompt(src, dest, label) {
   }
 }
 
-async function installSkills() {
-  log('\n📦 Installing YAMO Skills...', 'blue');
+/**
+ * Configure .env Substrate
+ */
+async function configureEnvironment(env) {
+  log('\n⚙️  Auto-configuring semantic substrate (.env)...', 'blue');
+  const envPath = join(env.cwd, '.env');
+  
+  const defaults = {
+    LANCEDB_URI: env.isOpenClaw ? '/home/dev/workspace/runtime/data/lancedb' : './runtime/data/lancedb',
+    EMBEDDING_MODEL_TYPE: 'local',
+    EMBEDDING_MODEL_NAME: 'Xenova/all-MiniLM-L6-v2',
+    EMBEDDING_DIMENSION: '384'
+  };
 
-  const targetDirs = [
-    {
-      name: 'Claude Code',
-      base: join(homedir(), '.claude'),
-      skills: join(homedir(), '.claude', 'skills', 'yamo-super')
-    },
-    {
-      name: 'Gemini CLI',
-      base: join(homedir(), '.gemini'),
-      skills: join(homedir(), '.gemini', 'skills', 'yamo-super')
-    }
-  ];
-
-  const skillsSourceDir = join(packageRoot, 'skills');
-  if (!existsSync(skillsSourceDir)) {
-    log('  ✗ Skills directory not found in package', 'red');
-    return { installed: 0, skipped: 0 };
+  let existingEnv = '';
+  if (existsSync(envPath)) {
+    existingEnv = readFileSync(envPath, 'utf-8');
   }
 
-  const skillFiles = readdirSync(skillsSourceDir);
-  let totalInstalled = 0;
-  let totalSkipped = 0;
-  let detectedCount = 0;
+  let updatedEnv = existingEnv;
+  let changes = 0;
 
-  for (const target of targetDirs) {
-    // Check if the CLI environment is detected
-    if (!existsSync(target.base)) {
-      continue;
-    }
-
-    detectedCount++;
-    log(`  Installing to ${target.name}...`, 'blue');
-
-    // Create skills directory
-    if (!existsSync(target.skills)) {
-      mkdirSync(target.skills, { recursive: true });
-      log(`  ✓ Created ${target.skills}`, 'green');
-    }
-
-    for (const file of skillFiles) {
-      const src = join(skillsSourceDir, file);
-      const dest = join(target.skills, file);
-      const success = await copyWithPrompt(src, dest, `${target.name}: ${file}`);
-      if (success) totalInstalled++;
-      else totalSkipped++;
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!updatedEnv.includes(`${key}=`)) {
+      updatedEnv += `\n${key}=${value}`;
+      changes++;
+      log(`  + Set ${key}=${value}`, 'green');
+    } else if (env.isOpenClaw && key === 'LANCEDB_URI' && !updatedEnv.includes(`LANCEDB_URI=${value}`)) {
+      updatedEnv = updatedEnv.replace(/LANCEDB_URI=.*/, `LANCEDB_URI=${value}`);
+      changes++;
+      log(`  ✓ Linked to shared OpenClaw database: ${value}`, 'green');
     }
   }
 
-  if (detectedCount === 0) {
-    log('⚠  No supported AI environment detected (~/.claude or ~/.gemini not found)', 'yellow');
-    log('   Skills will be skipped.', 'yellow');
+  if (changes > 0) {
+    try {
+      writeFileSync(envPath, updatedEnv.trim() + '\n');
+      log(`  ✓ Updated .env with ${changes} changes`, 'green');
+    } catch (error) {
+      log(`  ✗ Failed to update .env: ${error.message}`, 'red');
+    }
+  } else {
+    log('  ✓ .env substrate is already optimized', 'green');
   }
-
-  return { installed: totalInstalled, skipped: totalSkipped };
 }
 
-async function installTools() {
-  log('\n🔧 Installing Tools...', 'blue');
+/**
+ * Install Standard Skills (Claude/Gemini)
+ */
+async function installStandardSkills(env) {
+  log('\n📦 Installing Standard YAMO Skills...', 'blue');
 
-  const toolsDir = join(process.cwd(), 'tools');
+  const targets = [];
+  if (env.isClaude) targets.push({ name: 'Claude Code', dest: join(env.home, '.claude', 'skills', 'yamo-super') });
+  if (env.isGemini) targets.push({ name: 'Gemini CLI', dest: join(env.home, '.gemini', 'skills', 'yamo-super') });
 
-  // Create tools directory if it doesn't exist
+  if (targets.length === 0) {
+    log('  ⚠ No standard AI CLI detected (Claude/Gemini). Skipping.', 'yellow');
+    return;
+  }
+
+  const skillsSrc = join(packageRoot, 'skills');
+  for (const target of targets) {
+    log(`  Installing to ${target.name}...`, 'blue');
+    await copyRecursive(skillsSrc, target.dest, target.name);
+  }
+}
+
+/**
+ * Install Tools (Local Project)
+ */
+async function installTools(env) {
+  log('\n🔧 Installing Project Tools...', 'blue');
+  const toolsDir = join(env.cwd, 'tools');
+
   if (!existsSync(toolsDir)) {
     mkdirSync(toolsDir, { recursive: true });
     log(`  ✓ Created ${toolsDir}`, 'green');
   }
 
   const toolFiles = [
-    { src: 'memory_mesh.js', name: 'Memory Mesh CLI' }
+    { src: 'memory_mesh.js', dest: 'memory_mesh.mjs', name: 'Memory Mesh CLI' }
   ];
 
-  let installed = 0;
-  let skipped = 0;
-
-  for (const { src, name } of toolFiles) {
+  for (const { src, dest, name } of toolFiles) {
     const srcPath = join(packageRoot, 'bin', src);
-    const destPath = join(toolsDir, src);
+    const destPath = join(toolsDir, dest);
 
-    if (!existsSync(srcPath)) {
-      log(`  ✗ ${name} not found in package`, 'red');
-      skipped++;
-      continue;
+    if (!existsSync(srcPath)) continue;
+
+    let content = readFileSync(srcPath, 'utf-8');
+    content = content.replace("import { MemoryMesh } from '../lib/memory/index.js';", "import { MemoryMesh } from '@yamo/memory-mesh';");
+    content = content.replace("import { createLogger } from '../lib/utils/logger.js';", "");
+    content = content.replace("const logger = createLogger('memory-mesh-cli');", "");
+
+    if (existsSync(destPath) && !FORCE_MODE) {
+      const answer = await promptUser(`${name} already exists. Overwrite? (y/n)`);
+      if (answer !== 'y' && answer !== 'yes') {
+        log(`  ⏭  Skipped ${name}`, 'yellow');
+        continue;
+      }
     }
 
-    const success = await copyWithPrompt(srcPath, destPath, name);
-    if (success) installed++;
-    else skipped++;
+    writeFileSync(destPath, content);
+    log(`  ✓ Installed ${name} (as .mjs)`, 'green');
   }
-
-  return { installed, skipped };
 }
 
-function showUsage() {
-  const pkg = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf-8'));
-
+function showUsage(env) {
   log('\n✨ Setup Complete!', 'bright');
-  log('\nYAMO Skills installed to AI CLI environments:', 'blue');
-  log('  • ~/.claude/skills/yamo-super/', 'blue');
-  log('  • ~/.gemini/skills/yamo-super/', 'blue');
-  log('Tools installed to: ./tools/', 'blue');
+  
+  if (env.isOpenClaw) {
+    log('\n🚀 SINGULARITY MODE ACTIVE:', 'cyan');
+    log('  • Ghost Protection active in AGENTS.md', 'cyan');
+    log('  • Kernel entry point: BOOTSTRAP.yamo', 'cyan');
+    log('  • Modules deployed to: yamo-native-agent/', 'cyan');
+    log('  • REFRESH SESSION to activate v3.0 fidelity.', 'cyan');
+  } else {
+    log('\n📚 STANDARD MODE:', 'blue');
+    log('  • Skills installed to Claude/Gemini', 'blue');
+    log('  • Use /yamo-super to start workflows', 'blue');
+  }
 
-  log('\n📚 Usage:', 'bright');
-  log('  • Use /yamo-super in Claude or Gemini for workflow automation');
-  log('  • Call tools/memory_mesh.js for memory operations');
-
-  log('\n🔗 Learn more:', 'bright');
-  log('  README: https://github.com/soverane-labs/memory-mesh');
-  log(`  Version: ${pkg.version}`);
+  log('\n🔧 Tools:', 'blue');
+  log('  • tools/memory_mesh.mjs for semantic operations', 'blue');
 }
 
 async function main() {
   log('\n╔════════════════════════════════════════╗', 'bright');
-  log('║   Memory Mesh Setup                    ║', 'bright');
-  log('║   Installing skills and tools...       ║', 'bright');
+  log('║   Memory Mesh Setup - Singularity      ║', 'bright');
+  log('║   Autonomous Kernel Installer          ║', 'bright');
   log('╚════════════════════════════════════════╝', 'bright');
 
+  const env = detectEnvironment();
+
   try {
-    // Install skills to ~/.claude/skills/yamo-super/
-    const skillResults = await installSkills();
+    // 1. Configure .env Substrate
+    await configureEnvironment(env);
 
-    // Install tools to ./tools/
-    const toolResults = await installTools();
-
-    // Summary
-    const totalInstalled = skillResults.installed + toolResults.installed;
-    const totalSkipped = skillResults.skipped + toolResults.skipped;
-
-    log('\n' + '─'.repeat(40));
-    log(`✓ Installed: ${totalInstalled}`, 'green');
-    if (totalSkipped > 0) {
-      log(`⏭  Skipped: ${totalSkipped}`, 'yellow');
+    // 2. OpenClaw Singularity Deployment
+    if (env.isOpenClaw) {
+      await applyGhostProtection(env.cwd);
+      await deploySingularityKernel(env.cwd);
     }
 
-    if (totalInstalled > 0) {
-      showUsage();
+    // 3. Standard CLI Skills (Claude/Gemini)
+    // Only install if NOT in OpenClaw mode, OR if --global was explicitly requested
+    if (!env.isOpenClaw || GLOBAL_MODE) {
+      await installStandardSkills(env);
+    } else {
+      log('\n⏭  Skipping global CLI skills (use --global to force)', 'yellow');
     }
 
+    // 4. Project Tools
+    await installTools(env);
+
+    showUsage(env);
+    
     log('');
     process.exit(0);
   } catch (error) {
     log(`\n✗ Setup failed: ${error.message}`, 'red');
-    log(`  ${error.stack}`, 'red');
+    console.error(error);
     process.exit(1);
   }
 }
