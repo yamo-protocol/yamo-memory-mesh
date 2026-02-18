@@ -284,6 +284,52 @@ export declare class MemoryMesh {
         created_at: any;
         updated_at: any;
     }>;
+    /**
+     * Delete a memory entry by ID.
+     */
+    delete(id: string): Promise<void>;
+    /**
+     * Distill a LessonLearned block (RFC-0011 §3.5).
+     * Idempotent: same patternId + equal/higher confidence returns existing.
+     */
+    distillLesson(context: {
+        situation: string;
+        errorPattern: string;
+        oversight: string;
+        fix: string;
+        preventativeRule: string;
+        severity?: string;
+        applicableScope: string;
+        inverseLesson?: string;
+        confidence?: number;
+    }): Promise<{
+        lessonId: string;
+        patternId: string;
+        severity: string;
+        preventativeRule: string;
+        ruleConfidence: number;
+        applicableScope: string;
+        wireFormat: string;
+        memoryId: string;
+    }>;
+    /**
+     * Query lessons from memory (RFC-0011 §4.1).
+     */
+    queryLessons(query?: string, options?: {
+        limit?: number;
+    }): Promise<any[]>;
+    /**
+     * Update a memory entry's heritage_chain (RFC-0011 §8).
+     */
+    insertHeritage(memoryId: string, heritage: {
+        intentChain: string[];
+        hypotheses: string[];
+        rationales: string[];
+    }): Promise<void>;
+    /**
+     * Return all memories whose lesson_pattern_id matches patternId (RFC-0011 §4.1).
+     */
+    getMemoriesByPattern(patternId: string): Promise<any[]>;
     getAll(options?: {}): Promise<any>;
     stats(): Promise<{
         count: number;

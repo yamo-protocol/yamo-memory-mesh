@@ -155,4 +155,83 @@ program
     }
   });
 
+// 4. Get Command
+program
+  .command('get')
+  .description('Retrieve a single memory by ID')
+  .requiredOption('--id <id>', 'Memory record ID')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      await mesh.init();
+      const record = await mesh.get(options.id);
+      if (!record) {
+        process.stdout.write(`[MemoryMesh] No record found with id: ${options.id}\n`);
+        process.exit(1);
+      }
+      const meta = typeof record.metadata === 'string' ? JSON.parse(record.metadata) : record.metadata;
+      process.stdout.write(`[MemoryMesh] id: ${record.id}\n`);
+      process.stdout.write(`[MemoryMesh] content: ${record.content}\n`);
+      process.stdout.write(`[MemoryMesh] type: ${meta?.type ?? 'unknown'}\n`);
+      process.stdout.write(`[MemoryMesh] created_at: ${record.created_at}\n`);
+      process.stdout.write(`[MemoryMesh] metadata: ${JSON.stringify(meta, null, 2)}\n`);
+    } catch (err) {
+      console.error(`❌ Error: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 5. Delete Command
+program
+  .command('delete')
+  .description('Delete a memory by ID')
+  .requiredOption('--id <id>', 'Memory record ID to delete')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      await mesh.init();
+      await mesh.delete(options.id);
+      process.stdout.write(`[MemoryMesh] Deleted record ${options.id}\n`);
+    } catch (err) {
+      console.error(`❌ Error: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 6. Reflect Command
+program
+  .command('reflect')
+  .description('Query distilled lessons from memory (wisdom distillation)')
+  .option('--topic <text>', 'Topic or query to reflect on', '')
+  .option('--lookback <n>', 'Limit results to this many lessons', '10')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      await mesh.init();
+      const query = options.topic || 'lessons learned patterns errors fixes';
+      const limit = parseInt(options.lookback) || 10;
+      const lessons = await mesh.queryLessons(query, { limit });
+      if (lessons.length === 0) {
+        process.stdout.write(`[MemoryMesh] No lessons found${options.topic ? ` for topic: ${options.topic}` : ''}.\n`);
+      } else {
+        process.stdout.write(`[MemoryMesh] Reflecting on ${lessons.length} lesson(s):\n\n`);
+        for (const lesson of lessons) {
+          process.stdout.write(`  scope: ${lesson.applicableScope}\n`);
+          process.stdout.write(`  rule:  ${lesson.preventativeRule}\n`);
+          process.stdout.write(`  confidence: ${lesson.ruleConfidence}\n`);
+          process.stdout.write('\n');
+        }
+      }
+    } catch (err) {
+      console.error(`❌ Error: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
 program.parse();

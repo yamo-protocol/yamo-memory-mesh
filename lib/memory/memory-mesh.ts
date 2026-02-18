@@ -1310,6 +1310,171 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             }
             : null;
     }
+    /**
+     * Delete a memory entry by ID.
+     */
+    async delete(id: string): Promise<void> {
+        await this.init();
+        if (!this.client) {
+            throw new Error("Database client not initialized");
+        }
+        try {
+            await this.client.delete(id);
+            this.keywordSearch?.remove?.(id);
+        } catch (error: any) {
+            if (error instanceof Error && error.message.includes("not found")) return;
+            throw error;
+        }
+    }
+    /**
+     * Distill a LessonLearned block (RFC-0011 §3.5).
+     * Idempotent: same patternId + equal/higher confidence returns existing.
+     */
+    async distillLesson(context: {
+        situation: string;
+        errorPattern: string;
+        oversight: string;
+        fix: string;
+        preventativeRule: string;
+        severity?: string;
+        applicableScope: string;
+        inverseLesson?: string;
+        confidence?: number;
+    }): Promise<{
+        lessonId: string;
+        patternId: string;
+        severity: string;
+        preventativeRule: string;
+        ruleConfidence: number;
+        applicableScope: string;
+        wireFormat: string;
+        memoryId: string;
+    }> {
+        await this.init();
+        const {
+            situation, errorPattern, oversight, fix, preventativeRule,
+            severity = "medium", applicableScope, inverseLesson = "", confidence = 0.7,
+        } = context;
+        const patternId = crypto.createHash("sha256")
+            .update(errorPattern + applicableScope).digest("hex").slice(0, 16);
+        // Idempotency check
+        const existing = await this.getMemoriesByPattern(patternId);
+        if (existing.length > 0) {
+            const meta = typeof existing[0].metadata === "string"
+                ? JSON.parse(existing[0].metadata) : existing[0].metadata;
+            if ((meta.rule_confidence ?? 0) >= confidence) {
+                return {
+                    lessonId: meta.lesson_id, patternId, severity: meta.severity || severity,
+                    preventativeRule: meta.preventative_rule || preventativeRule,
+                    ruleConfidence: meta.rule_confidence, applicableScope: meta.applicable_scope || applicableScope,
+                    wireFormat: meta.yamo_wire_format || "", memoryId: existing[0].id,
+                };
+            }
+        }
+        const lessonId = `lesson_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+        const timestamp = new Date().toISOString();
+        const wireFormat = [
+            `agent: MemoryMesh_${this.agentId};`,
+            `intent: distill_wisdom_from_execution;`,
+            `context:`,
+            `  original_context;${situation.replace(/;/g, ",")};`,
+            `  error_pattern;${patternId};`,
+            `  severity;${severity};`,
+            `  timestamp;${timestamp};`,
+            `constraints:`,
+            `  hypothesis;This lesson prevents recurrence of similar failures;`,
+            `  hypothesis_confidence;${confidence};`,
+            `priority: high;`,
+            `output:`,
+            `  lesson_id;${lessonId};`,
+            `  oversight_description;${oversight.replace(/;/g, ",")};`,
+            `  preventative_rule;${preventativeRule.replace(/;/g, ",")};`,
+            `  rule_confidence;${confidence};`,
+            `meta:`,
+            `  rationale;${fix.replace(/;/g, ",")};`,
+            `  applicability_scope;${applicableScope.replace(/;/g, ",")};`,
+            `  inverse_lesson;${inverseLesson.replace(/;/g, ",")};`,
+            `  confidence;${confidence};`,
+            `log: lesson_learned;timestamp;${timestamp};pattern;${patternId};severity;${severity};id;${lessonId};`,
+            `handoff: SubconsciousReflector;`,
+        ].join("\n");
+        const lessonContent = `[LESSON:${patternId}] ${oversight} | Rule: ${preventativeRule} | Scope: ${applicableScope}`;
+        const lessonMetadata = {
+            type: "lesson", tags: ["#lesson_learned"], lesson_id: lessonId,
+            lesson_pattern_id: patternId, severity, oversight, preventative_rule: preventativeRule,
+            rule_confidence: confidence, applicable_scope: applicableScope, inverse_lesson: inverseLesson,
+            yamo_wire_format: wireFormat, source: "distillLesson",
+        };
+        const mem = await this.add(lessonContent, lessonMetadata);
+        if (this.enableYamo) {
+            this._emitYamoBlock("lesson", mem.id, wireFormat).catch(() => {});
+        }
+        return { lessonId, patternId, severity, preventativeRule, ruleConfidence: confidence, applicableScope, wireFormat, memoryId: mem.id };
+    }
+    /**
+     * Query lessons from memory (RFC-0011 §4.1).
+     */
+    async queryLessons(query = "", options: { limit?: number } = {}): Promise<any[]> {
+        await this.init();
+        const limit = options.limit || 10;
+        const all = await this.getAll({ limit: 1000 });
+        const lessons = all.filter((r: any) => {
+            try {
+                const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
+                return meta.type === "lesson" || (Array.isArray(meta.tags) && meta.tags.includes("#lesson_learned"));
+            } catch { return false; }
+        });
+        let scored = lessons as any[];
+        if (query) {
+            const q = query.toLowerCase();
+            scored = lessons.map((r: any) => ({
+                ...r,
+                _score: (r.content?.toLowerCase().includes(q) ? 2 : 0) +
+                    (JSON.stringify(r.metadata).toLowerCase().includes(q) ? 1 : 0),
+            })).sort((a: any, b: any) => b._score - a._score);
+        }
+        return scored.slice(0, limit).map((r: any) => {
+            const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
+            return {
+                lessonId: meta.lesson_id || r.id, patternId: meta.lesson_pattern_id || "",
+                severity: meta.severity || "medium", preventativeRule: meta.preventative_rule || "",
+                ruleConfidence: meta.rule_confidence ?? 0, applicableScope: meta.applicable_scope || "",
+                wireFormat: meta.yamo_wire_format || "", memoryId: r.id,
+            };
+        });
+    }
+    /**
+     * Update a memory entry's heritage_chain (RFC-0011 §8).
+     */
+    async insertHeritage(memoryId: string, heritage: { intentChain: string[]; hypotheses: string[]; rationales: string[] }): Promise<void> {
+        await this.init();
+        if (!this.client) throw new Error("Database client not initialized");
+        try {
+            const record = await this.client.getById(memoryId);
+            if (!record) return;
+            const existingMeta = typeof record.metadata === "string"
+                ? JSON.parse(record.metadata) : (record.metadata || {});
+            await this.client.update(memoryId, {
+                metadata: JSON.stringify({ ...existingMeta, heritage_chain: JSON.stringify(heritage) }),
+            });
+        } catch (error: any) {
+            if (error instanceof Error && error.message.includes("not found")) return;
+            throw error;
+        }
+    }
+    /**
+     * Return all memories whose lesson_pattern_id matches patternId (RFC-0011 §4.1).
+     */
+    async getMemoriesByPattern(patternId: string): Promise<any[]> {
+        await this.init();
+        const all = await this.getAll({ limit: 1000 });
+        return (all as any[]).filter((r) => {
+            try {
+                const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
+                return meta.lesson_pattern_id === patternId;
+            } catch { return false; }
+        });
+    }
     async getAll(options = {}) {
         await this.init();
         if (!this.client) {
