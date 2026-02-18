@@ -1,23 +1,36 @@
 #!/usr/bin/env node
 
 /**
- * YAMO MemoryMesh CLI - Protocol-Native Edition (v3.1.0)
+ * YAMO MemoryMesh CLI - Singularity Edition (v3.2.0)
  * 
- * Enforces the "Zero JSON" mandate by using standard CLI flags.
- * Machines don't parse YAMO; they execute commands.
+ * State-of-the-art interface for semantic memory orchestration.
+ * Features: Interactive progress, beautiful formatting, and bulk ingestion.
  */
 
 import { Command } from 'commander';
 import { MemoryMesh } from '../lib/memory/index.js';
 import { createLogger } from '../lib/utils/logger.js';
+import pc from 'picocolors';
+import cliProgress from 'cli-progress';
+import fs from 'fs';
+import path from 'path';
+import { glob } from 'glob';
 
-const logger = createLogger('memory-mesh-cli');
 const program = new Command();
 
 program
   .name('memory-mesh')
-  .description('Portable semantic memory subconscious for YAMO agents')
-  .version('3.1.0');
+  .description('YAMO Semantic Subconscious - Protocol-Native CLI')
+  .version('3.2.0');
+
+// Helper for beautiful logging
+const ui = {
+  info: (msg) => console.log(`${pc.blue('ℹ')} ${pc.white(msg)}`),
+  success: (msg) => console.log(`${pc.green('✔')} ${pc.green(msg)}`),
+  warn: (msg) => console.log(`${pc.yellow('⚠')} ${pc.yellow(msg)}`),
+  error: (msg) => console.error(`${pc.red('✖')} ${pc.red(msg)}`),
+  header: (msg) => console.log(`\n${pc.bold(pc.cyan('── ' + msg + ' ' + '─'.repeat(50 - msg.length - 4)))}\n`)
+};
 
 // 1. Store/Ingest Command
 program
@@ -28,83 +41,89 @@ program
   .option('-t, --type <type>', 'Memory type (e.g., insight, decision, error)', 'event')
   .option('-r, --rationale <text>', 'The constitutional rationale for this memory')
   .option('-h, --hypothesis <text>', 'The associated hypothesis')
-  .option('--metadata <json>', 'Additional metadata (as flat flags or optional JSON)', '{}')
   .action(async (options) => {
     const mesh = new MemoryMesh();
     try {
-      let metadata = {};
-      try {
-        metadata = JSON.parse(options.metadata);
-      } catch (_e) {
-        // Fallback to empty if invalid JSON
-      }
-      
-      if (options.type) metadata.type = options.type;
-      if (options.rationale) metadata.rationale = options.rationale;
-      if (options.hypothesis) metadata.hypothesis = options.hypothesis;
+      ui.info(`Ingesting into subconscious...`);
+      const metadata = {
+        type: options.type,
+        rationale: options.rationale,
+        hypothesis: options.hypothesis,
+        source: 'cli-manual'
+      };
       
       const record = await mesh.add(options.content, metadata);
-      process.stdout.write(`[MemoryMesh] Ingested record ${record.id}\n`);
+      ui.success(`Ingested record ${pc.bold(record.id)}`);
     } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
+      ui.error(`Ingestion failed: ${err.message}`);
       process.exit(1);
     } finally {
       await mesh.close();
     }
   });
 
-// 2. Directory Ingest Command
+// 2. Pull Command (Smart Directory Ingest)
 program
-  .command('ingest-dir')
-  .alias('pull')
-  .description('Recursively ingest a directory of files (Smart Ingest)')
-  .argument('<path>', 'Directory path to ingest')
-  .option('-e, --extension <ext>', 'Filter by file extension', '')
+  .command('pull')
+  .description('Smart recursive repository/directory ingestion')
+  .argument('<path>', 'Directory path to pull')
+  .option('-e, --extension <ext>', 'File extensions (comma-separated)', '.yamo,.md')
   .option('-t, --type <type>', 'Memory type', 'documentation')
-  .option('-r, --recursive', 'Ingest subdirectories', true)
   .action(async (dirPath, options) => {
     const mesh = new MemoryMesh();
     try {
+      ui.header(`Pulling Wisdom: ${dirPath}`);
+      
       const absolutePath = path.resolve(dirPath);
       if (!fs.existsSync(absolutePath)) {
         throw new Error(`Directory not found: ${absolutePath}`);
       }
 
-      const files = [];
-      const walk = (dir) => {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          const fullPath = path.join(dir, entry.name);
-          if (entry.isDirectory() && options.recursive) {
-            walk(fullPath);
-          } else if (entry.isFile()) {
-            if (!options.extension || entry.name.endsWith(options.extension)) {
-              files.push(fullPath);
-            }
-          }
-        }
-      };
+      // 1. Discover files
+      const extensions = options.extension.split(',').map(e => e.trim());
+      const pattern = `**/*{${extensions.join(',')}}`;
+      
+      ui.info(`Scanning for ${pc.cyan(extensions.join(' ')) } files...`);
+      
+      const files = await glob(pattern, { cwd: absolutePath, absolute: true, nodir: true });
+      
+      if (files.length === 0) {
+        ui.warn('No matching files found.');
+        return;
+      }
 
-      walk(absolutePath);
-      process.stdout.write(`[MemoryMesh] Found ${files.length} files to ingest...\n`);
+      ui.info(`Found ${pc.bold(files.length)} files. Starting bulk ingestion...`);
 
+      // 2. Initialize Progress Bar
+      const bar = new cliProgress.SingleBar({
+        format: `${pc.cyan('Ingesting')} |${pc.cyan('{bar}')}| {percentage}% | {value}/{total} Files | {file}`,
+        barCompleteChar: '\u2588',
+        barIncompleteChar: '\u2591',
+        hideCursor: true
+      }, cliProgress.Presets.shades_classic);
+
+      bar.start(files.length, 0, { file: 'Initializing...' });
+
+      // 3. Process
       for (const file of files) {
+        const relativeName = path.relative(absolutePath, file);
+        bar.update(files.indexOf(file) + 1, { file: relativeName });
+        
         const content = fs.readFileSync(file, 'utf-8');
         if (!content.trim()) continue;
 
-        const metadata = {
-          source: path.relative(process.cwd(), file),
-          ingested_at: new Date().toISOString(),
-          type: options.type
-        };
-
-        const record = await mesh.add(content, metadata);
-        process.stdout.write(`  ✓ Ingested: ${metadata.source} (${record.id})\n`);
+        await mesh.add(content, {
+          source: relativeName,
+          type: options.type,
+          ingest_method: 'smart-pull'
+        });
       }
 
-      process.stdout.write(`[MemoryMesh] Completed bulk ingestion of ${files.length} files.\n`);
+      bar.stop();
+      ui.success(`Successfully distilled ${pc.bold(files.length)} files into memory.`);
+      
     } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
+      ui.error(`Pull failed: ${err.message}`);
       process.exit(1);
     } finally {
       await mesh.close();
@@ -114,159 +133,61 @@ program
 // 3. Search Command
 program
   .command('search')
-  .description('Perform semantic recall')
-  .argument('<query>', 'The semantic search query')
-  .option('-l, --limit <number>', 'Number of results', '10')
-  .option('-f, --filter <string>', 'LanceDB SQL-style filter')
+  .description('Perform high-fidelity semantic recall')
+  .argument('<query>', 'The semantic query')
+  .option('-l, --limit <number>', 'Number of results', '5')
   .action(async (query, options) => {
     const mesh = new MemoryMesh();
     try {
-      const results = await mesh.search(query, {
-        limit: parseInt(options.limit),
-        filter: options.filter || null
+      ui.info(`Searching subconscious for "${pc.italic(query)}"...`);
+      const results = await mesh.search(query, { limit: parseInt(options.limit) });
+      
+      if (results.length === 0) {
+        ui.warn('No relevant memories found.');
+        return;
+      }
+
+      ui.header(`Recalled ${results.length} Memories`);
+      
+      results.forEach((res, i) => {
+        const meta = typeof res.metadata === 'string' ? JSON.parse(res.metadata) : res.metadata;
+        const scoreColor = res.score > 0.8 ? pc.green : (res.score > 0.5 ? pc.yellow : pc.red);
+        
+        console.log(`${pc.bold(pc.cyan('Memory ' + (i + 1)))} [Rel: ${scoreColor(res.score.toFixed(2))}]`);
+        console.log(`${pc.dim('ID: ' + res.id)} | ${pc.dim('Type: ' + (meta.type || 'event'))}`);
+        console.log(`${pc.white(res.content.substring(0, 300))}${res.content.length > 300 ? '...' : ''}`);
+        console.log(pc.dim('─'.repeat(40)));
       });
       
-      process.stdout.write(`[MemoryMesh] Found ${results.length} matches.\n`);
-      process.stdout.write(mesh.formatResults(results));
-      process.stdout.write('\n');
     } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
+      ui.error(`Search failed: ${err.message}`);
       process.exit(1);
     } finally {
       await mesh.close();
     }
   });
 
-// 3. Stats Command
+// 4. Stats Command
 program
   .command('stats')
-  .description('Get database health and statistics')
+  .description('Subconscious health and database metrics')
   .action(async () => {
     const mesh = new MemoryMesh();
     try {
       const stats = await mesh.stats();
-      process.stdout.write(`[MemoryMesh] Total Memories: ${stats.count}\n`);
-      process.stdout.write(`[MemoryMesh] DB Path: ${stats.uri}\n`);
-      process.stdout.write(`[MemoryMesh] Status: ${stats.isConnected ? 'Connected' : 'Disconnected'}\n`);
+      ui.header('MemoryMesh Subconscious Status');
+      
+      const statusColor = stats.isConnected ? pc.green : pc.red;
+      
+      console.log(`${pc.bold('Status:')}      ${statusColor(stats.isConnected ? 'CONNECTED' : 'DISCONNECTED')}`);
+      console.log(`${pc.bold('Memories:')}    ${pc.cyan(stats.count)} entries`);
+      console.log(`${pc.bold('Skills:')}      ${pc.cyan(stats.totalSkills)} synthesized`);
+      console.log(`${pc.bold('Engine:')}      LanceDB (Vector Index)`);
+      console.log(`${pc.bold('Model:')}       ${pc.dim(stats.embedding.primary?.modelName || 'Unknown')}`);
+      console.log(`${pc.bold('Path:')}        ${pc.dim(stats.uri)}`);
+      
     } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
-      process.exit(1);
-    } finally {
-      await mesh.close();
-    }
-  });
-
-// 4. Get Command
-program
-  .command('get')
-  .description('Retrieve a single memory by ID')
-  .requiredOption('--id <id>', 'Memory record ID')
-  .action(async (options) => {
-    const mesh = new MemoryMesh();
-    try {
-      await mesh.init();
-      const record = await mesh.get(options.id);
-      if (!record) {
-        process.stdout.write(`[MemoryMesh] No record found with id: ${options.id}\n`);
-        process.exit(1);
-      }
-      const meta = typeof record.metadata === 'string' ? JSON.parse(record.metadata) : record.metadata;
-      process.stdout.write(`[MemoryMesh] id: ${record.id}\n`);
-      process.stdout.write(`[MemoryMesh] content: ${record.content}\n`);
-      process.stdout.write(`[MemoryMesh] type: ${meta?.type ?? 'unknown'}\n`);
-      process.stdout.write(`[MemoryMesh] created_at: ${record.created_at}\n`);
-      process.stdout.write(`[MemoryMesh] metadata: ${JSON.stringify(meta, null, 2)}\n`);
-    } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
-      process.exit(1);
-    } finally {
-      await mesh.close();
-    }
-  });
-
-// 5. Delete Command
-program
-  .command('delete')
-  .description('Delete a memory by ID')
-  .requiredOption('--id <id>', 'Memory record ID to delete')
-  .action(async (options) => {
-    const mesh = new MemoryMesh();
-    try {
-      await mesh.init();
-      await mesh.delete(options.id);
-      process.stdout.write(`[MemoryMesh] Deleted record ${options.id}\n`);
-    } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
-      process.exit(1);
-    } finally {
-      await mesh.close();
-    }
-  });
-
-// 6. Reflect Command
-program
-  .command('reflect')
-  .description('Query distilled lessons from memory (wisdom distillation)')
-  .option('--topic <text>', 'Topic or query to reflect on', '')
-  .option('--lookback <n>', 'Limit results to this many lessons', '10')
-  .action(async (options) => {
-    const mesh = new MemoryMesh();
-    try {
-      await mesh.init();
-      const query = options.topic || 'lessons learned patterns errors fixes';
-      const limit = parseInt(options.lookback) || 10;
-      const lessons = await mesh.queryLessons(query, { limit });
-      if (lessons.length === 0) {
-        process.stdout.write(`[MemoryMesh] No lessons found${options.topic ? ` for topic: ${options.topic}` : ''}.\n`);
-      } else {
-        process.stdout.write(`[MemoryMesh] Reflecting on ${lessons.length} lesson(s):\n\n`);
-        for (const lesson of lessons) {
-          process.stdout.write(`  scope: ${lesson.applicableScope}\n`);
-          process.stdout.write(`  rule:  ${lesson.preventativeRule}\n`);
-          process.stdout.write(`  confidence: ${lesson.ruleConfidence}\n`);
-          process.stdout.write('\n');
-        }
-      }
-    } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
-      process.exit(1);
-    } finally {
-      await mesh.close();
-    }
-  });
-
-// S-MORA command (RFC-0012)
-program
-  .command('smora')
-  .description('S-MORA enhanced retrieval: HyDE-Lite + multi-channel + heritage-aware reranking (RFC-0012)')
-  .argument('<query>', 'The retrieval query')
-  .option('-l, --limit <n>', 'Max results to return', '10')
-  .option('--no-hyde', 'Disable HyDE-Lite query expansion (Layer 1)')
-  .option('--intent <items>', 'Session intent chain for heritage bonus (comma-separated)', '')
-  .option('--json', 'Output raw JSON response')
-  .action(async (query, options) => {
-    const mesh = new MemoryMesh();
-    try {
-      await mesh.init();
-      const sessionIntent = options.intent
-        ? options.intent.split(',').map((s) => s.trim()).filter(Boolean)
-        : [];
-      const resp = await mesh.smora(query, {
-        limit: parseInt(options.limit) || 10,
-        enableHyDE: options.hyde !== false,
-        sessionIntent,
-      });
-      if (options.json) {
-        process.stdout.write(JSON.stringify(resp, null, 2) + '\n');
-      } else {
-        const p = resp.pipeline;
-        process.stdout.write(`[S-MORA] ${resp.results.length} result(s) | HyDE:${p.queryExpanded} heritage:${p.heritageAware} latency:${p.latencyMs}ms\n\n`);
-        for (const r of resp.results) {
-          process.stdout.write(`  [${r.rrfRank}] score:${r.score.toFixed(3)} | ${r.content.slice(0, 100)}${r.content.length > 100 ? '...' : ''}\n`);
-        }
-      }
-    } catch (err) {
-      console.error(`❌ Error: ${err.message}`);
+      ui.error(`Stats failed: ${err.message}`);
       process.exit(1);
     } finally {
       await mesh.close();
