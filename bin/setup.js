@@ -262,6 +262,7 @@ async function installTools(env) {
 }
 
 function showUsage(env) {
+  const pkg = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf-8'));
   log('\n✨ Setup Complete!', 'bright');
   
   if (env.isOpenClaw) {
@@ -269,11 +270,13 @@ function showUsage(env) {
     log('  • Ghost Protection active in AGENTS.md', 'cyan');
     log('  • Kernel entry point: BOOTSTRAP.yamo', 'cyan');
     log('  • Modules deployed to: yamo-native-agent/', 'cyan');
+    log(`  • Version: ${pkg.version}`, 'cyan');
     log('  • REFRESH SESSION to activate v3.0 fidelity.', 'cyan');
   } else {
     log('\n📚 STANDARD MODE:', 'blue');
     log('  • Skills installed to Claude/Gemini', 'blue');
     log('  • Use /yamo-super to start workflows', 'blue');
+    log(`  • Version: ${pkg.version}`, 'blue');
   }
 
   log('\n🔧 Tools:', 'blue');

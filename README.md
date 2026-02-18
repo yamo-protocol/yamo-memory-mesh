@@ -1,4 +1,4 @@
-# MemoryMesh (v3.1.0 Singularity Edition)
+# MemoryMesh (Singularity Edition)
 
 Portable, semantic memory system for AI agents with automatic Layer 0 sanitization and **Autonomous Kernel Integration**.
 
@@ -7,7 +7,7 @@ Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent a
 ## 🌌 Singularity Edition Highlights
 
 - **Intelligent Installer**: Automatically detects OpenClaw workspaces and performs a full kernel upgrade.
-- **YAMO Unified OS (v3.0)**: Natively includes the complete Macro (Specification) and Micro (Execution) workflow suite.
+- **YAMO Unified OS**: Natively includes the complete Macro (Specification) and Micro (Execution) workflow suite.
 - **Ghost Protection**: Self-healing `AGENTS.md` injection to prevent narrative drift and maintain cognitive alignment.
 - **Autonomous Bootstrap**: Deploys `BOOTSTRAP.yamo` as the primary agent entry point for protocol-native execution.
 - **Surgical Deployment**: Intelligently skips global CLI clutter when working in project-specific modes.
@@ -33,7 +33,7 @@ npm install @yamo/memory-mesh
 
 ### 🚀 Singularity Setup (OpenClaw)
 
-To upgrade your workspace to v3.1 fidelity:
+To upgrade your workspace to full fidelity:
 
 ```bash
 npx memory-mesh-setup
