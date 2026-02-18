@@ -56,11 +56,12 @@ program
 // 2. Directory Ingest Command
 program
   .command('ingest-dir')
-  .description('Recursively ingest a directory of files')
+  .alias('pull')
+  .description('Recursively ingest a directory of files (Smart Ingest)')
   .argument('<path>', 'Directory path to ingest')
-  .option('-e, --extension <ext>', 'Filter by file extension (e.g., .yamo, .md)', '')
-  .option('-t, --type <type>', 'Memory type for all files', 'documentation')
-  .option('-r, --recursive', 'Ingest subdirectories', false)
+  .option('-e, --extension <ext>', 'Filter by file extension', '')
+  .option('-t, --type <type>', 'Memory type', 'documentation')
+  .option('-r, --recursive', 'Ingest subdirectories', true)
   .action(async (dirPath, options) => {
     const mesh = new MemoryMesh();
     try {
@@ -224,6 +225,44 @@ program
           process.stdout.write(`  rule:  ${lesson.preventativeRule}\n`);
           process.stdout.write(`  confidence: ${lesson.ruleConfidence}\n`);
           process.stdout.write('\n');
+        }
+      }
+    } catch (err) {
+      console.error(`❌ Error: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// S-MORA command (RFC-0012)
+program
+  .command('smora')
+  .description('S-MORA enhanced retrieval: HyDE-Lite + multi-channel + heritage-aware reranking (RFC-0012)')
+  .argument('<query>', 'The retrieval query')
+  .option('-l, --limit <n>', 'Max results to return', '10')
+  .option('--no-hyde', 'Disable HyDE-Lite query expansion (Layer 1)')
+  .option('--intent <items>', 'Session intent chain for heritage bonus (comma-separated)', '')
+  .option('--json', 'Output raw JSON response')
+  .action(async (query, options) => {
+    const mesh = new MemoryMesh();
+    try {
+      await mesh.init();
+      const sessionIntent = options.intent
+        ? options.intent.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+      const resp = await mesh.smora(query, {
+        limit: parseInt(options.limit) || 10,
+        enableHyDE: options.hyde !== false,
+        sessionIntent,
+      });
+      if (options.json) {
+        process.stdout.write(JSON.stringify(resp, null, 2) + '\n');
+      } else {
+        const p = resp.pipeline;
+        process.stdout.write(`[S-MORA] ${resp.results.length} result(s) | HyDE:${p.queryExpanded} heritage:${p.heritageAware} latency:${p.latencyMs}ms\n\n`);
+        for (const r of resp.results) {
+          process.stdout.write(`  [${r.rrfRank}] score:${r.score.toFixed(3)} | ${r.content.slice(0, 100)}${r.content.length > 100 ? '...' : ''}\n`);
         }
       }
     } catch (err) {

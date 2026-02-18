@@ -228,7 +228,11 @@ export declare class MemoryMesh {
      * Note: YAMO emission is non-critical - failures are logged but don't throw
      * to prevent disrupting the main operation.
      */
-    _emitYamoBlock(operationType: any, memoryId: any, yamoText: any): Promise<void>;
+    _emitYamoBlock(operationType: any, memoryId: any, yamoText: any, heritage?: {
+        intentChain: string[];
+        hypotheses: string[];
+        rationales: string[];
+    }): Promise<void>;
     /**
      * Search memory using hybrid vector + keyword search with Reciprocal Rank Fusion (RRF).
      *
@@ -330,6 +334,36 @@ export declare class MemoryMesh {
      * Return all memories whose lesson_pattern_id matches patternId (RFC-0011 §4.1).
      */
     getMemoriesByPattern(patternId: string): Promise<any[]>;
+    /**
+     * S-MORA: Singularity Memory-Oriented Retrieval Augmentation (RFC-0012)
+     * 5-layer pipeline: Scrubbing → HyDE-Lite → Multi-channel retrieval → RRF → Heritage-aware reranking
+     */
+    smora(query: string, options?: {
+        limit?: number;
+        retrievalLimit?: number;
+        sessionIntent?: string[];
+        enableSynthesis?: boolean;
+        enableHyDE?: boolean;
+        useCache?: boolean;
+    }): Promise<{
+        results: Array<{
+            id: string;
+            content: string;
+            metadata: Record<string, unknown>;
+            score: number;
+            semanticScore: number;
+            heritageBonus: number;
+            recencyDecay: number;
+            rrfRank: number;
+        }>;
+        synthesis?: string;
+        pipeline: {
+            queryExpanded: boolean;
+            heritageAware: boolean;
+            synthesized: boolean;
+            latencyMs: number;
+        };
+    }>;
     getAll(options?: {}): Promise<any>;
     stats(): Promise<{
         count: number;
@@ -382,6 +416,35 @@ export declare class MemoryMesh {
      * ```
      */
     close(): Promise<void>;
+}
+/** RFC-0012 S-MORA option types */
+export interface SMORAOptions {
+    limit?: number;
+    retrievalLimit?: number;
+    sessionIntent?: string[];
+    enableSynthesis?: boolean;
+    enableHyDE?: boolean;
+    useCache?: boolean;
+}
+export interface SMORAResult {
+    id: string;
+    content: string;
+    metadata: Record<string, unknown>;
+    score: number;
+    semanticScore: number;
+    heritageBonus: number;
+    recencyDecay: number;
+    rrfRank: number;
+}
+export interface SMORAResponse {
+    results: SMORAResult[];
+    synthesis?: string;
+    pipeline: {
+        queryExpanded: boolean;
+        heritageAware: boolean;
+        synthesized: boolean;
+        latencyMs: number;
+    };
 }
 /**
  * Main CLI handler
