@@ -261,6 +261,22 @@ async function installTools(env) {
   }
 }
 
+async function createShortcuts(env) {
+  log('\n⌨️  Creating shortcuts...', 'blue');
+  const mmPath = join(env.cwd, 'mm');
+  const toolScript = join(env.cwd, 'tools', 'memory_mesh.mjs');
+  
+  const content = `#!/bin/bash\nnode ${toolScript} "$@"\n`;
+  
+  try {
+    writeFileSync(mmPath, content);
+    fs.chmodSync(mmPath, '755');
+    log('  ✓ Created local executable: ./mm', 'green');
+  } catch (error) {
+    log(`  ✗ Failed to create shortcut: ${error.message}`, 'red');
+  }
+}
+
 function showUsage(env) {
   const pkg = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf-8'));
   log('\n✨ Setup Complete!', 'bright');
@@ -280,7 +296,8 @@ function showUsage(env) {
   }
 
   log('\n🔧 Tools:', 'blue');
-  log('  • tools/memory_mesh.mjs for semantic operations', 'blue');
+  log('  • ./mm <command>          (Quick Access)', 'blue');
+  log('  • tools/memory_mesh.mjs   (Direct Script)', 'blue');
 }
 
 async function main() {
@@ -311,6 +328,9 @@ async function main() {
 
     // 4. Project Tools
     await installTools(env);
+
+    // 5. Create 'mm' shortcut
+    await createShortcuts(env);
 
     showUsage(env);
     
