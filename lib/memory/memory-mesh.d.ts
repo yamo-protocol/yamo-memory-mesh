@@ -1,3 +1,32 @@
+/** RFC-0012 S-MORA types */
+export interface SMORAOptions {
+    limit?: number;
+    retrievalLimit?: number;
+    sessionIntent?: string[];
+    enableSynthesis?: boolean;
+    enableHyDE?: boolean;
+    useCache?: boolean;
+}
+export interface SMORAResult {
+    id: string;
+    content: string;
+    metadata: Record<string, unknown>;
+    score: number;
+    semanticScore: number;
+    heritageBonus: number;
+    recencyDecay: number;
+    rrfRank: number;
+}
+export interface SMORAResponse {
+    results: SMORAResult[];
+    synthesis?: string;
+    pipeline: {
+        queryExpanded: boolean;
+        heritageAware: boolean;
+        synthesized: boolean;
+        latencyMs: number;
+    };
+}
 /**
  * MemoryMesh class for managing vector memory storage
  */
@@ -416,35 +445,6 @@ export declare class MemoryMesh {
      * ```
      */
     close(): Promise<void>;
-}
-/** RFC-0012 S-MORA option types */
-export interface SMORAOptions {
-    limit?: number;
-    retrievalLimit?: number;
-    sessionIntent?: string[];
-    enableSynthesis?: boolean;
-    enableHyDE?: boolean;
-    useCache?: boolean;
-}
-export interface SMORAResult {
-    id: string;
-    content: string;
-    metadata: Record<string, unknown>;
-    score: number;
-    semanticScore: number;
-    heritageBonus: number;
-    recencyDecay: number;
-    rrfRank: number;
-}
-export interface SMORAResponse {
-    results: SMORAResult[];
-    synthesis?: string;
-    pipeline: {
-        queryExpanded: boolean;
-        heritageAware: boolean;
-        synthesized: boolean;
-        latencyMs: number;
-    };
 }
 /**
  * Main CLI handler
