@@ -21,7 +21,7 @@ const program = new Command();
 program
   .name('memory-mesh')
   .description('YAMO Semantic Subconscious - Protocol-Native CLI')
-  .version('3.2.0');
+  .version('3.2.3');
 
 // Helper for beautiful logging
 const ui = {
@@ -188,6 +188,87 @@ program
       
     } catch (err) {
       ui.error(`Stats failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 5. Get Command
+program
+  .command('get')
+  .description('Retrieve a memory record by ID')
+  .requiredOption('-i, --id <id>', 'Memory record ID')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      const record = await mesh.get(options.id);
+      if (!record) {
+        ui.warn(`Record not found: ${options.id}`);
+        process.exit(1);
+      }
+      const meta = typeof record.metadata === 'string' ? JSON.parse(record.metadata) : (record.metadata || {});
+      ui.header(`Memory ${options.id}`);
+      console.log(`${pc.bold('ID:')}       ${pc.dim(record.id)}`);
+      console.log(`${pc.bold('Type:')}     ${pc.dim(meta.type || 'event')}`);
+      console.log(`${pc.bold('Created:')} ${pc.dim(record.created_at)}`);
+      console.log(`\n${pc.white(record.content)}`);
+    } catch (err) {
+      ui.error(`Get failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 6. Delete Command
+program
+  .command('delete')
+  .description('Permanently remove a memory record by ID')
+  .requiredOption('-i, --id <id>', 'Memory record ID to delete')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      await mesh.delete(options.id);
+      ui.success(`Deleted record ${pc.bold(options.id)}`);
+    } catch (err) {
+      ui.error(`Delete failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 7. Reflect Command
+program
+  .command('reflect')
+  .description('Synthesize insights from stored memories')
+  .option('-t, --topic <topic>', 'Focus the reflection on a specific topic')
+  .option('-l, --lookback <number>', 'Number of memories to review', '10')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      ui.info(`Reflecting on ${options.topic ? `"${pc.italic(options.topic)}"` : 'recent memories'}...`);
+      const result = await mesh.reflect({
+        topic: options.topic,
+        lookback: parseInt(options.lookback),
+      });
+      ui.header('Reflection');
+      if (result.reflection) {
+        console.log(pc.white(result.reflection));
+        console.log(`\n${pc.bold('Confidence:')} ${pc.cyan((result.confidence * 100).toFixed(0))}%`);
+      } else {
+        console.log(pc.dim(`Reviewed ${result.count} memories${result.topic ? ` on topic: ${result.topic}` : ''}`));
+        console.log(`\n${pc.bold('Prompt for LLM:')}\n${pc.white(result.prompt)}`);
+        if (result.context?.length) {
+          console.log('');
+          result.context.forEach((m, i) => {
+            console.log(`${pc.cyan(`Memory ${i + 1}:`)} ${pc.white(m.content.substring(0, 200))}${m.content.length > 200 ? '...' : ''}`);
+          });
+        }
+      }
+    } catch (err) {
+      ui.error(`Reflect failed: ${err.message}`);
       process.exit(1);
     } finally {
       await mesh.close();

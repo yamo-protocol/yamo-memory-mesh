@@ -1895,6 +1895,22 @@ export async function run() {
         else if (action === "stats") {
             process.stdout.write(`[MemoryMesh] Database Statistics:\n${JSON.stringify({ status: "ok", stats: await mesh.stats() }, null, 2)}\n`);
         }
+        else if (action === "get") {
+            const record = await mesh.get(input.id);
+            if (!record) {
+                process.stdout.write(`[MemoryMesh] Record not found: ${input.id}\n${JSON.stringify({ status: "not_found", id: input.id })}\n`);
+            } else {
+                process.stdout.write(`[MemoryMesh] Record ${record.id}\n${JSON.stringify({ status: "ok", record }, null, 2)}\n`);
+            }
+        }
+        else if (action === "delete") {
+            await mesh.delete(input.id);
+            process.stdout.write(`[MemoryMesh] Deleted record ${input.id}\n${JSON.stringify({ status: "ok", id: input.id })}\n`);
+        }
+        else if (action === "reflect") {
+            const result = await mesh.reflect({ topic: input.topic, lookback: input.lookback });
+            process.stdout.write(`[MemoryMesh] Reflection complete.\n${JSON.stringify({ status: "ok", result }, null, 2)}\n`);
+        }
         else {
             logger.error({ action }, "Unknown action");
             process.exit(1);

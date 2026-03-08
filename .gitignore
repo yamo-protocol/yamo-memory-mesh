@@ -45,5 +45,8 @@ GEMINI.md
 # CLI / Skills
 tools/
 
+# Local dev scripts (hardcoded paths — not portable)
+mm
+
 # LanceDB
 *.lance/

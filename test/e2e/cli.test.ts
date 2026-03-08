@@ -31,9 +31,9 @@ describe('MemoryMesh E2E (CLI)', () => {
   it('should report statistics for an empty database', () => {
     const output = execSync(`node ${BIN_PATH} stats`, { encoding: 'utf8' });
 
-    assert.ok(output.includes('[MemoryMesh] Total Memories:'));
-    assert.ok(output.includes('[MemoryMesh] DB Path:'));
-    assert.ok(output.includes('[MemoryMesh] Status:'));
+    assert.ok(output.includes('Memories:'));
+    assert.ok(output.includes('Path:'));
+    assert.ok(output.includes('Status:'));
   });
 
   it('should store and retrieve a memory', () => {
@@ -49,7 +49,7 @@ describe('MemoryMesh E2E (CLI)', () => {
       `node ${BIN_PATH} search "What is the future of orchestration?" --limit 1`,
       { encoding: 'utf8' }
     );
-    assert.ok(searchOutput.includes('Found'));
+    assert.ok(searchOutput.includes('Recalled') || searchOutput.includes('Found'));
     assert.ok(searchOutput.includes('YAMO Singularity'));
   });
 

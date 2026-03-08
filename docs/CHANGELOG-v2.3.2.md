@@ -115,7 +115,7 @@ memory-mesh reflect '{"topic": "bugs", "generate": false}'
 - `lib/yamo/schema.js` (140 lines) - Blockchain-ready storage schema
 
 **What is YAMO?**
-YAMO (Yet Another Markup for Orchestration) is a structured language for transparent AI agent collaboration with immutable provenance tracking.
+YAMO (Yet Another Model Ontology) is a structured language for transparent AI agent collaboration with immutable provenance tracking.
 
 **YAMO Block Format:**
 ```yaml

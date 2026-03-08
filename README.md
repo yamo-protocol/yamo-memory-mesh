@@ -47,13 +47,45 @@ The installer will:
 
 ### CLI
 
+The `memory-mesh` CLI provides seven commands for full subconscious CRUD and recall:
+
 ```bash
 # Store a memory (automatically scrubbed & embedded)
-node tools/memory_mesh.mjs store --content "My important memory" --type "insight"
+memory-mesh store --content "My important memory" --type insight
 
-# Search memories
-node tools/memory_mesh.mjs search "query" --limit 5
+# Store with full provenance metadata
+memory-mesh store -c "Insight text" -t decision -r "Improves latency" -h "Caching reduces p95"
+
+# Bulk-ingest a directory (recursive, by extension)
+memory-mesh pull ./docs --extension ".md,.yamo" --type documentation
+
+# Semantic search
+memory-mesh search "query about orchestration" --limit 5
+
+# Retrieve a specific record by ID
+memory-mesh get --id mem_abc123
+
+# Delete a record by ID
+memory-mesh delete --id mem_abc123
+
+# Synthesize insights from recent memories
+memory-mesh reflect --topic "bugs" --lookback 10
+
+# Database health and statistics
+memory-mesh stats
 ```
+
+**Command Reference:**
+
+| Command | Key Options | Description |
+|---------|-------------|-------------|
+| `store` | `-c/--content` (required), `-t/--type`, `-r/--rationale`, `-h/--hypothesis` | Persist a semantic memory |
+| `pull` | `<path>` (required), `-e/--extension`, `-t/--type` | Bulk-ingest a directory |
+| `search` | `<query>` (required), `-l/--limit` | Semantic recall |
+| `get` | `-i/--id` (required) | Fetch a record by ID |
+| `delete` | `-i/--id` (required) | Remove a record by ID |
+| `reflect` | `-t/--topic`, `-l/--lookback` | Synthesize insights from memories |
+| `stats` | — | DB health, count, embedding model |
 
 ### Node.js API
 
@@ -173,7 +205,7 @@ docker run -v $(pwd)/data:/app/runtime/data \
 
 ## About YAMO Protocol
 
-Memory Mesh is built on the **YAMO (Yet Another Markup for Orchestration) Protocol** - a structured language for transparent AI agent collaboration with immutable provenance tracking.
+Memory Mesh is built on the **YAMO (Yet Another Model Ontology) Protocol** - a structured language for transparent AI agent collaboration with immutable provenance tracking.
 
 **YAMO Protocol Features:**
 - **Structured Agent Workflows**: Semicolon-terminated constraints, explicit handoff chains
