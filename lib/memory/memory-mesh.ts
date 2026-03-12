@@ -320,7 +320,15 @@ export class MemoryMesh {
                         const skillSchema = createSynthesizedSkillSchema(this.vectorDimension);
                         this.skillTable = await this.client.db.createTable("synthesized_skills", [], {
                             schema: skillSchema,
+                            storageOptions: { new_table_data_storage_version: "stable" },
                         });
+                    }
+                    // Migrate manifest paths to V2 layout (idempotent)
+                    try {
+                        await this.skillTable.migrateManifestPathsV2();
+                    }
+                    catch {
+                        // Already migrated or not a local table — ignore
                     }
                     if (process.env.YAMO_DEBUG === "true") {
                         logger.debug("YAMO blocks and synthesized skills tables initialized");

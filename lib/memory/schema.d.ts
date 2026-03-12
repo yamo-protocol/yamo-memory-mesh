@@ -58,6 +58,14 @@ export declare function createSynthesizedSkillSchema(vectorDim?: number): arrow.
  */
 export declare function isSchemaV2(schema: any): any;
 /**
+ * Migrate an existing table to V2:
+ * 1. Migrate manifest paths to V2 layout (efficient versioning, idempotent)
+ * 2. Add nullable V2 columns to memory_entries-style tables if not already present
+ *
+ * Safe to call on any table — non-memory tables skip the schema column additions.
+ */
+export declare function migrateTableV2(table: any): Promise<void>;
+/**
  * Memory table schema using Apache Arrow format (default 384 dimensions)
  * @deprecated Use createMemorySchema(vectorDim) for dynamic dimensions
  */
@@ -113,6 +121,7 @@ declare const _default: {
     createMemorySchema: typeof createMemorySchema;
     createMemorySchemaV2: typeof createMemorySchemaV2;
     isSchemaV2: typeof isSchemaV2;
+    migrateTableV2: typeof migrateTableV2;
     getEmbeddingDimension: typeof getEmbeddingDimension;
     DEFAULT_VECTOR_DIMENSION: number;
     EMBEDDING_DIMENSIONS: {
