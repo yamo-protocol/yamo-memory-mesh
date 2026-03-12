@@ -444,6 +444,11 @@ export declare class MemoryMesh {
      * await mesh.close(); // Clean up
      * ```
      */
+    /**
+     * Compact old data files and prune versions older than 7 days.
+     * Best-effort — delegates to LanceDBClient.optimize().
+     */
+    optimize(): Promise<any>;
     close(): Promise<void>;
 }
 /**

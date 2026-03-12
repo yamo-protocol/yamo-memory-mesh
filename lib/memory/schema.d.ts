@@ -66,6 +66,12 @@ export declare function isSchemaV2(schema: any): any;
  */
 export declare function migrateTableV2(table: any): Promise<void>;
 /**
+ * Ensure the vector column has an IVF_PQ index.
+ * Skipped when: table has too few rows, index already exists, or table is a mock.
+ * Called automatically by createMemoryTableWithDimension after migration.
+ */
+export declare function ensureVectorIndex(table: any): Promise<void>;
+/**
  * Memory table schema using Apache Arrow format (default 384 dimensions)
  * @deprecated Use createMemorySchema(vectorDim) for dynamic dimensions
  */
@@ -122,6 +128,7 @@ declare const _default: {
     createMemorySchemaV2: typeof createMemorySchemaV2;
     isSchemaV2: typeof isSchemaV2;
     migrateTableV2: typeof migrateTableV2;
+    ensureVectorIndex: typeof ensureVectorIndex;
     getEmbeddingDimension: typeof getEmbeddingDimension;
     DEFAULT_VECTOR_DIMENSION: number;
     EMBEDDING_DIMENSIONS: {

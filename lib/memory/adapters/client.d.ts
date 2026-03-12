@@ -86,6 +86,11 @@ export declare class LanceDBClient {
      */
     getStats(): Promise<any>;
     /**
+     * Compact old data files and prune versions older than 7 days.
+     * Best-effort — never throws.
+     */
+    optimize(): Promise<void>;
+    /**
      * Sanitize an ID to prevent SQL injection
      * Removes any characters that aren't alphanumeric, underscore, or hyphen
      * @private

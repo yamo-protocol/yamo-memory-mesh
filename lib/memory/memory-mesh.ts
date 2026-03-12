@@ -1801,6 +1801,13 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * await mesh.close(); // Clean up
      * ```
      */
+    /**
+     * Compact old data files and prune versions older than 7 days.
+     * Best-effort — delegates to LanceDBClient.optimize().
+     */
+    async optimize() {
+        return this.client?.optimize?.();
+    }
     // eslint-disable-next-line @typescript-eslint/require-await
     async close() {
         try {
