@@ -2,6 +2,10 @@
   "name": "@yamo/memory-mesh",
   "version": "3.2.4",
   "description": "Portable semantic memory system with Layer 0 Scrubber for YAMO agents (v3 Singularity Edition)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yamo-protocol/yamo-memory-mesh"
+  },
   "type": "module",
   "main": "lib/memory/index.js",
   "types": "lib/memory/index.d.ts",
