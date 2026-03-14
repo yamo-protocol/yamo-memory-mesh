@@ -1,14 +1,20 @@
 // @ts-nocheck
 /**
- * YAMO Emitter - Constructs structured YAMO blocks for auditability
+ * YAMO Emitter - Constructs structured YAMO ABNF blocks for auditability
  *
- * Based on YAMO Protocol specification:
- * - Semicolon-terminated key-value pairs
- * - Agent/Intent/Context/Constraints/Meta/Output structure
- * - Supports reflect, retain, recall operations
+ * Based on YAMO Protocol RFC-0011 §3.2 (ABNF colon-separated multi-line format).
+ * This format is DISTINCT from the flat wire format (RFC-0008 / RFC-0014).
  *
- * Reference: Hindsight project's yamo_integration.py
+ * Escaping: RFC-0014 — semicolons in values are percent-encoded as `%3B`.
+ * (Supersedes the comma-escape scheme used prior to 2026-03-14.)
+ *
+ * Reference: yamo-os lib/yamo/emitter.ts (canonical implementation)
  */
+
+/** Percent-encode semicolons in a value so they don't break the YAMO line format. */
+function escapeValue(value: string): string {
+  return String(value).replace(/;/g, "%3B");
+}
 /**
  * YamoEmitter class for building YAMO protocol blocks
  * YAMO (Yet Another Multi-agent Orchestration) blocks provide
@@ -22,17 +28,17 @@ export class YamoEmitter {
     static buildReflectBlock(params) {
         const { topic, memoryCount, agentId = "default", reflection, confidence = 0.8, } = params;
         const timestamp = new Date().toISOString();
-        return `agent: MemoryMesh_${agentId};
+        return `agent: MemoryMesh_${escapeValue(agentId)};
 intent: synthesize_insights_from_context;
 context:
-  topic;${topic || "general"};
+  topic;${escapeValue(topic || "general")};
   memory_count;${memoryCount};
   timestamp;${timestamp};
 constraints:
   hypothesis;Reflection generates new insights from existing facts;
 priority: high;
 output:
-  reflection;${reflection};
+  reflection;${escapeValue(reflection)};
   confidence;${confidence};
 meta:
   rationale;Synthesized from ${memoryCount} relevant memories;
@@ -50,26 +56,26 @@ handoff: End;
         const { content, metadata: _metadata = {}, id, agentId = "default", memoryType = "event", } = params;
         const timestamp = new Date().toISOString();
         const contentPreview = content.length > 100 ? `${content.substring(0, 100)}...` : content;
-        // Escape semicolons in content for YAMO format
-        const escapedContent = contentPreview.replace(/;/g, ",");
-        return `agent: MemoryMesh_${agentId};
+        // RFC-0014: percent-encode semicolons (replaces legacy comma-escape)
+        const escapedContent = escapeValue(contentPreview);
+        return `agent: MemoryMesh_${escapeValue(agentId)};
 intent: store_memory_for_future_retrieval;
 context:
-  memory_id;${id};
-  memory_type;${memoryType};
+  memory_id;${escapeValue(id)};
+  memory_type;${escapeValue(memoryType)};
   timestamp;${timestamp};
   content_length;${content.length};
 constraints:
   hypothesis;New information should be integrated into world model;
 priority: medium;
 output:
-  memory_stored;${id};
+  memory_stored;${escapeValue(id)};
   content_preview;${escapedContent};
 meta:
   rationale;Memory persisted for semantic search and retrieval;
   observation;Content vectorized and stored in LanceDB;
   confidence;1.0;
-log: memory_retained;timestamp;${timestamp};id;${id};type;${memoryType};
+log: memory_retained;timestamp;${timestamp};id;${escapeValue(id)};type;${escapeValue(memoryType)};
 handoff: End;
 `;
     }
@@ -81,11 +87,11 @@ handoff: End;
         const { query, resultCount, limit = 10, agentId = "default", searchType = "semantic", } = params;
         const timestamp = new Date().toISOString();
         const recallRatio = resultCount > 0 ? (resultCount / limit).toFixed(2) : "0.00";
-        return `agent: MemoryMesh_${agentId};
+        return `agent: MemoryMesh_${escapeValue(agentId)};
 intent: retrieve_relevant_memories;
 context:
-  query;${query};
-  search_type;${searchType};
+  query;${escapeValue(query)};
+  search_type;${escapeValue(searchType)};
   requested_limit;${limit};
   timestamp;${timestamp};
 constraints:
@@ -98,7 +104,7 @@ meta:
   rationale;Semantic search finds similar content by vector similarity;
   observation;${resultCount} memories found matching query;
   confidence;${resultCount > 0 ? "0.9" : "0.5"};
-log: memory_recalled;timestamp;${timestamp};results;${resultCount};query;${query};
+log: memory_recalled;timestamp;${timestamp};results;${resultCount};query;${escapeValue(query)};
 handoff: End;
 `;
     }
@@ -109,22 +115,22 @@ handoff: End;
     static buildDeleteBlock(params) {
         const { id, agentId = "default", reason = "user_request" } = params;
         const timestamp = new Date().toISOString();
-        return `agent: MemoryMesh_${agentId};
+        return `agent: MemoryMesh_${escapeValue(agentId)};
 intent: remove_memory_from_storage;
 context:
-  memory_id;${id};
-  reason;${reason};
+  memory_id;${escapeValue(id)};
+  reason;${escapeValue(reason)};
   timestamp;${timestamp};
 constraints:
   hypothesis;Memory removal should be traceable for audit;
 priority: low;
 output:
-  deleted;${id};
+  deleted;${escapeValue(id)};
 meta:
   rationale;Memory removed from vector store;
   observation;Deletion recorded for provenance;
   confidence;1.0;
-log: memory_deleted;timestamp;${timestamp};id;${id};
+log: memory_deleted;timestamp;${timestamp};id;${escapeValue(id)};
 handoff: End;
 `;
     }
@@ -157,7 +163,8 @@ handoff: End;
                 // Allow empty lines and comments
                 if (trimmed &&
                     !trimmed.startsWith("agent:") &&
-                    !trimmed.startsWith("handoff:")) {
+                    !trimmed.startsWith("handoff:") &&
+                    !trimmed.endsWith(":")) {
                     errors.push(`Line not semicolon-terminated: ${trimmed.substring(0, 50)}`);
                 }
             }

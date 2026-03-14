@@ -648,12 +648,32 @@ export class MemoryMesh {
         await this.init();
         const topic = options.topic || "general_improvement";
         const enrichedPrompt = options.enrichedPrompt || topic; // PHASE 4: Use enriched prompt
+        const mode = options.mode || "create";
+        const targetSkillId = options.targetSkillId;
+
         // const lookback = options.lookback || 20;
-        logger.info({ topic, enrichedPrompt }, "Synthesizing logic");
+        logger.info({ topic, mode, targetSkillId }, "Synthesizing logic");
+
         // OPTIMIZATION: If we have an execution engine (kernel), use SkillCreator!
         if (this._kernel_execute) {
             logger.info("Dispatching to SkillCreator agent...");
             try {
+                // Fetch target skill content if refactoring
+                let targetContent = "";
+                let targetPath = "";
+                if (mode === "refactor" && targetSkillId) {
+                    const skill = await this.getSkill(targetSkillId);
+                    if (skill) {
+                        targetPath = skill.metadata?.source_file || "";
+                        if (targetPath && fs.existsSync(targetPath)) {
+                            targetContent = fs.readFileSync(targetPath, "utf8");
+                        } else {
+                            // Fallback to DB content if file missing
+                            targetContent = skill.yamo_text || "";
+                        }
+                    }
+                }
+
                 // Use stored skill directories
                 const skillDirs = this.skillDirectories;
                 // Track existing .yamo files before SkillCreator runs
@@ -683,8 +703,14 @@ export class MemoryMesh {
                         walk(dir);
                     }
                 }
+
                 // PHASE 4: Use enriched prompt for SkillCreator
-                await this._kernel_execute(`SkillCreator: design a new skill to handle ${enrichedPrompt}`, {
+                let prompt = `SkillCreator: design a new skill to handle ${enrichedPrompt}`;
+                if (mode === "refactor" && targetContent) {
+                    prompt = `SkillCreator: REFACTOR and FIX the following skill. It failed with the following context: ${enrichedPrompt}.\n\nEXISTING SKILL CONTENT:\n${targetContent}`;
+                }
+
+                await this._kernel_execute(prompt, {
                     v1_1_enabled: true,
                 });
                 // Find newly created .yamo file
@@ -843,6 +869,37 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
         catch (error) {
             throw new Error(`Failed to update skill reliability: ${error.message}`);
+        }
+    }
+    /**
+     * Get a single synthesized skill by ID
+     * @param {string} id - Skill ID
+     * @returns {Promise<Object|null>} Skill data or null if not found
+     */
+    async getSkill(id) {
+        await this.init();
+        if (!this.skillTable) {
+            return null;
+        }
+        try {
+            const results = await this.skillTable
+                .query()
+                .filter(`id == '${id}'`)
+                .toArray();
+            if (results.length === 0) {
+                return null;
+            }
+            const record = results[0];
+            return {
+                ...record,
+                metadata: typeof record.metadata === "string"
+                    ? JSON.parse(record.metadata)
+                    : record.metadata,
+            };
+        }
+        catch (error) {
+            logger.warn({ err: error, id }, "Failed to get skill");
+            return null;
         }
     }
     /**
@@ -1418,7 +1475,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             `agent: MemoryMesh_${this.agentId};`,
             `intent: distill_wisdom_from_execution;`,
             `context:`,
-            `  original_context;${situation.replace(/;/g, ",")};`,
+            `  original_context;${situation.replace(/;/g, "%3B")};`,
             `  error_pattern;${patternId};`,
             `  severity;${severity};`,
             `  timestamp;${timestamp};`,
@@ -1428,13 +1485,13 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             `priority: high;`,
             `output:`,
             `  lesson_id;${lessonId};`,
-            `  oversight_description;${oversight.replace(/;/g, ",")};`,
-            `  preventative_rule;${preventativeRule.replace(/;/g, ",")};`,
+            `  oversight_description;${oversight.replace(/;/g, "%3B")};`,
+            `  preventative_rule;${preventativeRule.replace(/;/g, "%3B")};`,
             `  rule_confidence;${confidence};`,
             `meta:`,
-            `  rationale;${fix.replace(/;/g, ",")};`,
-            `  applicability_scope;${applicableScope.replace(/;/g, ",")};`,
-            `  inverse_lesson;${inverseLesson.replace(/;/g, ",")};`,
+            `  rationale;${fix.replace(/;/g, "%3B")};`,
+            `  applicability_scope;${applicableScope.replace(/;/g, "%3B")};`,
+            `  inverse_lesson;${inverseLesson.replace(/;/g, "%3B")};`,
             `  confidence;${confidence};`,
             `log: lesson_learned;timestamp;${timestamp};pattern;${patternId};severity;${severity};id;${lessonId};`,
             `handoff: SubconsciousReflector;`,
