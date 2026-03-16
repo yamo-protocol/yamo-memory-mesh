@@ -15,6 +15,7 @@ Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent a
 ## Features
 
 - **Persistent Vector Storage**: Powered by LanceDB for semantic search.
+- **LanceDB V2 Schema (Active)**: Top-level columns `memory_type`, `importance_score`, `access_count`, `last_accessed`, `session_id`, `agent_id` — populated on every write, queried server-side (WHERE clause) instead of full-table scans.
 - **Layer 0 Scrubber**: Automatically sanitizes, deduplicates, and cleans content before embedding.
 - **Local Embeddings**: Runs 100% locally using ONNX (no API keys required).
 - **Portable CLI**: Simple flag-based interface for any agent or language (`tools/memory_mesh.mjs`).
@@ -230,8 +231,10 @@ Memory Mesh implements YAMO v2.1.0 compliance with:
 
 ## Documentation
 
-- **Architecture Guide**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Comprehensive system architecture (1,118 lines)
+- **Architecture Guide**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Comprehensive system architecture
+- **User Guide**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - Operator and integration guide
 - **Development Guide**: [CLAUDE.md](CLAUDE.md) - Guide for Claude Code development
+- **V2 Column Changelog**: [docs/CHANGELOG-v3.2.3.md](docs/CHANGELOG-v3.2.3.md) - V2 schema migration notes
 - **Marketplace**: [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) - Plugin metadata
 
 ## Configuration
