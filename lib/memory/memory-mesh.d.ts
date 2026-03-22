@@ -226,6 +226,12 @@ export declare class MemoryMesh {
         use_count: any;
     }>;
     /**
+     * Get a single synthesized skill by ID
+     * @param {string} id - Skill ID
+     * @returns {Promise<Object|null>} Skill data or null if not found
+     */
+    getSkill(id: any): Promise<any>;
+    /**
      * Prune skills
      */
     pruneSkills(threshold?: number): Promise<{

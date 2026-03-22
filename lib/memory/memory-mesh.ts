@@ -1235,23 +1235,74 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         try {
             const limit = options.limit || 10;
             const filter = options.filter || null;
+            const mode = options.mode || "hybrid"; // "hybrid" | "vector" | "keyword"
             const useCache = options.useCache !== undefined ? options.useCache : true;
             if (useCache) {
-                const cacheKey = this._generateCacheKey(query, { limit, filter });
+                const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
                 const cached = this._getCachedResult(cacheKey);
                 if (cached) {
                     return cached;
                 }
             }
+
+            // Keyword-only mode: skip embedding and vector search entirely
+            if (mode === "keyword") {
+                const keywordOnly = this.keywordSearch.search(query, { limit });
+                const normalizedKeyword = this._normalizeScores(keywordOnly);
+                if (useCache) {
+                    const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
+                    this._cacheResult(cacheKey, normalizedKeyword);
+                }
+                if (this.enableYamo) {
+                    this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
+                        query,
+                        resultCount: normalizedKeyword.length,
+                        limit,
+                        agentId: this.agentId,
+                        searchType: "keyword",
+                    })).catch((error) => {
+                        if (process.env.YAMO_DEBUG === "true") {
+                            logger.warn({ err: error }, "Failed to emit YAMO block (recall)");
+                        }
+                    });
+                }
+                return normalizedKeyword;
+            }
+
             const vector = await this.embeddingFactory.embed(query);
             if (!this.client) {
                 throw new Error("Database client not initialized");
             }
             const vectorResults = await this.client.search(vector, {
-                limit: limit * 2,
+                limit: mode === "vector" ? limit : limit * 2,
                 metric: "cosine",
                 filter,
             });
+
+            // Vector-only mode: skip keyword search and RRF merge
+            if (mode === "vector") {
+                const normalizedVector = this._normalizeScores(vectorResults.slice(0, limit));
+                if (useCache) {
+                    const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
+                    this._cacheResult(cacheKey, normalizedVector);
+                }
+                if (this.enableYamo) {
+                    this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
+                        query,
+                        resultCount: normalizedVector.length,
+                        limit,
+                        agentId: this.agentId,
+                        searchType: "vector",
+                    })).catch((error) => {
+                        if (process.env.YAMO_DEBUG === "true") {
+                            logger.warn({ err: error }, "Failed to emit YAMO block (recall)");
+                        }
+                    });
+                }
+                return normalizedVector;
+            }
+
+            // Hybrid mode (default): vector + keyword with RRF merge
             const keywordResults = this.keywordSearch.search(query, {
                 limit: limit * 2,
             });
@@ -1323,7 +1374,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             }
             const normalizedResults = this._normalizeScores(mergedResults);
             if (useCache) {
-                const cacheKey = this._generateCacheKey(query, { limit, filter });
+                const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
                 this._cacheResult(cacheKey, normalizedResults);
             }
             if (this.enableYamo) {
