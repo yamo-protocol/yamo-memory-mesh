@@ -107,6 +107,10 @@ export declare class LanceDBClient {
      */
     _validateVector(vector: any): void;
     /**
+     * Refresh table handle if it becomes stale (e.g. after background compaction)
+     */
+    refresh(): Promise<void>;
+    /**
      * Sleep for a specified duration
      * @private
      */

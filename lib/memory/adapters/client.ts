@@ -464,6 +464,14 @@ export class LanceDBClient {
         }
     }
     /**
+     * Refresh table handle if it becomes stale (e.g. after background compaction)
+     */
+    async refresh() {
+        logger.debug({ uri: this.uri, table: this.tableName }, "Refreshing LanceDB handle");
+        this.isConnected = false;
+        await this.connect();
+    }
+    /**
      * Sleep for a specified duration
      * @private
      */
@@ -491,6 +499,9 @@ export class LanceDBClient {
             "network error", // Generic network error
             "failed to fetch", // Fetch/network failure
             "timeout", // Timeout occurred
+            "lanceerror(io)", // LanceDB IO error
+            "manifest", // Manifest error (stale handle)
+            "next batch", // Stream/batch error
         ];
         // Check for network patterns
         const hasNetworkPattern = retryablePatterns.some((pattern) => message.includes(pattern));
@@ -527,13 +538,22 @@ export class LanceDBClient {
                 if (attempt === max) {
                     throw error;
                 }
+                const message = (error.message || "").toLowerCase();
+                // If error suggests a stale handle, try to refresh before retrying
+                if (message.includes("lanceerror(io)") || message.includes("manifest") || message.includes("closed")) {
+                    try {
+                        await this.refresh();
+                    }
+                    catch (refreshError) {
+                        logger.warn({ err: refreshError }, "Failed to refresh handle during retry");
+                    }
+                }
                 const backoffMs = delay * Math.pow(2, attempt - 1);
                 const jitterMs = backoffMs * Math.random() * 0.25;
-                const message = error instanceof Error ? error.message : String(error);
                 logger.debug({
                     attempt,
                     max,
-                    message,
+                    message: error.message,
                     retryDelayMs: Math.round(backoffMs + jitterMs),
                 }, "Retryable error, retrying");
                 await this._sleep(backoffMs + jitterMs);

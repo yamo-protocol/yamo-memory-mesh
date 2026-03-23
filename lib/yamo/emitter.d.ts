@@ -1,12 +1,13 @@
 /**
- * YAMO Emitter - Constructs structured YAMO blocks for auditability
+ * YAMO Emitter - Constructs structured YAMO ABNF blocks for auditability
  *
- * Based on YAMO Protocol specification:
- * - Semicolon-terminated key-value pairs
- * - Agent/Intent/Context/Constraints/Meta/Output structure
- * - Supports reflect, retain, recall operations
+ * Based on YAMO Protocol RFC-0011 §3.2 (ABNF colon-separated multi-line format).
+ * This format is DISTINCT from the flat wire format (RFC-0008 / RFC-0014).
  *
- * Reference: Hindsight project's yamo_integration.py
+ * Escaping: RFC-0014 — semicolons in values are percent-encoded as `%3B`.
+ * (Supersedes the comma-escape scheme used prior to 2026-03-14.)
+ *
+ * Reference: yamo-os lib/yamo/emitter.ts (canonical implementation)
  */
 /**
  * YamoEmitter class for building YAMO protocol blocks
