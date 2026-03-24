@@ -40,13 +40,11 @@ export class Normalizer {
   }
 
   _normalizeLists(content) {
-    let normalized = content.replace(/(\s*)([-*+])(\S)/g, '$1$2 $3');
-    normalized = normalized.replace(/(\s*)(\d+)(\S)/g, (match, ws, num, char) => {
-      if (!/\.\s/.test(match.substring(ws.length + num.length))) {
-        return `${ws}${num}. ${char}`;
-      }
-      return match;
-    });
+    // Anchor to line start, and require a genuine single-character list marker —
+    // negative lookahead (?![*+\-]) prevents **bold** or -- from being split.
+    let normalized = content.replace(/^([ \t]*)([-*+])(?![*+\-])([^ \t\n])/gm, '$1$2 $3');
+    // Only matches "digit dot non-space" at line start — safe for version numbers.
+    normalized = normalized.replace(/^([ \t]*)(\d+)\.([^ \t\n])/gm, '$1$2. $3');
     return normalized;
   }
 

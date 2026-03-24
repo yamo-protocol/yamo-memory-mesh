@@ -58,16 +58,13 @@ export class StructuralCleaner {
     let cleaned = content;
     // Add space after heading markers when missing
     cleaned = cleaned.replace(/(#{1,6})([^\s#])/g, '$1 $2');
-    // Add space after list markers when missing
-    cleaned = cleaned.replace(/(\s*)([-*+])(\S)/g, '$1$2 $3');
-    // Add space after numbered list markers when missing
-    cleaned = cleaned.replace(/(\s*)(\d+)(\S)/g, (match, ws, num, char) => {
-      // Only if it looks like a numbered list (digit followed by non-dot, non-space)
-      if (!/\.\s/.test(match.substring(ws.length + num.length))) {
-        return `${ws}${num}. ${char}`;
-      }
-      return match;
-    });
+    // Add space after list markers ONLY at line start, and ONLY for genuine
+    // single-character markers — negative lookahead (?![*+\-]) prevents
+    // **bold** or -- from being split.
+    cleaned = cleaned.replace(/^([ \t]*)([-*+])(?![*+\-])([^ \t\n])/gm, '$1$2 $3');
+    // Add space after numbered list markers ONLY at line start, ONLY when
+    // the digit is followed by a literal dot then a non-space (e.g. "1.Item").
+    cleaned = cleaned.replace(/^([ \t]*)(\d+)\.([^ \t\n])/gm, '$1$2. $3');
     return cleaned;
   }
 
