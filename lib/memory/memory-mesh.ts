@@ -84,6 +84,7 @@ export class MemoryMesh {
     cacheConfig;
     skillDirectories; // Store skill directories for synthesis
     dbDir; // Store custom dbDir for in-memory databases
+    semanticInjection; // Prepend V5 topics/entities before embedding (Phase 5 Step 1)
     /**
      * Create a new MemoryMesh instance
      * @param {Object} [options={}]
@@ -99,6 +100,7 @@ export class MemoryMesh {
         this.enableYamo = options.enableYamo !== false;
         this.enableLLM = options.enableLLM !== false;
         this.enableMemory = options.enableMemory !== false;
+        this.semanticInjection = options.enableSemanticInjection !== false;
         this.agentId = options.agentId || "YAMO_AGENT";
         this.yamoTable = null;
         this.skillTable = null;
@@ -414,7 +416,24 @@ export class MemoryMesh {
                 console.error("[DEBUG] brain.add() enrichedMetadata.type:", enrichedMetadata.type);
                 console.error("[DEBUG] brain.add() sanitizedMetadata.type:", sanitizedMetadata.type);
             }
-            const vector = await this.embeddingFactory.embed(sanitizedContent);
+            // Semantic injection: prepend V5 fields before embedding so the vector
+            // space clusters around explicit topics/entities (Phase 5 Step 1).
+            let embeddingText = sanitizedContent;
+            if (this.semanticInjection) {
+                const topics = sanitizedMetadata.topics;
+                const entities = sanitizedMetadata.entities;
+                const parts: string[] = [];
+                if (Array.isArray(topics) && (topics as unknown[]).length > 0) {
+                    parts.push(`[TOPICS: ${(topics as string[]).join(", ")}]`);
+                }
+                if (Array.isArray(entities) && (entities as unknown[]).length > 0) {
+                    parts.push(`[ENTITIES: ${(entities as string[]).join(", ")}]`);
+                }
+                if (parts.length > 0) {
+                    embeddingText = `${parts.join(" ")} ${sanitizedContent}`;
+                }
+            }
+            const vector = await this.embeddingFactory.embed(embeddingText);
             // Dedup: search by the already-computed vector before inserting.
             // Catches exact duplicates regardless of which write path is used,
             // protecting callers that bypass captureInteraction()'s dedup guard.
