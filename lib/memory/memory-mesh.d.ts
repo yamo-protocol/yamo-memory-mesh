@@ -49,6 +49,7 @@ export declare class MemoryMesh {
     cacheConfig: any;
     skillDirectories: any;
     dbDir: any;
+    semanticInjection: any;
     /**
      * Create a new MemoryMesh instance
      * @param {Object} [options={}]
