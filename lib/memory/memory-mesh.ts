@@ -1161,7 +1161,26 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 }
                 // Only log warning on final failure
                 if (attempt === maxRetries) {
-                    logger.warn({ err: error }, "Failed to get log after retries");
+                    if (isRetryable && this.dbDir) {
+                        // All retries exhausted with IO error — manifest corruption is unrecoverable
+                        // (re-opening finds the same stale manifest each time). Drop and recreate
+                        // so the next heartbeat cycle starts with a clean table.
+                        logger.warn({ err: error }, "yamo_blocks IO corruption: recreating table");
+                        try {
+                            const { createYamoTable: recreateYamoTable } = await import("../yamo/schema.js");
+                            const db = await lancedb.connect(this.dbDir);
+                            await db.dropTable("yamo_blocks");
+                            this.yamoTable = await recreateYamoTable(db, "yamo_blocks");
+                            logger.info("Recreated yamo_blocks table after IO corruption");
+                        }
+                        catch (recreateErr) {
+                            logger.warn({ err: recreateErr }, "Failed to recreate yamo_blocks table — disabling yamo log");
+                            this.yamoTable = null;
+                        }
+                    }
+                    else {
+                        logger.warn({ err: error }, "Failed to get log after retries");
+                    }
                 }
                 else if (!isRetryable) {
                     // Non-retryable error
