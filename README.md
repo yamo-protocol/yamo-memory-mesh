@@ -204,6 +204,35 @@ docker run -v $(pwd)/data:/app/runtime/data \
   yamo/memory-mesh store "Content"
 ```
 
+## Integration with yamo-os
+
+`@yamo/memory-mesh` is the memory subsystem used by [yamo-os](https://github.com/scgoetsch/yamo-os). The `YamoKernel` in yamo-os wraps it as `KernelBrain` and calls it on every `kernel.execute()` invocation:
+
+- Every execution writes an interaction record to LanceDB via `brain.add()`
+- `kernel.heartbeat()` triggers consolidation cycles that synthesise memories into skills
+- The kernel injects `_kernel_execute` into MemoryMesh for recursive skill synthesis
+- LanceDB path: `runtime/data/lancedb/` (configurable via `LANCEDB_URI` or `brain.path` in `yamo_config.json`)
+
+When used standalone (without yamo-os), MemoryMesh operates as a pure semantic memory store — yamo-os integration is opt-in.
+
+### Using with yamo-os
+
+```typescript
+import { YamoKernel } from "yamo-os";
+
+const kernel = new YamoKernel({
+  brain: {
+    path: "./runtime/data/lancedb",
+    enableMemory: true,
+  },
+});
+await kernel.boot();
+// MemoryMesh is now available as kernel.brain
+const results = await kernel.brain.search("previous interactions");
+```
+
+For full deployment including the bridge coordination plane, see [yamo-infra](https://github.com/scgoetsch/yamo-infra).
+
 ## About YAMO Protocol
 
 Memory Mesh is built on the **YAMO (Yet Another Model Ontology) Protocol** - a structured language for transparent AI agent collaboration with immutable provenance tracking.
