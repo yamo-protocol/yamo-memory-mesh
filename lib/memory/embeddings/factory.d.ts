@@ -59,5 +59,16 @@ declare class EmbeddingFactory {
      * Clear all caches
      */
     clearCache(): void;
+    /**
+     * Get tokenizer and sequence classification model for reranking
+     */
+    getReranker(): Promise<{
+        tokenizer: any;
+        model: any;
+    }>;
+    /**
+     * Compute cross-encoder relevance scores for a query and a set of candidate documents
+     */
+    rerank(query: any, documents: any): Promise<any[]>;
 }
 export default EmbeddingFactory;

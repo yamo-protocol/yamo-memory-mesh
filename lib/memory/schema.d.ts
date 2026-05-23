@@ -109,6 +109,15 @@ export declare function createMemoryTable(db: any, tableName?: string): Promise<
  * @throws {Error} If table creation fails
  */
 export declare function createMemoryTableWithDimension(db: any, tableName: any, vectorDim: any): Promise<any>;
+/**
+ * Create Graph-RAG Edges Table Schema
+ * Columns: id, source, target, relation, weight, created_at
+ */
+export declare function createGraphSchema(): arrow.Schema<any>;
+/**
+ * Creates/opens a graph_edges table in LanceDB
+ */
+export declare function createGraphTable(db: any, tableName?: string): Promise<any>;
 declare const _default: {
     MEMORY_SCHEMA: arrow.Schema<any>;
     INDEX_CONFIG: {
@@ -142,5 +151,7 @@ declare const _default: {
         "cohere/embed-english-light-v3.0": number;
         "cohere/embed-english-v3.0": number;
     };
+    createGraphSchema: typeof createGraphSchema;
+    createGraphTable: typeof createGraphTable;
 };
 export default _default;

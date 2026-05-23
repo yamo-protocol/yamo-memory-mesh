@@ -9,15 +9,10 @@ export declare class Chunker {
      * @param {string} content - Normalized content
      * @returns {Promise<Array>} - Array of chunks with metadata
      */
-    chunk(content: any): Promise<{
-        index: number;
-        text: any;
-        metadata: {
-            tokens: any;
-            heading: any;
-            position: number;
-        };
-    }[]>;
+    chunk(content: any): Promise<any>;
+    _semanticChunk(content: any): Promise<any[]>;
+    _paragraphChunk(content: any): any[];
+    _cosineSimilarity(u: any, v: any): number;
     _isHeading(line: any): boolean;
     _shouldStartNewChunk(currentChunk: any, para: any, paraTokens: any, isHeading: any): boolean;
     _extractInitialHeading(content: any): any;

@@ -88,6 +88,7 @@ export function createMemorySchemaV2(vectorDim = DEFAULT_VECTOR_DIMENSION) {
         new arrow.Field("importance_score", new arrow.Float32(), true), // 0.0-1.0 importance
         new arrow.Field("access_count", new arrow.Int32(), true), // Popularity tracking
         new arrow.Field("last_accessed", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), true),
+        new arrow.Field("superseded_at", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), true),
     ]);
 }
 /**
@@ -139,18 +140,36 @@ export async function migrateTableV2(table) {
     catch {
         return; // Can't inspect schema — skip
     }
-    if (isSchemaV2(schema)) return;
     // Only add V2 columns if the table has the V1 memory_entries shape
     const fieldNames = schema.fields.map((f) => f.name);
     if (!fieldNames.includes("content") || !fieldNames.includes("vector")) return;
-    await table.addColumns([
-        { name: "session_id", valueSql: "cast(null as string)" },
-        { name: "agent_id", valueSql: "cast(null as string)" },
-        { name: "memory_type", valueSql: "cast(null as string)" },
-        { name: "importance_score", valueSql: "cast(null as float)" },
-        { name: "access_count", valueSql: "cast(null as int)" },
-        { name: "last_accessed", valueSql: "cast(null as timestamp)" },
-    ]);
+    
+    const missingColumns = [];
+    if (!fieldNames.includes("session_id")) {
+        missingColumns.push({ name: "session_id", valueSql: "cast(null as string)" });
+    }
+    if (!fieldNames.includes("agent_id")) {
+        missingColumns.push({ name: "agent_id", valueSql: "cast(null as string)" });
+    }
+    if (!fieldNames.includes("memory_type")) {
+        missingColumns.push({ name: "memory_type", valueSql: "cast(null as string)" });
+    }
+    if (!fieldNames.includes("importance_score")) {
+        missingColumns.push({ name: "importance_score", valueSql: "cast(null as float)" });
+    }
+    if (!fieldNames.includes("access_count")) {
+        missingColumns.push({ name: "access_count", valueSql: "cast(null as int)" });
+    }
+    if (!fieldNames.includes("last_accessed")) {
+        missingColumns.push({ name: "last_accessed", valueSql: "cast(null as timestamp)" });
+    }
+    if (!fieldNames.includes("superseded_at")) {
+        missingColumns.push({ name: "superseded_at", valueSql: "cast(null as timestamp)" });
+    }
+
+    if (missingColumns.length > 0) {
+        await table.addColumns(missingColumns);
+    }
 }
 /**
  * Ensure the vector column has an IVF_PQ index.
@@ -242,6 +261,43 @@ export async function createMemoryTableWithDimension(db, tableName, vectorDim) {
         throw new Error(`Failed to create memory table with dimension ${vectorDim}: ${message}`);
     }
 }
+
+/**
+ * Create Graph-RAG Edges Table Schema
+ * Columns: id, source, target, relation, weight, created_at
+ */
+export function createGraphSchema() {
+    return new arrow.Schema([
+        new arrow.Field("id", new arrow.Utf8(), false),
+        new arrow.Field("source", new arrow.Utf8(), false),
+        new arrow.Field("target", new arrow.Utf8(), false),
+        new arrow.Field("relation", new arrow.Utf8(), false),
+        new arrow.Field("weight", new arrow.Float32(), false),
+        new arrow.Field("created_at", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), false),
+    ]);
+}
+
+/**
+ * Creates/opens a graph_edges table in LanceDB
+ */
+export async function createGraphTable(db, tableName = "graph_edges") {
+    try {
+        const existingTables = await db.tableNames();
+        if (existingTables.includes(tableName)) {
+            return await db.openTable(tableName);
+        } else {
+            const schema = createGraphSchema();
+            return await db.createTable(tableName, [], {
+                schema,
+                storageOptions: { new_table_data_storage_version: "stable" },
+            });
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to create graph table ${tableName}: ${message}`);
+    }
+}
+
 export default {
     MEMORY_SCHEMA,
     INDEX_CONFIG,
@@ -255,4 +311,6 @@ export default {
     getEmbeddingDimension,
     DEFAULT_VECTOR_DIMENSION,
     EMBEDDING_DIMENSIONS,
+    createGraphSchema,
+    createGraphTable,
 };

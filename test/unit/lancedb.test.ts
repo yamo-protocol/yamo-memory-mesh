@@ -74,7 +74,9 @@ describe('LanceDBClient', () => {
       assert.ok(fs.existsSync(client.tempDir!));
 
       // Call exitHook manually
-      exitHookListener();
+      if (client._exitHookListener) {
+        client._exitHookListener();
+      }
       assert.strictEqual(fs.existsSync(client.tempDir!), false);
 
       // Disconnect should unregister exit listener

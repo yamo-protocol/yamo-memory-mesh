@@ -250,6 +250,7 @@ export class LanceDBClient {
                 score: row._distance,
                 created_at: row.created_at,
                 vector: row.vector, // Include vector if returned
+                superseded_at: row.superseded_at,
             }));
         });
     }
@@ -285,6 +286,7 @@ export class LanceDBClient {
                     : null,
                 created_at: record.created_at,
                 updated_at: record.updated_at,
+                superseded_at: record.superseded_at,
             };
         });
     }
@@ -313,6 +315,7 @@ export class LanceDBClient {
                 vector: row.vector,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
+                superseded_at: row.superseded_at,
             }));
         });
     }

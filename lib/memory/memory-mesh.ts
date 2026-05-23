@@ -78,6 +78,7 @@ export class MemoryMesh {
     agentId;
     yamoTable;
     skillTable;
+    graphTable;
     llmClient;
     scrubber;
     queryCache;
@@ -101,6 +102,7 @@ export class MemoryMesh {
         this.enableLLM = options.enableLLM !== false;
         this.enableMemory = options.enableMemory !== false;
         this.semanticInjection = options.enableSemanticInjection !== false;
+        this.enableReranker = options.enableReranker !== false;
         this.agentId = options.agentId || "YAMO_AGENT";
         this.yamoTable = null;
         this.skillTable = null;
@@ -296,11 +298,17 @@ export class MemoryMesh {
             const embeddingConfigs = this._parseEmbeddingConfig();
             this.embeddingFactory.configure(embeddingConfigs);
             await this.embeddingFactory.init();
+            if (this.scrubber && this.scrubber.stages && this.scrubber.stages.chunker) {
+                this.scrubber.stages.chunker.config.embedFn = async (text: string) => {
+                    return this.embeddingFactory.embed(text);
+                };
+            }
             // Hydrate Keyword Search (In-Memory)
             if (this.client) {
                 try {
                     const allRecords = await this.client.getAll({ limit: 10000 });
-                    this.keywordSearch.load(allRecords);
+                    const activeRecords = allRecords.filter((r) => !r.superseded_at);
+                    this.keywordSearch.load(activeRecords);
                 }
                 catch (_e) {
                     // Ignore if table doesn't exist yet
@@ -338,6 +346,16 @@ export class MemoryMesh {
                 }
                 catch (e) {
                     logger.warn({ err: e }, "Failed to initialize extension tables");
+                }
+            }
+            // Initialize Graph-RAG property graph table
+            if (this.client && this.client.db) {
+                try {
+                    const { createGraphTable } = await import("./schema.js");
+                    this.graphTable = await createGraphTable(this.client.db, "graph_edges");
+                }
+                catch (error) {
+                    logger.warn({ err: error }, "Failed to initialize graph_edges table");
                 }
             }
             this.isInitialized = true;
@@ -471,6 +489,70 @@ export class MemoryMesh {
                 }
             }
             this.keywordSearch.add(record.id, record.content, sanitizedMetadata);
+            if (this.graphTable) {
+                try {
+                    let triples = [];
+                    if (this.enableLLM && this.llmClient) {
+                        triples = await this._extractTriplesLLM(sanitizedContent);
+                    }
+                    if (triples.length === 0) {
+                        triples = this._extractTriplesHeuristics(sanitizedContent);
+                    }
+                    if (triples.length > 0) {
+                        const edgeRecords = triples.map((t) => ({
+                            id: `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            source: t.source,
+                            target: t.target,
+                            relation: t.relation,
+                            weight: t.weight,
+                            created_at: new Date(),
+                        }));
+                        await this.graphTable.add(edgeRecords);
+                    }
+                }
+                catch (graphError) {
+                    if (process.env.YAMO_DEBUG === "true") {
+                        logger.error({ err: graphError }, "Failed to extract or store Graph-RAG triples");
+                    }
+                }
+            }
+            // Epistemic Belief Revision
+            if (this.client) {
+                // 1. Direct replacement by replaces_memory_id
+                if (sanitizedMetadata.replaces_memory_id) {
+                    try {
+                        const targetId = sanitizedMetadata.replaces_memory_id;
+                        await this.client.update(targetId, {
+                            superseded_at: new Date(),
+                        });
+                        this.keywordSearch.remove(targetId);
+                    }
+                    catch (e) {
+                        if (process.env.YAMO_DEBUG === "true") {
+                            logger.warn({ err: e, id: sanitizedMetadata.replaces_memory_id }, "Failed to mark memory as superseded by ID");
+                        }
+                    }
+                }
+                // 2. Semantic replacement by conflict tags (e.g. key)
+                if (sanitizedMetadata.key) {
+                    try {
+                        const activeRecords = await this.client.getAll({ limit: 10000 });
+                        for (const r of activeRecords) {
+                            if (r.id !== result.id && r.metadata && r.metadata.key === sanitizedMetadata.key && !r.superseded_at) {
+                                await this.client.update(r.id, {
+                                    superseded_at: new Date(),
+                                });
+                                this.keywordSearch.remove(r.id);
+                            }
+                        }
+                    }
+                    catch (e) {
+                        if (process.env.YAMO_DEBUG === "true") {
+                            logger.warn({ err: e, key: sanitizedMetadata.key }, "Failed to mark memory as superseded by key");
+                        }
+                    }
+                }
+            }
             if (this.enableYamo) {
                 this._emitYamoBlock("retain", result.id, YamoEmitter.buildRetainBlock({
                     content: sanitizedContent,
@@ -1311,10 +1393,11 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             if (!this.client) {
                 throw new Error("Database client not initialized");
             }
+            const combinedFilter = filter ? `(${filter}) AND superseded_at IS NULL` : "superseded_at IS NULL";
             const vectorResults = await this.client.search(vector, {
                 limit: mode === "vector" ? limit : limit * 2,
                 metric: "cosine",
-                filter,
+                filter: combinedFilter,
             });
 
             // Vector-only mode: skip keyword search and RRF merge
@@ -1371,16 +1454,15 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     });
                 }
             }
-            // Extract top k results using min-heap pattern - O(n log k)
-            // Since JavaScript doesn't have a built-in heap, we use an efficient approach:
-            // Convert to array and sort only if results exceed limit significantly
+            // Extract top candidates using min-heap pattern
             const scoreEntries = Array.from(scores.entries());
             let mergedResults;
-            if (scoreEntries.length <= limit * 2) {
+            const rerankLimit = this.enableReranker ? Math.max(20, limit * 2) : limit;
+            if (scoreEntries.length <= rerankLimit * 2) {
                 // Small dataset: standard sort is fine
                 mergedResults = scoreEntries
                     .sort((a, b) => b[1] - a[1]) // O(n log n) but n is small
-                    .slice(0, limit)
+                    .slice(0, rerankLimit)
                     .map(([id, score]) => {
                     const doc = docMap.get(id);
                     return doc ? { ...doc, score } : null;
@@ -1392,14 +1474,14 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 // This is more efficient than full sort when we only need top k results
                 const topK = [];
                 for (const entry of scoreEntries) {
-                    if (topK.length < limit) {
+                    if (topK.length < rerankLimit) {
                         topK.push(entry);
                         // Keep topK sorted in descending order
                         topK.sort((a, b) => b[1] - a[1]);
                     }
                     else if (entry[1] > topK[topK.length - 1][1]) {
                         // Replace smallest in topK if current is larger
-                        topK[limit - 1] = entry;
+                        topK[rerankLimit - 1] = entry;
                         topK.sort((a, b) => b[1] - a[1]);
                     }
                 }
@@ -1410,6 +1492,25 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 })
                     .filter((d) => d !== null);
             }
+
+            // Cross-encoder rerank
+            if (this.enableReranker && mergedResults.length > 0) {
+                try {
+                    const docContents = mergedResults.map(d => d.content);
+                    const ceScores = await this.embeddingFactory.rerank(query, docContents);
+                    const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+                    for (let i = 0; i < mergedResults.length; i++) {
+                        mergedResults[i].score = sigmoid(ceScores[i]);
+                    }
+                    mergedResults.sort((a, b) => b.score - a.score);
+                } catch (error) {
+                    if (process.env.YAMO_DEBUG === "true") {
+                        logger.warn({ err: error }, "Cross-encoder reranking failed, falling back to RRF scores");
+                    }
+                }
+                mergedResults = mergedResults.slice(0, limit);
+            }
+
             // Hybrid results already have meaningful RRF scores — normalize them
             // to [0, 1] instead of re-deriving from _distance (which may not
             // exist on keyword-only results, causing uniform 0.50 scores).
@@ -1418,7 +1519,46 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 ...r,
                 score: parseFloat((r.score / maxRRF).toFixed(2)),
             }));
-            if (useCache) {
+             // Graph-RAG 1-hop boosting
+             if (this.graphTable) {
+                 try {
+                     const queryEntities = query.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g) || [];
+                     if (queryEntities.length > 0) {
+                         const escapedEntities = queryEntities.map(e => e.replace(/'/g, "''"));
+                         const listStr = escapedEntities.map(e => `'${e}'`).join(", ");
+                         const filterExpr = `source IN (${listStr}) OR target IN (${listStr})`;
+                         const edges = await this.graphTable.query().where(filterExpr).toArray();
+                         
+                         const connectedEntities = new Set();
+                         for (const edge of edges) {
+                             if (queryEntities.includes(edge.source)) connectedEntities.add(edge.target);
+                             if (queryEntities.includes(edge.target)) connectedEntities.add(edge.source);
+                         }
+                         
+                         if (connectedEntities.size > 0) {
+                             for (const doc of normalizedResults) {
+                                 let containsConnected = false;
+                                 for (const entity of connectedEntities) {
+                                     if (doc.content.includes(entity)) {
+                                         containsConnected = true;
+                                         break;
+                                     }
+                                 }
+                                 if (containsConnected) {
+                                     doc.score = Math.min(1.0, parseFloat((doc.score * 1.15).toFixed(2)));
+                                 }
+                             }
+                             normalizedResults.sort((a, b) => b.score - a.score);
+                         }
+                     }
+                 } catch (graphError) {
+                     if (process.env.YAMO_DEBUG === "true") {
+                         logger.warn({ err: graphError }, "Failed to traverse Graph-RAG edges");
+                     }
+                 }
+             }
+
+             if (useCache) {
                 const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
                 this._cacheResult(cacheKey, normalizedResults);
             }
@@ -1751,8 +1891,8 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         const hydeVec = hydeQuery ? await this.embeddingFactory.embed(hydeQuery) : null;
 
         const [semanticOrig, semanticHyde, keywordResults] = await Promise.all([
-            this.client.search(queryVec, { limit: retrievalLimit, metric: 'cosine' }),
-            hydeVec ? this.client.search(hydeVec, { limit: retrievalLimit, metric: 'cosine' }) : Promise.resolve([]),
+            this.client.search(queryVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }),
+            hydeVec ? this.client.search(hydeVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }) : Promise.resolve([]),
             Promise.resolve(this.keywordSearch.search(scrubbed, { limit: retrievalLimit })),
         ]);
 
@@ -1782,6 +1922,19 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             .map(([id]) => docMap.get(id))
             .filter(Boolean);
 
+        // Compute cross-encoder scores if enabled
+        let ceScores = null;
+        if (this.enableReranker && candidates.length > 0) {
+            try {
+                const docContents = candidates.map((d) => d.content);
+                ceScores = await this.embeddingFactory.rerank(scrubbed, docContents);
+            } catch (error) {
+                if (process.env.YAMO_DEBUG === "true") {
+                    logger.warn({ err: error }, "Cross-encoder reranking in smora failed, falling back to RRF scores");
+                }
+            }
+        }
+
         // Layer 4: Heritage-aware reranking
         // final_score = 0.6×semantic_sim + 0.25×heritage_bonus + 0.15×recency_decay
         // When no sessionIntent: weights renormalize → α=0.71, γ=0.29
@@ -1792,10 +1945,16 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         const λ = 0.05; // recency decay rate (half-life ≈ 14 days)
         const now = Date.now();
 
-        const reranked = candidates.map((doc: any) => {
-            // Semantic score: normalize rrfScore to [0,1] approximation
-            const rrfScore = rrfScores.get(doc.id) || 0;
-            const semanticScore = Math.min(1.0, rrfScore * 20); // scale to ~[0,1]
+        const reranked = candidates.map((doc: any, idx: number) => {
+            // Semantic score: use cross-encoder if available, otherwise RRF-based approximation
+            let semanticScore = 0;
+            if (ceScores && ceScores[idx] !== undefined) {
+                const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+                semanticScore = sigmoid(ceScores[idx]);
+            } else {
+                const rrfScore = rrfScores.get(doc.id) || 0;
+                semanticScore = Math.min(1.0, rrfScore * 20); // scale to ~[0,1]
+            }
 
             // Heritage bonus
             let heritageBonus = 0;
@@ -1972,6 +2131,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             // Clear extension table references
             this.yamoTable = null;
             this.skillTable = null;
+            this.graphTable = null;
             // Reset initialization state
             this.isInitialized = false;
             logger.debug("MemoryMesh closed successfully");
@@ -1981,6 +2141,136 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             logger.warn({ err: e }, "Error closing MemoryMesh");
             // Don't throw - cleanup should always succeed
         }
+    }
+
+    _extractTriplesHeuristics(content) {
+        const triples = [];
+        const terms = content.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g);
+        if (terms && terms.length >= 2) {
+            const uniqueTerms = Array.from(new Set(terms));
+            for (let i = 0; i < uniqueTerms.length - 1; i++) {
+                const source = uniqueTerms[i];
+                const target = uniqueTerms[i+1];
+                let relation = "relates_to";
+                const pattern = new RegExp(`${source}\\s+(\\w+)\\s+.*?${target}`, "i");
+                const match = content.match(pattern);
+                if (match && match[1]) {
+                    const verb = match[1].toLowerCase();
+                    if (["uses", "contains", "implements", "is", "has", "creates", "manages", "configures", "calls"].includes(verb)) {
+                        relation = verb;
+                    }
+                }
+                triples.push({
+                    source,
+                    target,
+                    relation,
+                    weight: 1.0
+                });
+            }
+        }
+        return triples;
+    }
+
+    async _extractTriplesLLM(content) {
+        if (!this.llmClient) return [];
+        try {
+            const prompt = `Extract entity-relation triples (Subject, Predicate, Object) from the following text.
+Format the output as a JSON array of objects with keys: "source", "target", "relation", "weight" (0.0 to 1.0).
+Only output the JSON array, nothing else.
+
+Text: "${content}"`;
+            
+            const response = await this.llmClient.complete("You are a Graph-RAG entity extractor. Output ONLY valid JSON array.", prompt);
+            
+            const cleanedResponse = response.trim().replace(/^```json/, '').replace(/```$/, '').trim();
+            const triples = JSON.parse(cleanedResponse);
+            if (Array.isArray(triples)) {
+                return triples.map(t => ({
+                    source: String(t.source),
+                    target: String(t.target),
+                    relation: String(t.relation),
+                    weight: typeof t.weight === 'number' ? t.weight : 1.0
+                }));
+            }
+        } catch (err) {
+            if (process.env.YAMO_DEBUG === "true") {
+                logger.warn({ err }, "LLM triple extraction failed");
+            }
+        }
+        return [];
+    }
+
+    async anchor() {
+        await this.init();
+        if (!this.yamoTable) {
+            throw new Error("YAMO blocks table not initialized");
+        }
+
+        const allBlocks = await this.yamoTable.query().toArray();
+        allBlocks.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        const unanchored = allBlocks.filter((b) => !b.anchored_at);
+        if (unanchored.length === 0) {
+            return null;
+        }
+
+        const anchored = allBlocks.filter((b) => b.anchored_at);
+        const crypto = await import("crypto");
+        const sha256 = (data: string) => crypto.createHash("sha256").update(data).digest("hex");
+
+        let prevHash = anchored.length > 0 ? anchored[anchored.length - 1].block_hash : sha256("GENESIS");
+        const leafHashes: string[] = [];
+        const updates: any[] = [];
+
+        for (let i = 0; i < unanchored.length; i++) {
+            const block = unanchored[i];
+            const blockHash = sha256(block.yamo_text + prevHash);
+            leafHashes.push(blockHash);
+            updates.push({
+                id: block.id,
+                block_hash: blockHash,
+                prev_hash: prevHash,
+                anchored_at: new Date(),
+            });
+            prevHash = blockHash;
+        }
+
+        // Build Merkle Tree
+        const buildMerkleTree = (leaves: string[]) => {
+            if (leaves.length === 0) return { root: sha256(""), tree: [[]] };
+            const tree = [leaves];
+            while (tree[tree.length - 1].length > 1) {
+                const currentLevel = tree[tree.length - 1];
+                const nextLevel = [];
+                for (let i = 0; i < currentLevel.length; i += 2) {
+                    const left = currentLevel[i];
+                    const right = i + 1 < currentLevel.length ? currentLevel[i + 1] : left;
+                    nextLevel.push(sha256(left + right));
+                }
+                tree.push(nextLevel);
+            }
+            return { root: tree[tree.length - 1][0], tree };
+        };
+
+        const { root } = buildMerkleTree(leafHashes);
+
+        // Update database records
+        for (const update of updates) {
+            await this.yamoTable.update({
+                where: `id == '${update.id}'`,
+                values: {
+                    block_hash: update.block_hash,
+                    prev_hash: update.prev_hash,
+                    anchored_at: update.anchored_at,
+                },
+            });
+        }
+
+        return {
+            root,
+            count: unanchored.length,
+            updates,
+        };
     }
 }
 /**
@@ -2078,6 +2368,14 @@ export async function run() {
         else if (action === "reflect") {
             const result = await mesh.reflect({ topic: input.topic, lookback: input.lookback });
             process.stdout.write(`[MemoryMesh] Reflection complete.\n${JSON.stringify({ status: "ok", result }, null, 2)}\n`);
+        }
+        else if (action === "anchor") {
+            const result = await mesh.anchor();
+            if (!result) {
+                process.stdout.write(`[MemoryMesh] No un-anchored blocks found.\n${JSON.stringify({ status: "ok", root: null, count: 0 })}\n`);
+            } else {
+                process.stdout.write(`[MemoryMesh] Anchored ${result.count} blocks. Merkle Root: ${result.root}\n${JSON.stringify({ status: "ok", root: result.root, count: result.count })}\n`);
+            }
         }
         else {
             logger.error({ action }, "Unknown action");

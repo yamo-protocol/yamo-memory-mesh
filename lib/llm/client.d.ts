@@ -31,6 +31,10 @@ export declare class LLMClient {
      */
     reflect(prompt: any, memories: any): Promise<any>;
     /**
+     * Complete a prompt with system prompt guidance
+     */
+    complete(systemPrompt: any, userContent: any): Promise<any>;
+    /**
      * Format memories for LLM consumption
      * @private
      */

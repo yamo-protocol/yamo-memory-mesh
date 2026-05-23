@@ -43,6 +43,7 @@ export declare class MemoryMesh {
     agentId: any;
     yamoTable: any;
     skillTable: any;
+    graphTable: any;
     llmClient: any;
     scrubber: any;
     queryCache: any;
@@ -457,6 +458,18 @@ export declare class MemoryMesh {
      */
     optimize(): Promise<any>;
     close(): Promise<void>;
+    _extractTriplesHeuristics(content: any): any[];
+    _extractTriplesLLM(content: any): Promise<{
+        source: string;
+        target: string;
+        relation: string;
+        weight: any;
+    }[]>;
+    anchor(): Promise<{
+        root: string;
+        count: any;
+        updates: any[];
+    }>;
 }
 /**
  * Main CLI handler
