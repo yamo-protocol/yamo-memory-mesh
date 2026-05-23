@@ -12,11 +12,13 @@ class EmbeddingFactory {
     fallbackServices;
     configured;
     ServiceClass;
+    primaryServiceFailedUntil;
     constructor(ServiceClass = EmbeddingService) {
         this.primaryService = null;
         this.fallbackServices = [];
         this.configured = false;
         this.ServiceClass = ServiceClass;
+        this.primaryServiceFailedUntil = 0;
     }
     /**
      * Configure embedding services with fallback chain
@@ -66,34 +68,50 @@ class EmbeddingFactory {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
-        // Try primary service
-        try {
-            if (!this.primaryService.initialized) {
-                await this.primaryService.init();
-            }
-            return await this.primaryService.embed(text, options);
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.warn({ err: error, primaryService: this.primaryService?.modelName }, "Primary service failed");
-            // Try fallback services in order
-            for (const fallback of this.fallbackServices) {
-                try {
-                    if (!fallback.initialized) {
-                        await fallback.init();
-                    }
-                    logger.info({ fallbackModel: fallback.modelName }, "Using fallback service");
-                    return await fallback.embed(text, options);
+        const now = Date.now();
+        const primaryHealthy = now > this.primaryServiceFailedUntil;
+        if (primaryHealthy) {
+            try {
+                if (!this.primaryService.initialized) {
+                    await this.primaryService.init();
                 }
-                catch (fallbackError) {
-                    logger.warn({ err: fallbackError, fallbackModel: fallback.modelName }, "Fallback service failed");
-                }
+                return await this.primaryService.embed(text, options);
             }
-            throw new EmbeddingError("All embedding services failed", {
-                primaryError: errorMessage,
-                fallbackCount: this.fallbackServices.length,
-            });
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.warn({ err: error, primaryService: this.primaryService?.modelName }, "Primary service failed. Cooldown active for 60s.");
+                this.primaryServiceFailedUntil = Date.now() + 60000;
+                return this._fallbackEmbed(text, options, errorMessage);
+            }
         }
+        else {
+            if (process.env.YAMO_DEBUG === "true") {
+                logger.debug("Primary service in cooldown. Skipping to fallbacks.");
+            }
+            return this._fallbackEmbed(text, options, "Primary service in cooldown state");
+        }
+    }
+    /**
+     * Internal helper to execute fallback embedding chain
+     * @private
+     */
+    async _fallbackEmbed(text, options, primaryErrorMsg) {
+        for (const fallback of this.fallbackServices) {
+            try {
+                if (!fallback.initialized) {
+                    await fallback.init();
+                }
+                logger.info({ fallbackModel: fallback.modelName }, "Using fallback service");
+                return await fallback.embed(text, options);
+            }
+            catch (fallbackError) {
+                logger.warn({ err: fallbackError, fallbackModel: fallback.modelName }, "Fallback service failed");
+            }
+        }
+        throw new EmbeddingError("All embedding services failed", {
+            primaryError: primaryErrorMsg,
+            fallbackCount: this.fallbackServices.length,
+        });
     }
     /**
      * Generate embeddings for batch of texts
@@ -105,20 +123,33 @@ class EmbeddingFactory {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
-        // Try primary service
-        try {
-            if (!this.primaryService.initialized) {
-                await this.primaryService.init();
+        const now = Date.now();
+        const primaryHealthy = now > this.primaryServiceFailedUntil;
+        if (primaryHealthy) {
+            try {
+                if (!this.primaryService.initialized) {
+                    await this.primaryService.init();
+                }
+                return await this.primaryService.embedBatch(texts, options);
             }
-            return await this.primaryService.embedBatch(texts, options);
+            catch (error) {
+                logger.warn({
+                    err: error,
+                    primaryService: this.primaryService?.modelName,
+                    batchSize: texts.length,
+                }, "Primary batch embedding failed. Cooldown active for 60s, falling back to individual embeddings");
+                this.primaryServiceFailedUntil = Date.now() + 60000;
+                const results = [];
+                for (const text of texts) {
+                    results.push(await this.embed(text, options));
+                }
+                return results;
+            }
         }
-        catch (error) {
-            logger.warn({
-                err: error,
-                primaryService: this.primaryService?.modelName,
-                batchSize: texts.length,
-            }, "Primary batch embedding failed, falling back to individual embeddings");
-            // Fallback to individual embedding with fallback services
+        else {
+            if (process.env.YAMO_DEBUG === "true") {
+                logger.debug("Primary service in cooldown. Processing batch elements individually.");
+            }
             const results = [];
             for (const text of texts) {
                 results.push(await this.embed(text, options));

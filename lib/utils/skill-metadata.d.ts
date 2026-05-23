@@ -1,5 +1,5 @@
 /**
- * Extract identity fields (name, intent, description) from .yamo content.
+ * Extract identity fields (name, intent, description) from .md (and legacy .yamo) skill content.
  *
  * Priority:
  *   1. YAML frontmatter (--- … --- block at file start)

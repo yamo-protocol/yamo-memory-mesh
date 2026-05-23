@@ -31,6 +31,8 @@ export class LanceDBClient {
     table;
     isConnected;
     tempDir; // Track temp dirs for cleanup
+    _exitHookListener;
+
     /**
      * Create a new LanceDBClient instance
      * @param {Object} [config={}] - Configuration object
@@ -74,6 +76,7 @@ export class LanceDBClient {
                     const randomId = crypto.randomBytes(8).toString("hex");
                     dbPath = path.join(os.tmpdir(), `yamo-memory-${randomId}`);
                     this.tempDir = dbPath; // Track for cleanup
+                    this._registerExitHook();
                 }
                 // Ensure database directory exists
                 const resolvedPath = path.resolve(dbPath);
@@ -119,6 +122,11 @@ export class LanceDBClient {
         this.db = null;
         this.table = null;
         this.isConnected = false;
+        // Clean up exit hook listener to prevent leaks
+        if (this._exitHookListener) {
+            process.off("exit", this._exitHookListener);
+            this._exitHookListener = null;
+        }
         // Clean up temp directory if we created one for :memory:
         if (this.tempDir && fs.existsSync(this.tempDir)) {
             try {
@@ -470,6 +478,26 @@ export class LanceDBClient {
         logger.debug({ uri: this.uri, table: this.tableName }, "Refreshing LanceDB handle");
         this.isConnected = false;
         await this.connect();
+    }
+    /**
+     * Register exit hook to clean up temp directories on process crash/termination
+     * @private
+     */
+    _registerExitHook() {
+        if (this._exitHookListener) {
+            return;
+        }
+        this._exitHookListener = () => {
+            if (this.tempDir && fs.existsSync(this.tempDir)) {
+                try {
+                    fs.rmSync(this.tempDir, { recursive: true, force: true });
+                }
+                catch (_e) {
+                    // Ignore
+                }
+            }
+        };
+        process.on("exit", this._exitHookListener);
     }
     /**
      * Sleep for a specified duration

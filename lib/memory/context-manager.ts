@@ -307,6 +307,10 @@ export class MemoryContextManager {
         this.#cleanupTimer = setInterval(() => {
             this.#cleanupExpired();
         }, 60000);
+        // Allow Node.js process to exit naturally even if this timer is active
+        if (this.#cleanupTimer && typeof this.#cleanupTimer.unref === "function") {
+            this.#cleanupTimer.unref();
+        }
     }
     /**
      * Clean up expired cache entries

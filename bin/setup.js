@@ -76,7 +76,7 @@ async function applyGhostProtection(targetDir) {
   const content = readFileSync(agentsPath, 'utf-8');
   
   if (!content.includes('YAMO-NATIVE KERNEL')) {
-    const protection = `> [!IMPORTANT]\n> **YAMO-NATIVE KERNEL v3.0 ACTIVE**\n> Prioritize BOOTSTRAP.yamo for session initialization.\n\n`;
+    const protection = `> [!IMPORTANT]\n> **YAMO-NATIVE KERNEL v3.0 ACTIVE**\n> Prioritize BOOTSTRAP.md for session initialization.\n\n`;
     writeFileSync(agentsPath, protection + content);
     log('  ✓ Kernel pointer injected (Ghost Protection active)', 'green');
   } else {
@@ -85,17 +85,19 @@ async function applyGhostProtection(targetDir) {
 }
 
 /**
- * Deploy Singularity Kernel (BOOTSTRAP.yamo & Native Agent)
+ * Deploy Singularity Kernel (BOOTSTRAP.md & Native Agent)
  */
 async function deploySingularityKernel(targetDir) {
   log('\n🌌 Deploying YAMO-Native Singularity Kernel...', 'blue');
   
-  // 1. Deploy BOOTSTRAP.yamo to root
-  const bootstrapSrc = join(packageRoot, 'skills', 'BOOTSTRAP.yamo');
-  const bootstrapDest = join(targetDir, 'BOOTSTRAP.yamo');
+  // 1. Deploy BOOTSTRAP.md to root (fallback to legacy BOOTSTRAP.yamo)
+  const bootstrapSrcMd = join(packageRoot, 'skills', 'BOOTSTRAP.md');
+  const bootstrapSrcYamo = join(packageRoot, 'skills', 'BOOTSTRAP.yamo');
+  const bootstrapSrc = existsSync(bootstrapSrcMd) ? bootstrapSrcMd : bootstrapSrcYamo;
+  const bootstrapDest = join(targetDir, 'BOOTSTRAP.md');
   
   if (existsSync(bootstrapSrc)) {
-    await copyWithPrompt(bootstrapSrc, bootstrapDest, 'Singularity Bootstrap (BOOTSTRAP.yamo)');
+    await copyWithPrompt(bootstrapSrc, bootstrapDest, 'Singularity Bootstrap (BOOTSTRAP.md)');
   }
 
   // 2. Deploy Native Agent Modules
@@ -127,8 +129,8 @@ async function copyRecursive(src, dest, label) {
     }
   } else {
     const fileName = path.basename(src);
-    // Skip BOOTSTRAP.yamo in the recursive copy since it goes to the root
-    if (fileName === 'BOOTSTRAP.yamo') return;
+    // Skip BOOTSTRAP.md (and legacy BOOTSTRAP.yamo) in the recursive copy since it goes to the root
+    if (fileName === 'BOOTSTRAP.md' || fileName === 'BOOTSTRAP.yamo') return;
     
     await copyWithPrompt(src, dest, `${label}: ${fileName}`);
   }
@@ -284,7 +286,7 @@ function showUsage(env) {
   if (env.isOpenClaw) {
     log('\n🚀 SINGULARITY MODE ACTIVE:', 'cyan');
     log('  • Ghost Protection active in AGENTS.md', 'cyan');
-    log('  • Kernel entry point: BOOTSTRAP.yamo', 'cyan');
+    log('  • Kernel entry point: BOOTSTRAP.md', 'cyan');
     log('  • Modules deployed to: yamo-native-agent/', 'cyan');
     log(`  • Version: ${pkg.version}`, 'cyan');
     log('  • REFRESH SESSION to activate v3.0 fidelity.', 'cyan');

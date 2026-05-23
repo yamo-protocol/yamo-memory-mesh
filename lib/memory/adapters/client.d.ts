@@ -12,6 +12,7 @@ export declare class LanceDBClient {
     table: any;
     isConnected: any;
     tempDir: any;
+    _exitHookListener: any;
     /**
      * Create a new LanceDBClient instance
      * @param {Object} [config={}] - Configuration object
@@ -110,6 +111,11 @@ export declare class LanceDBClient {
      * Refresh table handle if it becomes stale (e.g. after background compaction)
      */
     refresh(): Promise<void>;
+    /**
+     * Register exit hook to clean up temp directories on process crash/termination
+     * @private
+     */
+    _registerExitHook(): void;
     /**
      * Sleep for a specified duration
      * @private

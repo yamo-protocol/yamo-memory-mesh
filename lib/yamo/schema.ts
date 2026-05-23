@@ -44,6 +44,22 @@ export async function createYamoTable(db, tableName = "yamo_blocks") {
         let table;
         if (existingTables.includes(tableName)) {
             table = await db.openTable(tableName);
+            // Guard: if the existing table has a FixedSizeList 'vector' field it was
+            // created with the old memory_entries schema by mistake.  Drop and recreate
+            // with the correct YAMO audit schema so _emitYamoBlock can write without
+            // providing an embedding function.
+            const existingSchema = await table.schema();
+            const hasVectorField = existingSchema.fields.some(
+                (f) => f.name === "vector" && f.type.constructor.name === "FixedSizeList",
+            );
+            if (hasVectorField) {
+                await db.dropTable(tableName);
+                const freshSchema = createYamoSchema();
+                table = await db.createTable(tableName, [], {
+                    schema: freshSchema,
+                    storageOptions: { new_table_data_storage_version: "stable" },
+                });
+            }
         }
         else {
             const schema = createYamoSchema();

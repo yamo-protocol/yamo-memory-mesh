@@ -640,7 +640,7 @@ export class MemoryMesh {
                         .replace(/[^a-z0-9]/g, "-")
                         .replace(/-+/g, "-")
                         .substring(0, 50);
-                    const fileName = `skill-${safeName}.yamo`;
+                    const fileName = `skill-${safeName}.md`;
                     const filePath = path.join(skillsDir, fileName);
                     // Only write if file doesn't already exist to prevent duplicates
                     if (!fs.existsSync(filePath)) {
@@ -695,7 +695,7 @@ export class MemoryMesh {
 
                 // Use stored skill directories
                 const skillDirs = this.skillDirectories;
-                // Track existing .yamo files before SkillCreator runs
+                // Track existing skill files (.md and legacy .yamo) before SkillCreator runs
                 const filesBefore = new Set();
                 for (const dir of skillDirs) {
                     if (fs.existsSync(dir)) {
@@ -709,7 +709,7 @@ export class MemoryMesh {
                                     if (entry.isDirectory()) {
                                         walk(fullPath);
                                     }
-                                    else if (entry.isFile() && entry.name.endsWith(".yamo")) {
+                                    else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".yamo"))) {
                                         filesBefore.add(fullPath);
                                     }
                                 }
@@ -732,7 +732,7 @@ export class MemoryMesh {
                 await this._kernel_execute(prompt, {
                     v1_1_enabled: true,
                 });
-                // Find newly created .yamo file
+                // Find newly created skill file (.md or legacy .yamo)
                 let newSkillFile;
                 for (const dir of skillDirs) {
                     if (fs.existsSync(dir)) {
@@ -746,7 +746,7 @@ export class MemoryMesh {
                                     if (entry.isDirectory()) {
                                         walk(fullPath);
                                     }
-                                    else if (entry.isFile() && entry.name.endsWith(".yamo")) {
+                                    else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".yamo"))) {
                                         if (!filesBefore.has(fullPath)) {
                                             newSkillFile = fullPath;
                                         }
@@ -774,7 +774,7 @@ export class MemoryMesh {
                     if (expansionEnabled && isCompressed) {
                         logger.info({ skillFile: newSkillFile }, "Expanding compressed skill to canonical format");
                         try {
-                            const expanded = await this._kernel_execute("skill-expansion-system-prompt.yamo", {
+                            const expanded = await this._kernel_execute("skill-expansion-system-prompt.md", {
                                 input_yamo: skillContent,
                             });
                             if (expanded && expanded.canonical_yamo) {
@@ -789,7 +789,7 @@ export class MemoryMesh {
                         }
                     }
                     // ENSURE: Synthesized skills always have proper metadata with meaningful name
-                    // This prevents duplicate skill-agent-{timestamp}.yamo files
+                    // This prevents duplicate skill-agent-{timestamp}.md files
                     const synIdentity = extractSkillIdentity(skillContent);
                     const hasName = !synIdentity.name.startsWith("Unnamed_");
                     if (!skillContent.includes("---") || !hasName) {

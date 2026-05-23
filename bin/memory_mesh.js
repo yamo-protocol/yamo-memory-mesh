@@ -67,7 +67,7 @@ program
   .command('pull')
   .description('Smart recursive repository/directory ingestion')
   .argument('<path>', 'Directory path to pull')
-  .option('-e, --extension <ext>', 'File extensions (comma-separated)', '.yamo,.md')
+  .option('-e, --extension <ext>', 'File extensions (comma-separated)', '.md,.yamo')
   .option('-t, --type <type>', 'Memory type', 'documentation')
   .action(async (dirPath, options) => {
     const mesh = new MemoryMesh();

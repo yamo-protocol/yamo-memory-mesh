@@ -8,6 +8,7 @@ declare class EmbeddingFactory {
     fallbackServices: any;
     configured: any;
     ServiceClass: any;
+    primaryServiceFailedUntil: any;
     constructor(ServiceClass?: typeof EmbeddingService);
     /**
      * Configure embedding services with fallback chain
@@ -33,6 +34,11 @@ declare class EmbeddingFactory {
      * @returns {Promise<number[]>} Embedding vector
      */
     embed(text: any, options?: {}): Promise<any>;
+    /**
+     * Internal helper to execute fallback embedding chain
+     * @private
+     */
+    _fallbackEmbed(text: any, options: any, primaryErrorMsg: any): Promise<any>;
     /**
      * Generate embeddings for batch of texts
      * @param {string[]} texts - Texts to embed
