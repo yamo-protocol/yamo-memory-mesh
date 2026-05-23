@@ -399,6 +399,18 @@ export class MemoryMesh {
         const type = metadata.type || "event";
         const enrichedMetadata = { ...metadata, type };
         try {
+            let documentContext = metadata.documentContext || metadata.situatedContext || null;
+            if (!documentContext && content && content.length > 0) {
+                const title = metadata.title || metadata.source || metadata.sourceFilePath || null;
+                if (title) {
+                    documentContext = `From document/source: ${title}`;
+                } else {
+                    const firstLine = content.split('\n')[0].trim();
+                    if (firstLine.startsWith('#')) {
+                        documentContext = `From section: ${firstLine.replace(/^#+\s+/, '')}`;
+                    }
+                }
+            }
             let processedContent = content;
             let scrubbedMetadata = {};
             try {
@@ -406,6 +418,7 @@ export class MemoryMesh {
                     content: content,
                     source: "memory-api",
                     type: "txt",
+                    documentContext: documentContext,
                 });
                 if (scrubbedResult.success && scrubbedResult.chunks.length > 0) {
                     processedContent = scrubbedResult.chunks
@@ -1367,16 +1380,17 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
 
             // Keyword-only mode: skip embedding and vector search entirely
             if (mode === "keyword") {
-                const keywordOnly = this.keywordSearch.search(query, { limit });
+                const keywordOnly = await this._keywordSearch(query, limit, filter);
                 const normalizedKeyword = this._normalizeScores(keywordOnly);
+                const boosted = await this._applyGraphRagBoosting(normalizedKeyword, query);
                 if (useCache) {
                     const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
-                    this._cacheResult(cacheKey, normalizedKeyword);
+                    this._cacheResult(cacheKey, boosted);
                 }
                 if (this.enableYamo) {
                     this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
                         query,
-                        resultCount: normalizedKeyword.length,
+                        resultCount: boosted.length,
                         limit,
                         agentId: this.agentId,
                         searchType: "keyword",
@@ -1386,7 +1400,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                         }
                     });
                 }
-                return normalizedKeyword;
+                return boosted;
             }
 
             const vector = await this.embeddingFactory.embed(query);
@@ -1403,14 +1417,15 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             // Vector-only mode: skip keyword search and RRF merge
             if (mode === "vector") {
                 const normalizedVector = this._normalizeScores(vectorResults.slice(0, limit));
+                const boosted = await this._applyGraphRagBoosting(normalizedVector, query);
                 if (useCache) {
                     const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
-                    this._cacheResult(cacheKey, normalizedVector);
+                    this._cacheResult(cacheKey, boosted);
                 }
                 if (this.enableYamo) {
                     this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
                         query,
-                        resultCount: normalizedVector.length,
+                        resultCount: boosted.length,
                         limit,
                         agentId: this.agentId,
                         searchType: "vector",
@@ -1420,13 +1435,11 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                         }
                     });
                 }
-                return normalizedVector;
+                return boosted;
             }
 
             // Hybrid mode (default): vector + keyword with RRF merge
-            const keywordResults = this.keywordSearch.search(query, {
-                limit: limit * 2,
-            });
+            const keywordResults = await this._keywordSearch(query, limit * 2, filter);
             // Optimized Reciprocal Rank Fusion (RRF) with min-heap for O(n log k) performance
             // Instead of sorting all results (O(n log n)), we maintain a heap of size k (O(n log k))
             const k = 60; // RRF constant
@@ -1519,53 +1532,17 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 ...r,
                 score: parseFloat((r.score / maxRRF).toFixed(2)),
             }));
-             // Graph-RAG 1-hop boosting
-             if (this.graphTable) {
-                 try {
-                     const queryEntities = query.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g) || [];
-                     if (queryEntities.length > 0) {
-                         const escapedEntities = queryEntities.map(e => e.replace(/'/g, "''"));
-                         const listStr = escapedEntities.map(e => `'${e}'`).join(", ");
-                         const filterExpr = `source IN (${listStr}) OR target IN (${listStr})`;
-                         const edges = await this.graphTable.query().where(filterExpr).toArray();
-                         
-                         const connectedEntities = new Set();
-                         for (const edge of edges) {
-                             if (queryEntities.includes(edge.source)) connectedEntities.add(edge.target);
-                             if (queryEntities.includes(edge.target)) connectedEntities.add(edge.source);
-                         }
-                         
-                         if (connectedEntities.size > 0) {
-                             for (const doc of normalizedResults) {
-                                 let containsConnected = false;
-                                 for (const entity of connectedEntities) {
-                                     if (doc.content.includes(entity)) {
-                                         containsConnected = true;
-                                         break;
-                                     }
-                                 }
-                                 if (containsConnected) {
-                                     doc.score = Math.min(1.0, parseFloat((doc.score * 1.15).toFixed(2)));
-                                 }
-                             }
-                             normalizedResults.sort((a, b) => b.score - a.score);
-                         }
-                     }
-                 } catch (graphError) {
-                     if (process.env.YAMO_DEBUG === "true") {
-                         logger.warn({ err: graphError }, "Failed to traverse Graph-RAG edges");
-                     }
-                 }
-             }
+            
+            const boosted = await this._applyGraphRagBoosting(normalizedResults, query);
 
-             if (useCache) {
+            if (useCache) {
                 const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
-                this._cacheResult(cacheKey, normalizedResults);
+                this._cacheResult(cacheKey, boosted);
             }
             if (this.enableYamo) {
                 this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
                     query,
-                    resultCount: normalizedResults.length,
+                    resultCount: boosted.length,
                     limit,
                     agentId: this.agentId,
                     searchType: "hybrid",
@@ -1576,15 +1553,117 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     }
                 });
             }
-            return normalizedResults;
+            return boosted;
         }
         catch (error) {
             throw error instanceof Error ? error : new Error(String(error));
         }
     }
+
+    async _applyGraphRagBoosting(results, query) {
+        if (!this.graphTable || results.length === 0) {
+            return results;
+        }
+        try {
+            const queryEntities = query.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g) || [];
+            if (queryEntities.length > 0) {
+                const escapedEntities = queryEntities.map(e => e.replace(/'/g, "''"));
+                const listStr = escapedEntities.map(e => `'${e}'`).join(", ");
+                const filterExpr = `source IN (${listStr}) OR target IN (${listStr})`;
+                const edges1 = await this.graphTable.query().where(filterExpr).toArray();
+                
+                const c1 = new Set();
+                for (const edge of edges1) {
+                    if (queryEntities.includes(edge.source)) c1.add(edge.target);
+                    if (queryEntities.includes(edge.target)) c1.add(edge.source);
+                }
+                
+                const c2 = new Set();
+                if (c1.size > 0) {
+                    const escapedC1 = Array.from(c1).map(e => e.replace(/'/g, "''"));
+                    const listStrC1 = escapedC1.map(e => `'${e}'`).join(", ");
+                    const filterExprC1 = `source IN (${listStrC1}) OR target IN (${listStrC1})`;
+                    const edges2 = await this.graphTable.query().where(filterExprC1).toArray();
+                    
+                    for (const edge of edges2) {
+                        if (c1.has(edge.source)) {
+                            if (!queryEntities.includes(edge.target) && !c1.has(edge.target)) {
+                                c2.add(edge.target);
+                            }
+                        }
+                        if (c1.has(edge.target)) {
+                            if (!queryEntities.includes(edge.source) && !c1.has(edge.source)) {
+                                c2.add(edge.source);
+                            }
+                        }
+                    }
+                }
+                
+                if (c1.size > 0 || c2.size > 0) {
+                    for (const doc of results) {
+                        let hasC1 = false;
+                        for (const entity of c1) {
+                            if (doc.content.includes(entity)) {
+                                hasC1 = true;
+                                break;
+                            }
+                        }
+                        let hasC2 = false;
+                        if (!hasC1 && c2.size > 0) {
+                            for (const entity of c2) {
+                                if (doc.content.includes(entity)) {
+                                    hasC2 = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hasC1) {
+                            doc.score = Math.min(1.0, parseFloat((doc.score * 1.15).toFixed(2)));
+                        } else if (hasC2) {
+                            doc.score = Math.min(1.0, parseFloat((doc.score * 1.07).toFixed(2)));
+                        }
+                    }
+                    results.sort((a, b) => b.score - a.score);
+                }
+            }
+        } catch (graphError) {
+            if (process.env.YAMO_DEBUG === "true") {
+                logger.warn({ err: graphError }, "Failed to traverse Graph-RAG edges");
+            }
+        }
+        return results;
+    }
+
+    async _keywordSearch(query, limit, filter = null) {
+        if (this.client) {
+            try {
+                const combinedFilter = filter ? `(${filter}) AND superseded_at IS NULL` : "superseded_at IS NULL";
+                const results = await this.client.searchFts(query, {
+                    limit,
+                    filter: combinedFilter,
+                });
+                return results;
+            }
+            catch (error) {
+                if (process.env.YAMO_DEBUG === "true") {
+                    logger.warn({ err: error }, "LanceDB Native FTS search failed, falling back to in-memory TF-IDF");
+                }
+            }
+        }
+        return this.keywordSearch.search(query, { limit });
+    }
     _normalizeScores(results) {
         if (results.length === 0) {
             return [];
+        }
+        const hasDistance = results.some((r) => r._distance !== undefined);
+        if (!hasDistance) {
+            const maxScore = results.reduce((mx, r) => Math.max(mx, r.score || 0), 0) || 1;
+            return results.map((r) => ({
+                ...r,
+                score: parseFloat(((r.score || 0) / maxScore).toFixed(2)),
+            }));
         }
         return results.map((r) => {
             // LanceDB _distance is squared L2 or cosine distance

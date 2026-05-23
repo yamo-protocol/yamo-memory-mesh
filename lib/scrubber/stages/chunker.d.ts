@@ -9,7 +9,7 @@ export declare class Chunker {
      * @param {string} content - Normalized content
      * @returns {Promise<Array>} - Array of chunks with metadata
      */
-    chunk(content: any): Promise<any>;
+    chunk(content: any, options?: {}): Promise<any>;
     _semanticChunk(content: any): Promise<any[]>;
     _paragraphChunk(content: any): any[];
     _cosineSimilarity(u: any, v: any): number;

@@ -255,6 +255,41 @@ export class LanceDBClient {
         });
     }
     /**
+     * Search for records using Full-Text Search (FTS)
+     * @param {string} queryText - Query text to search for
+     * @param {Object} options - Search options
+     * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
+     * @throws {QueryError} If search fails
+     */
+    async searchFts(queryText, options = {}) {
+        if (!this.isConnected) {
+            await this.connect();
+        }
+        const { limit = 10, filter = null, timeoutMs } = options;
+        return this._retryOperation(async () => {
+            if (!this.table) {
+                throw new StorageError("Table not initialized");
+            }
+            // Passing a string to search() automatically triggers FTS in LanceDB
+            let query = this.table.search(queryText);
+            if (filter) {
+                query = query.where(filter);
+            }
+            const resultsArray = await query.limit(limit).toArray(
+                timeoutMs ? { timeoutMs } : undefined,
+            );
+            return resultsArray.map((row) => ({
+                id: row.id,
+                content: row.content,
+                metadata: row.metadata ? JSON.parse(row.metadata) : null,
+                score: row._score !== undefined ? row._score : (row._distance !== undefined ? row._distance : 1.0),
+                created_at: row.created_at,
+                vector: row.vector,
+                superseded_at: row.superseded_at,
+            }));
+        });
+    }
+    /**
      * Get a record by ID
      * @param {string} id - Record ID
      * @returns {Promise<Object|null>} Record object or null if not found

@@ -18,7 +18,8 @@ export class Chunker {
    * @param {string} content - Normalized content
    * @returns {Promise<Array>} - Array of chunks with metadata
    */
-  async chunk(content) {
+  async chunk(content, options = {}) {
+    const { documentContext } = options;
     try {
       let rawChunks;
       if (this.config.embedFn) {
@@ -27,15 +28,22 @@ export class Chunker {
         rawChunks = this._paragraphChunk(content);
       }
 
-      return rawChunks.map((chunk, index) => ({
-        index,
-        text: chunk.text.trim(),
-        metadata: {
-          tokens: chunk.tokens,
-          heading: chunk.heading,
-          position: index
+      return rawChunks.map((chunk, index) => {
+        let chunkText = chunk.text.trim();
+        if (documentContext) {
+          chunkText = `[Document Context: ${documentContext.trim()}]\n${chunkText}`;
         }
-      }));
+        return {
+          index,
+          text: chunkText,
+          metadata: {
+            tokens: this.tokenCounter.count(chunkText),
+            heading: chunk.heading,
+            position: index,
+            hasSituatedContext: !!documentContext
+          }
+        };
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new ScrubberError(

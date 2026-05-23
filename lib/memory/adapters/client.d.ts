@@ -53,6 +53,14 @@ export declare class LanceDBClient {
      */
     search(vector: any, options?: {}): Promise<any>;
     /**
+     * Search for records using Full-Text Search (FTS)
+     * @param {string} queryText - Query text to search for
+     * @param {Object} options - Search options
+     * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
+     * @throws {QueryError} If search fails
+     */
+    searchFts(queryText: any, options?: {}): Promise<any>;
+    /**
      * Get a record by ID
      * @param {string} id - Record ID
      * @returns {Promise<Object|null>} Record object or null if not found

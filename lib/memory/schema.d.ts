@@ -110,6 +110,11 @@ export declare function createMemoryTable(db: any, tableName?: string): Promise<
  */
 export declare function createMemoryTableWithDimension(db: any, tableName: any, vectorDim: any): Promise<any>;
 /**
+ * Ensure the content column has a Full-Text Search (FTS) index.
+ * Called automatically by createMemoryTableWithDimension after migration.
+ */
+export declare function ensureFtsIndex(table: any): Promise<void>;
+/**
  * Create Graph-RAG Edges Table Schema
  * Columns: id, source, target, relation, weight, created_at
  */
@@ -138,6 +143,7 @@ declare const _default: {
     isSchemaV2: typeof isSchemaV2;
     migrateTableV2: typeof migrateTableV2;
     ensureVectorIndex: typeof ensureVectorIndex;
+    ensureFtsIndex: typeof ensureFtsIndex;
     getEmbeddingDimension: typeof getEmbeddingDimension;
     DEFAULT_VECTOR_DIMENSION: number;
     EMBEDDING_DIMENSIONS: {

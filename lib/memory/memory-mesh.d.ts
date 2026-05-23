@@ -310,6 +310,8 @@ export declare class MemoryMesh {
      * @throws {Error} If database client is not initialized
      */
     search(query: any, options?: {}): Promise<any>;
+    _applyGraphRagBoosting(results: any, query: any): Promise<any>;
+    _keywordSearch(query: any, limit: any, filter?: any): Promise<any>;
     _normalizeScores(results: any): any;
     /**
      * Tokenize query for keyword matching (private helper for searchSkills)
