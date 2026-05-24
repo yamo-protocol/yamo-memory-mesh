@@ -222,7 +222,7 @@ export class EmbeddingService {
      * trade-offs. Non-Matryoshka models tolerate it with some quality loss.
      * @private
      */
-    _maybeTruncate(embedding: number[], targetDimension: number) {
+    _maybeTruncate(embedding: number[], targetDimension?: number) {
         if (!targetDimension || targetDimension >= embedding.length) {
             return embedding;
         }

@@ -67,7 +67,7 @@ export declare function handleError(error: any, context?: any): {
     error: {
         code: string;
         message: string;
-        stack: string;
+        stack: string | undefined;
         context: any;
         details?: undefined;
     };

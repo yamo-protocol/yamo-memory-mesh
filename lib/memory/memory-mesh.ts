@@ -1034,7 +1034,7 @@ export class MemoryMesh {
                 const rec = this.client ? await this.client.getById(h.id) : null;
                 const vector = rec ? toArray(rec.vector) : null;
                 if (vector) {
-                    currentLayer.push({ id: h.id, content: h.content, vector });
+                    currentLayer.push({ id: h.id, content: h.content ?? "", vector });
                 }
             }
         } else {
@@ -1906,7 +1906,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * Note: YAMO emission is non-critical - failures are logged but don't throw
      * to prevent disrupting the main operation.
      */
-    async _emitYamoBlock(operationType: string, memoryId: string, yamoText: string, heritage?: { intentChain: string[]; hypotheses: string[]; rationales: string[] }) {
+    async _emitYamoBlock(operationType: string, memoryId: string | undefined, yamoText: string, heritage?: { intentChain: string[]; hypotheses: string[]; rationales: string[] }) {
         if (!this.yamoTable) {
             return;
         }
@@ -2225,7 +2225,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     for (const doc of results) {
                         let hasC1 = false;
                         for (const entity of c1) {
-                            if (this._contentMentions(doc.content, entity)) {
+                            if (this._contentMentions(doc.content ?? "", entity)) {
                                 hasC1 = true;
                                 break;
                             }
@@ -2233,7 +2233,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                         let hasC2 = false;
                         if (!hasC1 && c2.size > 0) {
                             for (const entity of c2) {
-                                if (this._contentMentions(doc.content, entity)) {
+                                if (this._contentMentions(doc.content ?? "", entity)) {
                                     hasC2 = true;
                                     break;
                                 }

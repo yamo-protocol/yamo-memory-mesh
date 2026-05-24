@@ -24,7 +24,7 @@ export declare class EmbeddingService {
     dimension: number;
     batchSize: number;
     normalize: boolean;
-    apiKey: string;
+    apiKey: string | undefined;
     model: any;
     cache: Map<any, any>;
     cacheMaxSize: number;
@@ -71,7 +71,7 @@ export declare class EmbeddingService {
      * trade-offs. Non-Matryoshka models tolerate it with some quality loss.
      * @private
      */
-    _maybeTruncate(embedding: number[], targetDimension: number): number[];
+    _maybeTruncate(embedding: number[], targetDimension?: number): number[];
     /**
      * Generate embeddings for a batch of texts
      * @param {string[]} texts - Array of texts to embed
@@ -101,7 +101,7 @@ export declare class EmbeddingService {
     embedLateChunked(fullText: string, spans: any[], options?: {
         isQuery?: boolean;
         targetDimension?: number;
-    }): Promise<any[][]>;
+    }): Promise<any[][] | null>;
     /**
      * Token-level embedding for ColBERT-style late-interaction scoring.
      * Returns the per-token vectors as a flat Float32Array (length =
@@ -120,7 +120,7 @@ export declare class EmbeddingService {
         data: Float32Array<ArrayBuffer>;
         numTokens: number;
         dim: any;
-    }>;
+    } | null>;
     /**
      * Initialize local ONNX model using Xenova/Transformers.js
      * @private

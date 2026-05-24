@@ -87,7 +87,7 @@ export declare class MemoryMesh {
     yamoTable: any;
     skillTable: any;
     graphTable: any;
-    llmClient: LLMClient;
+    llmClient: LLMClient | null;
     scrubber: Scrubber;
     queryCache: Map<string, {
         result: RankedMemory[];
@@ -100,7 +100,7 @@ export declare class MemoryMesh {
     hydeCache: Map<any, any>;
     intentEmbedCache: Map<any, any>;
     skillDirectories: string[];
-    dbDir: string;
+    dbDir: string | undefined;
     semanticInjection: boolean;
     /**
      * Create a new MemoryMesh instance
@@ -211,7 +211,7 @@ export declare class MemoryMesh {
         topic?: string;
         generate?: boolean;
     }): Promise<{
-        topic: string;
+        topic: string | undefined;
         count: any;
         context: any;
         prompt: string;
@@ -227,7 +227,7 @@ export declare class MemoryMesh {
         reflection: string;
         confidence: number;
         sourceMemoryCount: any;
-        yamoBlock: string;
+        yamoBlock: string | null;
         createdAt: string;
         count?: undefined;
         context?: undefined;
@@ -440,7 +440,7 @@ export declare class MemoryMesh {
      * Note: YAMO emission is non-critical - failures are logged but don't throw
      * to prevent disrupting the main operation.
      */
-    _emitYamoBlock(operationType: string, memoryId: string, yamoText: string, heritage?: {
+    _emitYamoBlock(operationType: string, memoryId: string | undefined, yamoText: string, heritage?: {
         intentChain: string[];
         hypotheses: string[];
         rationales: string[];
@@ -682,7 +682,7 @@ export declare class MemoryMesh {
         modelName: string;
         dimension: number;
         priority: number;
-        apiKey: string;
+        apiKey: string | undefined;
     }[];
     /**
      * Close database connections and release resources
@@ -752,7 +752,7 @@ export declare class MemoryMesh {
         root: string;
         count: any;
         updates: any[];
-    }>;
+    } | null>;
 }
 /**
  * Main CLI handler

@@ -19,7 +19,7 @@ export declare class Chunker {
         text: string;
         metadata: {
             tokens: number;
-            heading: string;
+            heading: string | null;
             position: number;
             hasSituatedContext: boolean;
         };
@@ -27,16 +27,16 @@ export declare class Chunker {
     _semanticChunk(content: string): Promise<{
         text: string;
         tokens: number;
-        heading: string;
+        heading: string | null;
     }[]>;
     _paragraphChunk(content: string): {
         text: string;
         tokens: number;
-        heading: string;
+        heading: string | null;
     }[];
     _cosineSimilarity(u: number[], v: number[]): number;
     _isHeading(line: string): boolean;
     _shouldStartNewChunk(currentChunk: any, para: string, paraTokens: number, isHeading: boolean): boolean;
-    _extractInitialHeading(content: string): string;
-    _extractHeadingText(headingLine: string): string;
+    _extractInitialHeading(content: string): string | null;
+    _extractHeadingText(headingLine: string): string | null;
 }
