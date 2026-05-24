@@ -75,6 +75,8 @@ User/Agent Request
 │   - Remove markdown: ##, **, [], ()                      │
 │   - Collapse whitespace: \n\n\n → \n\n                   │
 │   - Normalize line breaks                                │
+│   - Redact PII (Emails, IPv4 addresses)                 │
+│   - Redact Secrets (Bearer tokens, API keys, hex keys)  │
 │   Output: "Raw text with duplicates boilerplate"         │
 │                                                           │
 │ Stage 2: Semantic Filtering                              │
@@ -797,11 +799,12 @@ constraints:
 - Simple serialization/deserialization
 
 **Trade-off:**
-- Can't filter on nested metadata in LanceDB queries
 - Requires `JSON.parse()` on every retrieval
 - Slightly larger storage footprint
 
-**Mitigation:** Top-level fields (id, created_at) are structured for filtering
+**Mitigation:**
+- Top-level fields (id, created_at) are structured for filtering.
+- Stringified metadata can be queried at the database level using SQL `LIKE` clauses (e.g. `metadata LIKE '%"key":"my_key"%'`).
 
 ### 3. Lazy Initialization
 
@@ -945,23 +948,35 @@ if (content.length > MAX_CONTENT_SIZE) {
 }
 ```
 
-### 4. No PII in Metadata
+### 4. No PII & Secrets in Storage
 
-**Constraint:** Scrubber removes PII before storage
+**Constraint:** Scrubber redacts PII and secrets during Structural Cleaning.
 
 ```javascript
-// Scrubber stage 2: Semantic filtering
-function removePII(content) {
-  // Remove email addresses
-  content = content.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[EMAIL]');
+// Scrubber stage 1: Structural cleaning / sensitive data redaction
+_redactSensitiveData(content) {
+  if (!content) return content;
+  let redacted = content;
 
-  // Remove phone numbers
-  content = content.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]');
+  // 1. Redact Emails
+  redacted = redacted.replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, '[REDACTED_EMAIL]');
 
-  // Remove credit card numbers
-  content = content.replace(/\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, '[CC]');
+  // 2. Redact IP Addresses (IPv4)
+  redacted = redacted.replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, '[REDACTED_IP]');
 
-  return content;
+  // 3. Redact Blockchain/Private Keys (64 hex characters)
+  redacted = redacted.replace(/\b(?:0x)?[a-fA-F0-9]{64}\b/g, '[REDACTED_SECRET_KEY]');
+
+  // 4. Redact OpenAI/Common API Keys (e.g. sk-...)
+  redacted = redacted.replace(/\bsk-[a-zA-Z0-9_-]{20,}\b/g, '[REDACTED_API_KEY]');
+
+  // 5. Redact Bearer Tokens
+  redacted = redacted.replace(/\bBearer\s+[a-zA-Z0-9_\-\.\~]{16,}\b/gi, 'Bearer [REDACTED_TOKEN]');
+
+  // 6. Redact Assignment-based Secrets (e.g. password = "...", api_key: "...")
+  redacted = redacted.replace(/(\b(?:password|passwd|pass|token|secret|api_key|privatekey)\b\s*[:=]\s*(["']?))[a-zA-Z0-9_\-\.\~\@]{12,}(\2)/gi, '$1[REDACTED_SECRET]$3');
+
+  return redacted;
 }
 ```
 
