@@ -180,6 +180,46 @@ export declare class MemoryMesh {
         prompt?: undefined;
     }>;
     /**
+     * Multi-chunk document ingest with Late Chunking (Jina, Sep 2024).
+     *
+     * Splits the document into chunks (paragraph-based for now — preserves
+     * char offsets cleanly), embeds them with full-document context via
+     * embedLateChunked() when the underlying model supports token-level
+     * extraction, falls back to per-chunk embedding otherwise. Each chunk
+     * lands as its own memory with provenance metadata linking back to the
+     * parent document.
+     *
+     * Single-shot store path mesh.add() is unchanged — call addDocument()
+     * explicitly when you want chunk-level retrieval granularity.
+     *
+     * Options:
+     *   - minChunkChars / maxChunkChars: paragraph-merging bounds
+     *     (defaults: 200 / 2000)
+     *   - lateChunk: force on/off (default: auto — use Late Chunking if
+     *     the embedder supports it and there's more than one chunk)
+     */
+    addDocument(content: string, metadata?: Record<string, unknown>, options?: {
+        minChunkChars?: number;
+        maxChunkChars?: number;
+        lateChunk?: boolean;
+    }): Promise<{
+        documentId: string;
+        chunks: number;
+        ids: string[];
+        lateChunked: boolean;
+    }>;
+    /**
+     * Split a document into paragraph-based spans of (start, end) char
+     * offsets, merging short paragraphs to honor minChars and forcing breaks
+     * when exceeding maxChars. Spans are non-overlapping, ordered, and cover
+     * the full content.
+     * @private
+     */
+    _splitParagraphSpans(content: string, minChars: number, maxChars: number): Array<{
+        start: number;
+        end: number;
+    }>;
+    /**
      * RAPTOR-style hierarchical summarization (Sarthi et al. 2024).
      *
      * Recursively clusters memories by embedding similarity, summarizes each

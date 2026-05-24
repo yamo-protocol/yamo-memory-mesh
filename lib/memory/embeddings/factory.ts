@@ -158,6 +158,27 @@ class EmbeddingFactory {
         }
     }
     /**
+     * Late Chunking forwarder — see EmbeddingService.embedLateChunked.
+     * Returns null if the primary service can't compute token-level pooled
+     * embeddings (callers fall back to per-chunk embed()).
+     */
+    async embedLateChunked(fullText, spans, options = {}) {
+        if (!this.configured || !this.primaryService) {
+            throw new ConfigurationError("EmbeddingFactory not configured");
+        }
+        if (typeof this.primaryService.embedLateChunked !== 'function') {
+            return null;
+        }
+        if (!this.primaryService.initialized) {
+            await this.primaryService.init();
+        }
+        try {
+            return await this.primaryService.embedLateChunked(fullText, spans, options);
+        } catch (_error) {
+            return null;
+        }
+    }
+    /**
      * Get factory statistics
      * @returns {Object} Statistics
      */

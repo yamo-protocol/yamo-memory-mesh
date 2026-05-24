@@ -274,6 +274,120 @@ export class EmbeddingService {
         }
     }
     /**
+     * Late Chunking (Jina, Sep 2024): embed the full document through the
+     * encoder once with pooling disabled, then mean-pool the token-level
+     * embeddings per chunk span. Each chunk vector then encodes the
+     * preceding/following context picked up by transformer attention,
+     * not just its own tokens. Significant quality wins on multi-paragraph
+     * reasoning at zero retrieval-time cost.
+     *
+     * Returns null when:
+     *   - the backend isn't 'local' (token-level access is HF/ONNX-specific)
+     *   - the model returns pooled output only (no offset mapping or 3D tensor)
+     *   - any error in the inference path
+     * The caller should fall back to per-chunk embed() in that case.
+     *
+     * Spans are character ranges in `fullText`. Empty array → empty array.
+     * @param fullText The complete document.
+     * @param spans    Array of { start, end } char ranges (non-overlapping, in order).
+     * @returns Array of L2-normalized vectors aligned to spans, or null.
+     */
+    async embedLateChunked(fullText, spans, options = {}) {
+        if (!this.initialized) {
+            throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
+                modelType: this.modelType,
+            });
+        }
+        if (!Array.isArray(spans) || spans.length === 0) return [];
+        if (this.modelType !== 'local') return null; // Token-level path is HF/ONNX-only.
+        if (typeof fullText !== 'string' || fullText.length === 0) return null;
+
+        const prefix = getInstructionPrefix(this.modelName);
+        const isQuery = !!options.isQuery;
+        const prefixStr = prefix ? (isQuery ? prefix.query : prefix.passage) : '';
+        const prefixedText = prefixStr + fullText;
+        const prefixOffset = prefixStr.length;
+
+        let tokenEmbeddings;
+        let offsets;
+        try {
+            // Run the model with NO pooling so we get token-level outputs.
+            // Tokenizer offsets are needed to map each token back to characters.
+            const output = await this.model(prefixedText, {
+                pooling: 'none',
+                normalize: false,
+            });
+            // Output shape: [1, num_tokens, dim]. Extract num_tokens × dim.
+            const dims = output.dims;
+            if (!Array.isArray(dims) || dims.length !== 3) return null;
+            const numTokens = dims[1];
+            const dim = dims[2];
+            // Flat Float32Array; index of (t, d) is t * dim + d.
+            tokenEmbeddings = output.data;
+            if (!tokenEmbeddings || tokenEmbeddings.length !== numTokens * dim) return null;
+
+            // Try to get offsets via the underlying tokenizer. transformers.js
+            // exposes the tokenizer on the pipeline; not all versions surface
+            // return_offsets_mapping. Bail to null if we can't get them.
+            const tokenizer = this.model?.tokenizer;
+            if (!tokenizer || typeof tokenizer !== 'function' && typeof tokenizer.encode !== 'function') {
+                return null;
+            }
+            const encoded = await (typeof tokenizer === 'function'
+                ? tokenizer(prefixedText, { return_offsets_mapping: true })
+                : tokenizer.encode(prefixedText, { return_offsets_mapping: true }));
+            offsets = encoded?.offset_mapping ?? encoded?.offsets;
+            if (!offsets || (Array.isArray(offsets.data) ? offsets.data.length : offsets.length) === 0) {
+                return null;
+            }
+            // Normalize offsets to a flat [(start, end), ...] array of pairs.
+            // Tokenizers may emit a 2D tensor (data + dims) or nested arrays.
+            if (offsets.dims && Array.isArray(offsets.data)) {
+                const flat = offsets.data;
+                const pairs = [];
+                for (let i = 0; i < numTokens; i++) {
+                    pairs.push([Number(flat[i * 2]), Number(flat[i * 2 + 1])]);
+                }
+                offsets = pairs;
+            } else if (!Array.isArray(offsets[0])) {
+                return null;
+            }
+
+            const result = [];
+            for (const span of spans) {
+                // Shift span by prefix length since the model saw prefixedText.
+                const spanStart = span.start + prefixOffset;
+                const spanEnd = span.end + prefixOffset;
+                const matchedTokens = [];
+                for (let t = 0; t < numTokens; t++) {
+                    const [tStart, tEnd] = offsets[t];
+                    if (tStart === 0 && tEnd === 0) continue; // [CLS]/[SEP]/[PAD] special tokens
+                    // Token overlaps the span if any char of the token is in [spanStart, spanEnd).
+                    if (tStart < spanEnd && tEnd > spanStart) {
+                        matchedTokens.push(t);
+                    }
+                }
+                if (matchedTokens.length === 0) {
+                    // No tokens for this span — degenerate; return a zero vector
+                    // (caller can decide to skip the chunk).
+                    result.push(new Array(dim).fill(0));
+                    continue;
+                }
+                // Mean-pool the matched tokens
+                const sum = new Array(dim).fill(0);
+                for (const t of matchedTokens) {
+                    const base = t * dim;
+                    for (let d = 0; d < dim; d++) sum[d] += tokenEmbeddings[base + d];
+                }
+                const pooled = sum.map((v) => v / matchedTokens.length);
+                result.push(this.normalize ? this._normalize(pooled) : pooled);
+            }
+            return result;
+        } catch (_error) {
+            return null;
+        }
+    }
+    /**
      * Initialize local ONNX model using Xenova/Transformers.js
      * @private
      */

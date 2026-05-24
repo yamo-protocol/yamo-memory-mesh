@@ -63,6 +63,26 @@ export declare class EmbeddingService {
      */
     embedBatch(texts: any, options?: {}): Promise<any[]>;
     /**
+     * Late Chunking (Jina, Sep 2024): embed the full document through the
+     * encoder once with pooling disabled, then mean-pool the token-level
+     * embeddings per chunk span. Each chunk vector then encodes the
+     * preceding/following context picked up by transformer attention,
+     * not just its own tokens. Significant quality wins on multi-paragraph
+     * reasoning at zero retrieval-time cost.
+     *
+     * Returns null when:
+     *   - the backend isn't 'local' (token-level access is HF/ONNX-specific)
+     *   - the model returns pooled output only (no offset mapping or 3D tensor)
+     *   - any error in the inference path
+     * The caller should fall back to per-chunk embed() in that case.
+     *
+     * Spans are character ranges in `fullText`. Empty array → empty array.
+     * @param fullText The complete document.
+     * @param spans    Array of { start, end } char ranges (non-overlapping, in order).
+     * @returns Array of L2-normalized vectors aligned to spans, or null.
+     */
+    embedLateChunked(fullText: any, spans: any, options?: {}): Promise<any[]>;
+    /**
      * Initialize local ONNX model using Xenova/Transformers.js
      * @private
      */

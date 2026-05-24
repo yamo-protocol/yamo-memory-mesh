@@ -47,6 +47,12 @@ declare class EmbeddingFactory {
      */
     embedBatch(texts: any, options?: {}): Promise<any>;
     /**
+     * Late Chunking forwarder — see EmbeddingService.embedLateChunked.
+     * Returns null if the primary service can't compute token-level pooled
+     * embeddings (callers fall back to per-chunk embed()).
+     */
+    embedLateChunked(fullText: any, spans: any, options?: {}): Promise<any>;
+    /**
      * Get factory statistics
      * @returns {Object} Statistics
      */
