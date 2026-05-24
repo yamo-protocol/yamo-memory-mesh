@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Memory Mesh - Vector Memory Storage with LanceDB
  * Provides persistent semantic memory for YAMO OS using LanceDB backend
@@ -105,6 +104,22 @@ export interface SMORAResponse {
     };
 }
 
+interface MemoryMeshOptions {
+    enableYamo?: boolean;
+    enableLLM?: boolean;
+    enableMemory?: boolean;
+    enableSemanticInjection?: boolean;
+    enableReranker?: boolean;
+    enableAgenticOps?: boolean;
+    agentId?: string;
+    skill_directories?: string | string[];
+    llmProvider?: string;
+    llmApiKey?: string;
+    llmModel?: string;
+    llmMaxTokens?: number;
+    dbDir?: string;
+}
+
 /**
  * MemoryMesh class for managing vector memory storage
  */
@@ -118,6 +133,9 @@ export class MemoryMesh {
     enableYamo;
     enableLLM;
     enableMemory;
+    enableReranker;
+    enableAgenticOps;
+    _kernel_execute;
     agentId;
     yamoTable;
     skillTable;
@@ -135,7 +153,7 @@ export class MemoryMesh {
      * Create a new MemoryMesh instance
      * @param {Object} [options={}]
      */
-    constructor(options = {}) {
+    constructor(options: MemoryMeshOptions = {}) {
         this.client = null;
         this.config = null;
         this.embeddingFactory = new EmbeddingFactory();
@@ -205,7 +223,7 @@ export class MemoryMesh {
      * Generate a cache key from query and options
      * @private
      */
-    _generateCacheKey(query, options = {}) {
+    _generateCacheKey(query, options: { limit?: number; filter?: any; mode?: string } = {}) {
         const normalizedOptions = {
             limit: options.limit || 10,
             filter: options.filter || null,
@@ -279,12 +297,12 @@ export class MemoryMesh {
      * Validate and sanitize metadata to prevent prototype pollution
      * @private
      */
-    _validateMetadata(metadata) {
+    _validateMetadata(metadata): Record<string, any> {
         if (typeof metadata !== "object" || metadata === null) {
             throw new Error("Metadata must be a non-null object");
         }
         // Sanitize keys to prevent prototype pollution
-        const sanitized = {};
+        const sanitized: Record<string, any> = {};
         for (const [key, value] of Object.entries(metadata)) {
             // Skip dangerous keys that could pollute prototype
             if (key === "__proto__" || key === "constructor" || key === "prototype") {
@@ -459,7 +477,7 @@ export class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    async add(content, metadata = {}) {
+    async add(content, metadata: Record<string, any> = {}) {
         await this.init();
         const type = metadata.type || "event";
         const enrichedMetadata = { ...metadata, type };
@@ -477,7 +495,7 @@ export class MemoryMesh {
                 }
             }
             let processedContent = content;
-            let scrubbedMetadata = {};
+            let scrubbedMetadata: Record<string, any> = {};
             try {
                 const scrubbedResult = await this.scrubber.process({
                     content: content,
@@ -734,7 +752,7 @@ export class MemoryMesh {
     /**
      * Reflect on recent memories
      */
-    async reflect(options = {}) {
+    async reflect(options: { lookback?: number; topic?: string; generate?: boolean } = {}) {
         await this.init();
         const lookback = options.lookback || 10;
         const topic = options.topic;
@@ -1169,7 +1187,7 @@ export class MemoryMesh {
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    async ingestSkill(yamoText, metadata = {}, sourceFilePath) {
+    async ingestSkill(yamoText, metadata: Record<string, any> = {}, sourceFilePath?) {
         await this.init();
         if (!this.skillTable) {
             throw new Error("Skill table not initialized");
@@ -1252,7 +1270,7 @@ export class MemoryMesh {
     /**
      * Recursive Skill Synthesis
      */
-    async synthesize(options = {}) {
+    async synthesize(options: { topic?: string; enrichedPrompt?: string; mode?: string; targetSkillId?: string; lookback?: number } = {}) {
         await this.init();
         const topic = options.topic || "general_improvement";
         const enrichedPrompt = options.enrichedPrompt || topic; // PHASE 4: Use enriched prompt
@@ -1542,7 +1560,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    async listSkills(options = {}) {
+    async listSkills(options: { limit?: number } = {}) {
         await this.init();
         if (!this.skillTable) {
             return [];
@@ -1570,7 +1588,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    async searchSkills(query, options = {}) {
+    async searchSkills(query, options: { limit?: number } = {}) {
         await this.init();
         if (!this.skillTable) {
             return [];
@@ -1742,7 +1760,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * Get recent YAMO logs for the heartbeat
      * @param {Object} options
      */
-    async getYamoLog(options = {}) {
+    async getYamoLog(options: { limit?: number } = {}) {
         if (!this.yamoTable) {
             return [];
         }
@@ -1936,7 +1954,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    async search(query, options = {}) {
+    async search(query, options: { limit?: number; filter?: any; mode?: string; useCache?: boolean } = {}) {
         await this.init();
         try {
             const limit = options.limit || 10;

@@ -27,6 +27,21 @@ export interface SMORAResponse {
         latencyMs: number;
     };
 }
+interface MemoryMeshOptions {
+    enableYamo?: boolean;
+    enableLLM?: boolean;
+    enableMemory?: boolean;
+    enableSemanticInjection?: boolean;
+    enableReranker?: boolean;
+    enableAgenticOps?: boolean;
+    agentId?: string;
+    skill_directories?: string | string[];
+    llmProvider?: string;
+    llmApiKey?: string;
+    llmModel?: string;
+    llmMaxTokens?: number;
+    dbDir?: string;
+}
 /**
  * MemoryMesh class for managing vector memory storage
  */
@@ -40,6 +55,9 @@ export declare class MemoryMesh {
     enableYamo: any;
     enableLLM: any;
     enableMemory: any;
+    enableReranker: any;
+    enableAgenticOps: any;
+    _kernel_execute: any;
     agentId: any;
     yamoTable: any;
     skillTable: any;
@@ -57,12 +75,16 @@ export declare class MemoryMesh {
      * Create a new MemoryMesh instance
      * @param {Object} [options={}]
      */
-    constructor(options?: {});
+    constructor(options?: MemoryMeshOptions);
     /**
      * Generate a cache key from query and options
      * @private
      */
-    _generateCacheKey(query: any, options?: {}): string;
+    _generateCacheKey(query: any, options?: {
+        limit?: number;
+        filter?: any;
+        mode?: string;
+    }): string;
     /**
      * Get cached result if valid
      * @private
@@ -93,7 +115,7 @@ export declare class MemoryMesh {
      * Validate and sanitize metadata to prevent prototype pollution
      * @private
      */
-    _validateMetadata(metadata: any): {};
+    _validateMetadata(metadata: any): Record<string, any>;
     /**
      * Sanitize and validate content before storage
      * @private
@@ -132,10 +154,10 @@ export declare class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    add(content: any, metadata?: {}): Promise<{
+    add(content: any, metadata?: Record<string, any>): Promise<{
         id: any;
         content: string;
-        metadata: {};
+        metadata: Record<string, any>;
         created_at: string;
     }>;
     /**
@@ -147,14 +169,18 @@ export declare class MemoryMesh {
     ingest(content: any, metadata?: {}): Promise<{
         id: any;
         content: string;
-        metadata: {};
+        metadata: Record<string, any>;
         created_at: string;
     }>;
     /**
      * Reflect on recent memories
      */
-    reflect(options?: {}): Promise<{
-        topic: any;
+    reflect(options?: {
+        lookback?: number;
+        topic?: string;
+        generate?: boolean;
+    }): Promise<{
+        topic: string;
         count: number;
         context: {
             content: any;
@@ -170,7 +196,7 @@ export declare class MemoryMesh {
         createdAt?: undefined;
     } | {
         id: string;
-        topic: any;
+        topic: string;
         reflection: string;
         confidence: number;
         sourceMemoryCount: number;
@@ -284,7 +310,7 @@ export declare class MemoryMesh {
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    ingestSkill(yamoText: any, metadata: {}, sourceFilePath: any): Promise<{
+    ingestSkill(yamoText: any, metadata?: Record<string, any>, sourceFilePath?: any): Promise<{
         id: string;
         name: any;
         intent: any;
@@ -292,7 +318,13 @@ export declare class MemoryMesh {
     /**
      * Recursive Skill Synthesis
      */
-    synthesize(options?: {}): Promise<{
+    synthesize(options?: {
+        topic?: string;
+        enrichedPrompt?: string;
+        mode?: string;
+        targetSkillId?: string;
+        lookback?: number;
+    }): Promise<{
         status: string;
         analysis: string;
         skill_id: string;
@@ -302,7 +334,7 @@ export declare class MemoryMesh {
     } | {
         status: string;
         analysis: string;
-        skill_name: any;
+        skill_name: string;
         skill_id?: undefined;
         yamo_text?: undefined;
         error?: undefined;
@@ -347,19 +379,25 @@ export declare class MemoryMesh {
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    listSkills(options?: {}): Promise<any>;
+    listSkills(options?: {
+        limit?: number;
+    }): Promise<any>;
     /**
      * Search for synthesized skills by semantic intent
      * @param {string} query - Search query (intent description)
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    searchSkills(query: any, options?: {}): Promise<any>;
+    searchSkills(query: any, options?: {
+        limit?: number;
+    }): Promise<any>;
     /**
      * Get recent YAMO logs for the heartbeat
      * @param {Object} options
      */
-    getYamoLog(options?: {}): Promise<any>;
+    getYamoLog(options?: {
+        limit?: number;
+    }): Promise<any>;
     /**
      * Quarantine a corrupt yamo_blocks table without destroying it.
      * Writes a CORRUPT marker (so init() refuses to silently recreate) and moves
@@ -419,7 +457,12 @@ export declare class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    search(query: any, options?: {}): Promise<any>;
+    search(query: any, options?: {
+        limit?: number;
+        filter?: any;
+        mode?: string;
+        useCache?: boolean;
+    }): Promise<any>;
     _applyGraphRagBoosting(results: any, query: any): Promise<any>;
     _keywordSearch(query: any, limit: any, filter?: any): Promise<any>;
     _normalizeScores(results: any): any;
