@@ -16,6 +16,26 @@ import { createMemoryTableWithDimension, DEFAULT_VECTOR_DIMENSION, } from "../sc
 import { StorageError, QueryError } from "./errors.js";
 import { createLogger } from "../../utils/logger.js";
 const logger = createLogger("lancedb-client");
+
+/**
+ * A stored memory row as returned by the read methods of this client.
+ * `metadata` is already JSON-parsed (or null); the raw column is a JSON string.
+ */
+export interface MemoryRecord {
+    id: string;
+    content: string;
+    metadata: Record<string, any> | null;
+    vector: number[];
+    created_at?: any;
+    updated_at?: any;
+    superseded_at?: any;
+}
+
+/** A {@link MemoryRecord} plus the similarity/relevance score from a search. */
+export interface SearchResult extends MemoryRecord {
+    score: number;
+}
+
 /**
  * LanceDB Client wrapper class
  */
@@ -203,7 +223,7 @@ export class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with scores
      * @throws {QueryError} If search fails
      */
-    async search(vector, options: { limit?: number; nprobes?: number; filter?: string | null; refineFactor?: number; timeoutMs?: number } = {}) {
+    async search(vector, options: { limit?: number; nprobes?: number; filter?: string | null; refineFactor?: number; timeoutMs?: number } = {}): Promise<SearchResult[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -260,7 +280,7 @@ export class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
      * @throws {QueryError} If search fails
      */
-    async searchFts(queryText, options: { limit?: number; filter?: string | null; timeoutMs?: number } = {}) {
+    async searchFts(queryText, options: { limit?: number; filter?: string | null; timeoutMs?: number } = {}): Promise<SearchResult[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -294,7 +314,7 @@ export class LanceDBClient {
      * @returns {Promise<Object|null>} Record object or null if not found
      * @throws {QueryError} If query fails
      */
-    async getById(id) {
+    async getById(id): Promise<MemoryRecord | null> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -329,7 +349,7 @@ export class LanceDBClient {
      * @param {Object} options - Options
      * @returns {Promise<Array<Object>>} Array of all records
      */
-    async getAll(options: { limit?: number } = {}) {
+    async getAll(options: { limit?: number } = {}): Promise<MemoryRecord[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -359,7 +379,7 @@ export class LanceDBClient {
      * @param {Object} [options={}] - Query options
      * @returns {Promise<Array<Object>>} Array of matching records
      */
-    async getWhere(filter, options: { limit?: number } = {}) {
+    async getWhere(filter, options: { limit?: number } = {}): Promise<MemoryRecord[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -617,7 +637,7 @@ export class LanceDBClient {
      * Retry an operation with exponential backoff
      * @private
      */
-    async _retryOperation(operation, maxRetries?, baseDelay?) {
+    async _retryOperation<T>(operation: () => Promise<T>, maxRetries?, baseDelay?): Promise<T> {
         const max = maxRetries ?? this.maxRetries;
         const delay = baseDelay ?? this.retryDelay;
         let lastError = null;
