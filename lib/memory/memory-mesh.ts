@@ -83,6 +83,7 @@ export class MemoryMesh {
     scrubber;
     queryCache;
     cacheConfig;
+    hydeCache; // query → { text, timestamp } for LLM-generated HyDE expansions
     skillDirectories; // Store skill directories for synthesis
     dbDir; // Store custom dbDir for in-memory databases
     semanticInjection; // Prepend V5 topics/entities before embedding (Phase 5 Step 1)
@@ -142,6 +143,10 @@ export class MemoryMesh {
             maxSize: 500,
             ttlMs: 5 * 60 * 1000, // 5 minutes
         };
+        // HyDE expansions are LLM-expensive; cache by query string with
+        // the same TTL as the query cache. Smaller cap since values are
+        // longer strings, not result arrays.
+        this.hydeCache = new Map();
         // Store custom dbDir for test isolation
         this.dbDir = options.dbDir;
     }
@@ -2021,10 +2026,10 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             return { results: [], pipeline: { queryExpanded: false, heritageAware: false, synthesized: false, latencyMs: Date.now() - t0 } };
         }
 
-        // Layer 1: HyDE-Lite — template-based query expansion (no LLM required)
+        // Layer 1: HyDE — LLM-generated hypothetical answer (template fallback)
         let hydeQuery: string | null = null;
         if (enableHyDE) {
-            hydeQuery = `A document about ${scrubbed}. This covers concepts related to ${scrubbed} including patterns, insights, and lessons learned.`;
+            hydeQuery = await this._generateHyDE(scrubbed);
         }
 
         // Layer 2: Multi-channel retrieval (semantic original, semantic HyDE, keyword BM25)
@@ -2161,6 +2166,59 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 latencyMs: Date.now() - t0,
             },
         };
+    }
+
+    /**
+     * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
+     *
+     * When an LLM is available, generates a 2-3 sentence hypothetical passage
+     * that would directly answer the query — typically yields stronger vector
+     * matches than the original short query because the generated text mirrors
+     * the distribution of stored documents. Falls back to a template wrapper
+     * if the LLM is disabled, fails, or times out (HYDE_TIMEOUT_MS, default 5s).
+     *
+     * Results are cached per-query with the same TTL as queryCache.
+     */
+    async _generateHyDE(query: string): Promise<string> {
+        const template = `A document about ${query}. This covers concepts related to ${query} including patterns, insights, and lessons learned.`;
+        if (!this.enableLLM || !this.llmClient) {
+            return template;
+        }
+        const cacheKey = `hyde:${query}`;
+        const cached = this.hydeCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.cacheConfig.ttlMs) {
+            return cached.text;
+        }
+        const timeoutMs = parseInt(process.env.HYDE_TIMEOUT_MS || '5000', 10);
+        const systemPrompt = 'You are a search retrieval assistant. Given a user query, write a concise 2-3 sentence hypothetical passage that would directly answer it. Use technical vocabulary that would appear in a real document on this topic. Output only the passage, no preamble or commentary.';
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeoutHandle = setTimeout(() => reject(new Error('HyDE LLM timeout')), timeoutMs);
+            });
+            const hydeText = await Promise.race([
+                this.llmClient.complete(systemPrompt, query),
+                timeoutPromise,
+            ]);
+            const cleaned = (hydeText && typeof hydeText === 'string' && hydeText.trim())
+                ? hydeText.trim()
+                : template;
+            // LRU eviction
+            const cap = 200;
+            if (this.hydeCache.size >= cap) {
+                const firstKey = this.hydeCache.keys().next().value;
+                if (firstKey !== undefined) this.hydeCache.delete(firstKey);
+            }
+            this.hydeCache.set(cacheKey, { text: cleaned, timestamp: Date.now() });
+            return cleaned;
+        } catch (error) {
+            if (process.env.YAMO_DEBUG === 'true') {
+                logger.debug({ err: error, query }, 'HyDE LLM call failed, using template');
+            }
+            return template;
+        } finally {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+        }
     }
 
     async getAll(options = {}) {

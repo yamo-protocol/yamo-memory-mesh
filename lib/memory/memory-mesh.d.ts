@@ -48,6 +48,7 @@ export declare class MemoryMesh {
     scrubber: any;
     queryCache: any;
     cacheConfig: any;
+    hydeCache: any;
     skillDirectories: any;
     dbDir: any;
     semanticInjection: any;
@@ -403,6 +404,18 @@ export declare class MemoryMesh {
             latencyMs: number;
         };
     }>;
+    /**
+     * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
+     *
+     * When an LLM is available, generates a 2-3 sentence hypothetical passage
+     * that would directly answer the query — typically yields stronger vector
+     * matches than the original short query because the generated text mirrors
+     * the distribution of stored documents. Falls back to a template wrapper
+     * if the LLM is disabled, fails, or times out (HYDE_TIMEOUT_MS, default 5s).
+     *
+     * Results are cached per-query with the same TTL as queryCache.
+     */
+    _generateHyDE(query: string): Promise<string>;
     getAll(options?: {}): Promise<any>;
     stats(): Promise<{
         count: number;
