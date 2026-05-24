@@ -68,6 +68,11 @@ const DECAY_BY_TYPE: Record<string, number> = {
 };
 const DEFAULT_DECAY = 0.05;
 
+// Safety ceiling for unbounded metadata scans (queryLessons / getMemoriesByPattern).
+// Far above any realistic lesson count, but bounds memory if a store grows pathologically.
+// Hitting it is logged (not silent) so it never recreates the old getAll(1000) truncation bug quietly.
+const METADATA_SCAN_CAP = 50000;
+
 /** RFC-0012 S-MORA types */
 export interface SMORAOptions {
     limit?: number;
@@ -2399,7 +2404,10 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         const limit = options.limit || 10;
         if (!this.client) return [];
         const filter = `memory_type == 'lesson' OR metadata LIKE '%"type":"lesson"%' OR metadata LIKE '%#lesson_learned%'`;
-        const matching = await this.client.getWhere(filter);
+        const matching = await this.client.getWhere(filter, { limit: METADATA_SCAN_CAP });
+        if (matching.length >= METADATA_SCAN_CAP) {
+            logger.warn({ cap: METADATA_SCAN_CAP }, "queryLessons hit METADATA_SCAN_CAP — results may be truncated");
+        }
         const lessons = matching.filter((r: any) => {
             try {
                 const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
@@ -2467,9 +2475,22 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
     async getMemoriesByPattern(patternId: string): Promise<any[]> {
         await this.init();
         if (!this.client) return [];
-        const escaped = patternId.replace(/'/g, "''");
-        const filter = `metadata LIKE '%"lesson_pattern_id":"${escaped}"%'`;
-        const matching = await this.client.getWhere(filter);
+        // Build a needle matching the stored JSON form, then escape it for SQL LIKE.
+        // JSON.stringify mirrors how the value is serialized in metadata (handles "/\).
+        // Escape order: backslash first, then the LIKE wildcards %/_ (the key itself
+        // contains underscores), then the SQL single-quote. ESCAPE '\' is confirmed
+        // supported by LanceDB. The JS post-filter below remains authoritative for exact match.
+        const needle = `"lesson_pattern_id":${JSON.stringify(patternId)}`;
+        const likeEscaped = needle
+            .replace(/\\/g, "\\\\")
+            .replace(/%/g, "\\%")
+            .replace(/_/g, "\\_")
+            .replace(/'/g, "''");
+        const filter = `metadata LIKE '%${likeEscaped}%' ESCAPE '\\'`;
+        const matching = await this.client.getWhere(filter, { limit: METADATA_SCAN_CAP });
+        if (matching.length >= METADATA_SCAN_CAP) {
+            logger.warn({ cap: METADATA_SCAN_CAP, patternId }, "getMemoriesByPattern hit METADATA_SCAN_CAP — results may be truncated");
+        }
         return (matching as any[]).filter((r) => {
             try {
                 const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;

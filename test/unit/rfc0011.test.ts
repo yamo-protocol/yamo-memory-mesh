@@ -281,3 +281,91 @@ describe('RFC-0011: getMemoriesByPattern()', () => {
     assert.strictEqual(results.length, 0);
   });
 });
+
+describe('workspace-g4d: getAll(1000) cap removal', () => {
+  let mesh: MemoryMesh;
+  const TOTAL = 1100; // strictly > the old 1000 cap
+
+  // Insert lesson records straight through the storage client to skip the
+  // embedding model — keeps a >1000-row regression seed fast and deterministic.
+  function lessonRecord(i: number, patternId: string) {
+    return {
+      id: `seed_${i}`,
+      content: `seed lesson ${i}`,
+      vector: new Array(384).fill(0),
+      metadata: JSON.stringify({
+        type: 'lesson',
+        tags: ['#lesson_learned'],
+        lesson_pattern_id: patternId,
+        preventative_rule: `rule ${i}`,
+      }),
+    };
+  }
+
+  before(async () => {
+    mesh = new MemoryMesh({ enableYamo: false, enableLLM: false, dbDir: ':memory:' });
+    await mesh.init();
+    const records = Array.from({ length: TOTAL }, (_, i) =>
+      lessonRecord(i, 'shared_pattern_id')
+    );
+    await (mesh as any).client.addBatch(records);
+  });
+
+  after(async () => {
+    await mesh.close();
+  });
+
+  it('queryLessons returns lessons beyond the former 1000-row cap', async () => {
+    const lessons = await mesh.queryLessons('', { limit: TOTAL + 100 });
+    assert.ok(
+      lessons.length > 1000,
+      `expected >1000 lessons (old getAll(1000) cap removed), got ${lessons.length}`
+    );
+    assert.strictEqual(lessons.length, TOTAL);
+  });
+
+  it('getMemoriesByPattern returns all matches beyond the former 1000-row cap', async () => {
+    const results = await mesh.getMemoriesByPattern('shared_pattern_id');
+    assert.ok(
+      results.length > 1000,
+      `expected >1000 matches (old getAll(1000) cap removed), got ${results.length}`
+    );
+    assert.strictEqual(results.length, TOTAL);
+  });
+});
+
+describe('workspace-vlj: getMemoriesByPattern LIKE-escaping', () => {
+  let mesh: MemoryMesh;
+
+  before(async () => {
+    mesh = new MemoryMesh({ enableYamo: false, enableLLM: false, dbDir: ':memory:' });
+    await mesh.init();
+    const mk = (id: string, pid: string) => ({
+      id,
+      content: id,
+      vector: new Array(384).fill(0),
+      metadata: JSON.stringify({ type: 'lesson', lesson_pattern_id: pid }),
+    });
+    await (mesh as any).client.addBatch([
+      mk('quoted', 'a"b'),        // JSON-special char: stored as "a\"b", would under-match unescaped
+      mk('underscore', 'x_y'),    // LIKE wildcard: must not match 'xQy'
+      mk('decoy', 'xQy'),
+    ]);
+  });
+
+  after(async () => {
+    await mesh.close();
+  });
+
+  it('finds a patternId containing a double-quote (no silent under-match)', async () => {
+    const results = await mesh.getMemoriesByPattern('a"b');
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].id, 'quoted');
+  });
+
+  it('treats underscore literally, not as a LIKE wildcard', async () => {
+    const results = await mesh.getMemoriesByPattern('x_y');
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].id, 'underscore');
+  });
+});
