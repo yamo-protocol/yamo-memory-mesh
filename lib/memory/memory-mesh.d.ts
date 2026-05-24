@@ -1,4 +1,8 @@
 import { MemoryRecord } from "./adapters/client.js";
+import EmbeddingFactory from "./embeddings/factory.js";
+import { Scrubber } from "../scrubber/scrubber.js";
+import { KeywordSearch } from "./search/keyword-search.js";
+import { LLMClient } from "../llm/client.js";
 /** RFC-0012 S-MORA types */
 export interface SMORAOptions {
     limit?: number;
@@ -69,32 +73,35 @@ interface MemoryMeshOptions {
 export declare class MemoryMesh {
     client: any;
     config: any;
-    embeddingFactory: any;
-    keywordSearch: any;
-    isInitialized: any;
-    vectorDimension: any;
-    enableYamo: any;
-    enableLLM: any;
-    enableMemory: any;
-    enableReranker: any;
-    enableAgenticOps: any;
+    embeddingFactory: EmbeddingFactory;
+    keywordSearch: KeywordSearch;
+    isInitialized: boolean;
+    vectorDimension: number;
+    enableYamo: boolean;
+    enableLLM: boolean;
+    enableMemory: boolean;
+    enableReranker: boolean;
+    enableAgenticOps: boolean;
     _kernel_execute: any;
-    agentId: any;
+    agentId: string;
     yamoTable: any;
     skillTable: any;
     graphTable: any;
-    llmClient: any;
-    scrubber: any;
+    llmClient: LLMClient;
+    scrubber: Scrubber;
     queryCache: Map<string, {
         result: RankedMemory[];
         timestamp: number;
     }>;
-    cacheConfig: any;
-    hydeCache: any;
-    intentEmbedCache: any;
-    skillDirectories: any;
-    dbDir: any;
-    semanticInjection: any;
+    cacheConfig: {
+        maxSize: number;
+        ttlMs: number;
+    };
+    hydeCache: Map<any, any>;
+    intentEmbedCache: Map<any, any>;
+    skillDirectories: string[];
+    dbDir: string;
+    semanticInjection: boolean;
     /**
      * Create a new MemoryMesh instance
      * @param {Object} [options={}]
@@ -104,7 +111,7 @@ export declare class MemoryMesh {
      * Generate a cache key from query and options
      * @private
      */
-    _generateCacheKey(query: any, options?: {
+    _generateCacheKey(query: string, options?: {
         limit?: number;
         filter?: any;
         mode?: string;
@@ -117,12 +124,12 @@ export declare class MemoryMesh {
      * where another operation could observe the key as missing. We use a try-finally
      * pattern to ensure atomicity at the application level.
      */
-    _getCachedResult(key: any): RankedMemory[] | null;
+    _getCachedResult(key: string): RankedMemory[] | null;
     /**
      * Cache a search result
      * @private
      */
-    _cacheResult(key: any, result: RankedMemory[]): void;
+    _cacheResult(key: string, result: RankedMemory[]): void;
     /**
      * Clear all cached results
      */
@@ -132,8 +139,8 @@ export declare class MemoryMesh {
      */
     getCacheStats(): {
         size: number;
-        maxSize: any;
-        ttlMs: any;
+        maxSize: number;
+        ttlMs: number;
     };
     /**
      * Validate and sanitize metadata to prevent prototype pollution
@@ -144,7 +151,7 @@ export declare class MemoryMesh {
      * Sanitize and validate content before storage
      * @private
      */
-    _sanitizeContent(content: any): string;
+    _sanitizeContent(content: string): string;
     /**
      * Initialize the LanceDB client
      */
@@ -178,7 +185,7 @@ export declare class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    add(content: any, metadata?: Record<string, any>): Promise<{
+    add(content: string, metadata?: Record<string, any>): Promise<{
         id: any;
         content: string;
         metadata: Record<string, any>;
@@ -190,7 +197,7 @@ export declare class MemoryMesh {
      * @param metadata - Optional metadata
      * @returns Promise with memory record
      */
-    ingest(content: any, metadata?: {}): Promise<{
+    ingest(content: string, metadata?: any): Promise<{
         id: any;
         content: string;
         metadata: Record<string, any>;
@@ -205,12 +212,8 @@ export declare class MemoryMesh {
         generate?: boolean;
     }): Promise<{
         topic: string;
-        count: number;
-        context: {
-            content: any;
-            type: any;
-            id: any;
-        }[];
+        count: any;
+        context: any;
         prompt: string;
         id?: undefined;
         reflection?: undefined;
@@ -223,8 +226,8 @@ export declare class MemoryMesh {
         topic: string;
         reflection: string;
         confidence: number;
-        sourceMemoryCount: number;
-        yamoBlock: any;
+        sourceMemoryCount: any;
+        yamoBlock: string;
         createdAt: string;
         count?: undefined;
         context?: undefined;
@@ -334,7 +337,7 @@ export declare class MemoryMesh {
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    ingestSkill(yamoText: any, metadata?: Record<string, any>, sourceFilePath?: any): Promise<{
+    ingestSkill(yamoText: string, metadata?: Record<string, any>, sourceFilePath?: string): Promise<{
         id: string;
         name: any;
         intent: any;
@@ -380,8 +383,8 @@ export declare class MemoryMesh {
     /**
      * Update reliability
      */
-    updateSkillReliability(id: any, success: any): Promise<{
-        id: any;
+    updateSkillReliability(id: string, success: boolean): Promise<{
+        id: string;
         reliability: any;
         use_count: any;
     }>;
@@ -390,7 +393,7 @@ export declare class MemoryMesh {
      * @param {string} id - Skill ID
      * @returns {Promise<Object|null>} Skill data or null if not found
      */
-    getSkill(id: any): Promise<any>;
+    getSkill(id: string): Promise<any>;
     /**
      * Prune skills
      */
@@ -412,7 +415,7 @@ export declare class MemoryMesh {
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    searchSkills(query: any, options?: {
+    searchSkills(query: string, options?: {
         limit?: number;
     }): Promise<any>;
     /**
@@ -437,7 +440,7 @@ export declare class MemoryMesh {
      * Note: YAMO emission is non-critical - failures are logged but don't throw
      * to prevent disrupting the main operation.
      */
-    _emitYamoBlock(operationType: any, memoryId: any, yamoText: any, heritage?: {
+    _emitYamoBlock(operationType: string, memoryId: string, yamoText: string, heritage?: {
         intentChain: string[];
         hypotheses: string[];
         rationales: string[];
@@ -481,23 +484,23 @@ export declare class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    search(query: any, options?: {
+    search(query: string, options?: {
         limit?: number;
         filter?: any;
         mode?: string;
         useCache?: boolean;
     }): Promise<RankedMemory[]>;
-    _applyGraphRagBoosting(results: RankedMemory[], query: any): Promise<RankedMemory[]>;
-    _keywordSearch(query: any, limit: any, filter?: any): Promise<RankedMemory[]>;
+    _applyGraphRagBoosting(results: RankedMemory[], query: string): Promise<RankedMemory[]>;
+    _keywordSearch(query: string, limit: number, filter?: any): Promise<RankedMemory[]>;
     _normalizeScores(results: RankedMemory[]): RankedMemory[];
     /**
      * Tokenize query for keyword matching (private helper for searchSkills)
      * Converts text to lowercase tokens, filtering out short tokens and punctuation.
      * Handles camelCase/PascalCase by splitting on uppercase letters.
      */
-    _tokenizeQuery(text: any): any;
-    formatResults(results: any): string;
-    get(id: any): Promise<StoredMemory | null>;
+    _tokenizeQuery(text: string): string[];
+    formatResults(results: any[]): string;
+    get(id: string): Promise<StoredMemory | null>;
     /**
      * Delete a memory entry by ID.
      */
@@ -616,7 +619,7 @@ export declare class MemoryMesh {
      * legitimately different verbs/states in intent chains).
      * @private
      */
-    _canonicalizeIntent(intent: any): string;
+    _canonicalizeIntent(intent: string): string;
     /**
      * Embed a single intent string with persistent caching. Intents are
      * low-cardinality (handfuls per project) and stable across queries, so
@@ -624,7 +627,7 @@ export declare class MemoryMesh {
      * null on any failure so callers can fall back to raw overlap.
      * @private
      */
-    _embedIntent(intent: any): Promise<any>;
+    _embedIntent(intent: string): Promise<any>;
     /**
      * Heritage bonus from intent vector matrices. For each session intent,
      * take its max cosine similarity against any chain intent (MaxSim),
@@ -633,7 +636,7 @@ export declare class MemoryMesh {
      * dot product. Returns 0 on empty/invalid input.
      * @private
      */
-    _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: any): number;
+    _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: number): number;
     /**
      * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
      *
@@ -667,7 +670,11 @@ export declare class MemoryMesh {
         tableName: any;
         uri: any;
         isConnected: any;
-        embedding: any;
+        embedding: {
+            configured: boolean;
+            primary: any;
+            fallbacks: any[];
+        };
         status?: undefined;
     }>;
     _parseEmbeddingConfig(): {
@@ -710,7 +717,7 @@ export declare class MemoryMesh {
      * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
      * @private
      */
-    _canonicalizeEntity(entity: any): string;
+    _canonicalizeEntity(entity: string): string;
     /**
      * Check if a content string mentions an entity using a case-insensitive
      * word-boundary regex with simple plural tolerance. Fixes the substring
@@ -718,7 +725,7 @@ export declare class MemoryMesh {
      * "Auth" matched "AuthService" or "auth-token" matched "authorization").
      * @private
      */
-    _contentMentions(content: any, entity: any): boolean;
+    _contentMentions(content: string, entity: string): boolean;
     /**
      * Heuristic triple extractor — pairs consecutive PascalCase tokens with
      * a between-window verb guess. Produces low-precision edges that pollute
@@ -729,8 +736,13 @@ export declare class MemoryMesh {
      * corpus where you actually want PascalCase-pairing as a backstop. The
      * LLM path (_extractTriplesLLM) is the recommended graph source.
      */
-    _extractTriplesHeuristics(content: any): any[];
-    _extractTriplesLLM(content: any): Promise<{
+    _extractTriplesHeuristics(content: string): {
+        source: string;
+        target: string;
+        relation: string;
+        weight: number;
+    }[];
+    _extractTriplesLLM(content: string): Promise<{
         source: string;
         target: string;
         relation: string;

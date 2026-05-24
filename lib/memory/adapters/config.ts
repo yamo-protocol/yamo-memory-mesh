@@ -110,7 +110,7 @@ export function loadMemoryConfig() {
 /**
  * Validate configuration
  */
-export function validateConfig(config) {
+export function validateConfig(config: Record<string, any>) {
     const errors = [];
     // Validate embedding model type
     const validModelTypes = ["local", "openai", "cohere", "voyage"];

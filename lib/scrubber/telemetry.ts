@@ -14,7 +14,7 @@ export class ScrubberTelemetry {
             validation: { count: 0, totalTime: 0, errors: 0 },
         };
     }
-    recordStage(stage, duration, success = true) {
+    recordStage(stage: string, duration: number, success = true) {
         if (!this.stats[stage]) {
             this.stats[stage] = { count: 0, totalTime: 0, errors: 0 };
         }
@@ -24,7 +24,7 @@ export class ScrubberTelemetry {
             this.stats[stage].errors++;
         }
     }
-    getStageStats(stage) {
+    getStageStats(stage: string) {
         const stats = this.stats[stage] || { count: 0, totalTime: 0, errors: 0 };
         return {
             count: stats.count,

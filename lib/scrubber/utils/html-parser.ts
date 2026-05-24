@@ -9,11 +9,11 @@ export class HTMLParser {
    * @param {string} html - HTML content
    * @returns {string} - Extracted text
    */
-  parse(html) {
+  parse(html: string) {
     return this._extractText(html);
   }
 
-  _extractText(html) {
+  _extractText(html: string) {
     // Remove scripts, styles, and comments
     let text = html;
     text = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -21,7 +21,7 @@ export class HTMLParser {
     text = text.replace(/<!--[\s\S]*?-->/g, '');
 
     // Convert headings to markdown
-    text = text.replace(/<h([1-6])([^>]*)>(.*?)<\/h\1>/gi, (match, level, attrs, content) => {
+    text = text.replace(/<h([1-6])([^>]*)>(.*?)<\/h\1>/gi, (match: string, level: string, attrs: string, content: string) => {
       const headingLevel = parseInt(level);
       const hashes = '#'.repeat(headingLevel);
       return `${hashes} ${this._stripTags(content)}\n\n`;
@@ -39,7 +39,7 @@ export class HTMLParser {
     return text;
   }
 
-  _stripTags(html) {
+  _stripTags(html: string) {
     return html.replace(/<[^>]+>/g, '');
   }
 }

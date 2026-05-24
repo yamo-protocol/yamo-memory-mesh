@@ -18,8 +18,8 @@ const LEGACY_REGEXES = {
  * Parse flat key: value or key; value lines from a text block.
  * Only extracts whitelisted identity fields.
  */
-function parseFlatBlock(block) {
-    const result = {};
+function parseFlatBlock(block: string) {
+    const result: Record<string, string> = {};
     for (const line of block.split("\n")) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith("#")) {
@@ -60,7 +60,7 @@ function parseFlatBlock(block) {
  *   2. Legacy v0.4 root-level compact declarations
  *   3. Content-hash fallback — deterministic and idempotent
  */
-export function extractSkillIdentity(content) {
+export function extractSkillIdentity(content: string) {
     // 1. YAML frontmatter
     if (content.startsWith("---")) {
         const endIdx = content.indexOf("---", 3);
@@ -79,7 +79,7 @@ export function extractSkillIdentity(content) {
     // Safe: name/intent/description do not appear as body section headers.
     const legacyFields: Record<string, any> = {};
     for (const field of IDENTITY_FIELDS) {
-        const match = content.match(LEGACY_REGEXES[field]);
+        const match = content.match(LEGACY_REGEXES[field as keyof typeof LEGACY_REGEXES]);
         if (match) {
             legacyFields[field] = match[1].trim();
         }
@@ -113,7 +113,7 @@ export function extractSkillIdentity(content) {
  * This function ONLY reads the YAML frontmatter block and does NOT parse
  * the skill body, following the same safety constraints as extractSkillIdentity.
  */
-export function extractSkillTags(content) {
+export function extractSkillTags(content: string) {
     // Only parse YAML frontmatter (between --- delimiters)
     if (content.startsWith("---")) {
         const endIdx = content.indexOf("---", 3);

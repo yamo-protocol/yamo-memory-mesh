@@ -10,7 +10,7 @@ export class SemanticFilter {
   config;
   patternMatcher;
   hashUtil;
-  constructor(config) {
+  constructor(config: any) {
     this.config = config;
     this.patternMatcher = new PatternMatcher();
     this.hashUtil = new HashUtil();
@@ -21,7 +21,7 @@ export class SemanticFilter {
    * @param {string} content - Cleaned content
    * @returns {Promise<string>} - Filtered content
    */
-  async filter(content) {
+  async filter(content: string) {
     const paragraphs = content.split(/\n\n+/);
 
     let filtered = paragraphs.filter(p => !this._isBoilerplate(p));
@@ -31,11 +31,11 @@ export class SemanticFilter {
     return filtered.join('\n\n');
   }
 
-  _isBoilerplate(paragraph) {
+  _isBoilerplate(paragraph: string) {
     return this.patternMatcher.isBoilerplate(paragraph);
   }
 
-  async _removeDuplicates(paragraphs) {
+  async _removeDuplicates(paragraphs: string[]) {
     if (!this.config.removeDuplicates) return paragraphs;
 
     const seen = new Set();
@@ -52,7 +52,7 @@ export class SemanticFilter {
     return unique;
   }
 
-  _hasSignal(paragraph) {
+  _hasSignal(paragraph: string) {
     const text = paragraph.trim();
     if (text.length < 10) return false;
 

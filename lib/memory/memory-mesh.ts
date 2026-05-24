@@ -146,8 +146,8 @@ interface MemoryMeshOptions {
  * MemoryMesh class for managing vector memory storage
  */
 export class MemoryMesh {
-    client;
-    config;
+    client: any;
+    config: any;
     embeddingFactory;
     keywordSearch;
     isInitialized;
@@ -157,11 +157,11 @@ export class MemoryMesh {
     enableMemory;
     enableReranker;
     enableAgenticOps;
-    _kernel_execute;
+    _kernel_execute: any;
     agentId;
-    yamoTable;
-    skillTable;
-    graphTable;
+    yamoTable: any;
+    skillTable: any;
+    graphTable: any;
     llmClient;
     scrubber;
     queryCache: Map<string, { result: RankedMemory[]; timestamp: number }>;
@@ -245,7 +245,7 @@ export class MemoryMesh {
      * Generate a cache key from query and options
      * @private
      */
-    _generateCacheKey(query, options: { limit?: number; filter?: any; mode?: string } = {}) {
+    _generateCacheKey(query: string, options: { limit?: number; filter?: any; mode?: string } = {}) {
         const normalizedOptions = {
             limit: options.limit || 10,
             filter: options.filter || null,
@@ -261,7 +261,7 @@ export class MemoryMesh {
      * where another operation could observe the key as missing. We use a try-finally
      * pattern to ensure atomicity at the application level.
      */
-    _getCachedResult(key): RankedMemory[] | null {
+    _getCachedResult(key: string): RankedMemory[] | null {
         const entry = this.queryCache.get(key);
         if (!entry) {
             return null;
@@ -286,7 +286,7 @@ export class MemoryMesh {
      * Cache a search result
      * @private
      */
-    _cacheResult(key, result: RankedMemory[]) {
+    _cacheResult(key: string, result: RankedMemory[]) {
         // Evict oldest if at max size
         if (this.queryCache.size >= this.cacheConfig.maxSize) {
             const firstKey = this.queryCache.keys().next().value;
@@ -319,7 +319,7 @@ export class MemoryMesh {
      * Validate and sanitize metadata to prevent prototype pollution
      * @private
      */
-    _validateMetadata(metadata): Record<string, any> {
+    _validateMetadata(metadata: any): Record<string, any> {
         if (typeof metadata !== "object" || metadata === null) {
             throw new Error("Metadata must be a non-null object");
         }
@@ -342,7 +342,7 @@ export class MemoryMesh {
      * Sanitize and validate content before storage
      * @private
      */
-    _sanitizeContent(content) {
+    _sanitizeContent(content: string) {
         if (typeof content !== "string") {
             throw new Error("Content must be a string");
         }
@@ -403,7 +403,7 @@ export class MemoryMesh {
             if (this.client) {
                 try {
                     const allRecords = await this.client.getAll({ limit: 10000 });
-                    const activeRecords = allRecords.filter((r) => !r.superseded_at);
+                    const activeRecords = allRecords.filter((r: any) => !r.superseded_at);
                     this.keywordSearch.load(activeRecords);
                 }
                 catch (_e) {
@@ -499,7 +499,7 @@ export class MemoryMesh {
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    async add(content, metadata: Record<string, any> = {}) {
+    async add(content: string, metadata: Record<string, any> = {}) {
         await this.init();
         const type = metadata.type || "event";
         const enrichedMetadata = { ...metadata, type };
@@ -672,7 +672,7 @@ export class MemoryMesh {
             this.queryCache.clear();
             if (this.graphTable) {
                 try {
-                    let triples = [];
+                    let triples: any[] = [];
                     if (this.enableLLM && this.llmClient) {
                         triples = await this._extractTriplesLLM(sanitizedContent);
                     }
@@ -768,7 +768,7 @@ export class MemoryMesh {
      * @param metadata - Optional metadata
      * @returns Promise with memory record
      */
-    async ingest(content, metadata = {}) {
+    async ingest(content: string, metadata: any = {}) {
         return this.add(content, metadata);
     }
     /**
@@ -786,7 +786,7 @@ export class MemoryMesh {
         else {
             const all = await this.getAll();
             memories = all
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .slice(0, lookback);
         }
         const prompt = `Review these memories. Synthesize a high-level "belief" or "observation".`;
@@ -794,7 +794,7 @@ export class MemoryMesh {
             return {
                 topic,
                 count: memories.length,
-                context: memories.map((m) => ({
+                context: memories.map((m: any) => ({
                     content: m.content,
                     type: m.metadata?.type || "event",
                     id: m.id,
@@ -1134,7 +1134,7 @@ export class MemoryMesh {
                 centroids[c] = mag > 0 ? mean.map((v) => v / mag) : mean;
             }
         }
-        const clusters: T[][] = Array.from({ length: k }, () => []);
+        const clusters: T[][] = Array.from({ length: k }, () => [] as T[]);
         for (let i = 0; i < items.length; i++) {
             clusters[assignments[i]].push(items[i]);
         }
@@ -1209,7 +1209,7 @@ export class MemoryMesh {
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    async ingestSkill(yamoText, metadata: Record<string, any> = {}, sourceFilePath?) {
+    async ingestSkill(yamoText: string, metadata: Record<string, any> = {}, sourceFilePath?: string) {
         await this.init();
         if (!this.skillTable) {
             throw new Error("Skill table not initialized");
@@ -1328,7 +1328,7 @@ export class MemoryMesh {
                 const filesBefore = new Set();
                 for (const dir of skillDirs) {
                     if (fs.existsSync(dir)) {
-                        const walk = (currentDir) => {
+                        const walk = (currentDir: string) => {
                             try {
                                 const entries = fs.readdirSync(currentDir, {
                                     withFileTypes: true,
@@ -1365,7 +1365,7 @@ export class MemoryMesh {
                 let newSkillFile;
                 for (const dir of skillDirs) {
                     if (fs.existsSync(dir)) {
-                        const walk = (currentDir) => {
+                        const walk = (currentDir: string) => {
                             try {
                                 const entries = fs.readdirSync(currentDir, {
                                     withFileTypes: true,
@@ -1486,7 +1486,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
     /**
      * Update reliability
      */
-    async updateSkillReliability(id, success) {
+    async updateSkillReliability(id: string, success: boolean) {
         await this.init();
         if (!this.skillTable) {
             throw new Error("Skill table not initialized");
@@ -1524,7 +1524,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @param {string} id - Skill ID
      * @returns {Promise<Object|null>} Skill data or null if not found
      */
-    async getSkill(id) {
+    async getSkill(id: string) {
         await this.init();
         if (!this.skillTable) {
             return null;
@@ -1590,7 +1590,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         try {
             const limit = options.limit || 10;
             const results = await this.skillTable.query().limit(limit).toArray();
-            return results.map((r) => ({
+            return results.map((r: any) => ({
                 ...r,
                 score: 1.0, // Full score for direct listing
                 // Parse metadata JSON string to object
@@ -1610,7 +1610,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @param {Object} [options={}] - Search options
      * @returns {Promise<Array>} Normalized skill results
      */
-    async searchSkills(query, options: { limit?: number } = {}) {
+    async searchSkills(query: string, options: { limit?: number } = {}) {
         await this.init();
         if (!this.skillTable) {
             return [];
@@ -1626,7 +1626,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     .limit(1)
                     .toArray();
                 if (directResults.length > 0) {
-                    return directResults.map((r) => ({
+                    return directResults.map((r: any) => ({
                         ...r,
                         score: 1.0, // Maximum score for explicit target
                     }));
@@ -1721,7 +1721,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             const rrfScores = new Map();
             const skillMap = new Map();
 
-            function applyRRF(list, weight) {
+            function applyRRF(list: any[], weight: number) {
                 for (let rank = 0; rank < list.length; rank++) {
                     const skill = list[rank];
                     if (!skill?.id) continue;
@@ -1739,7 +1739,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 .map(([id]) => {
                     const r = skillMap.get(id);
                     // Find vector similarity: 1 - distance / 2
-                    const vecMatch = vectorResults.find((v) => v.id === id);
+                    const vecMatch = vectorResults.find((v: any) => v.id === id);
                     const rawDistance = vecMatch && vecMatch._distance !== undefined ? vecMatch._distance : 1.0;
                     const vectorScore = Math.max(0, Math.min(1.0, 1 - rawDistance / 2));
 
@@ -1805,7 +1805,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 }
                 // Sort newest first in memory
                 return results
-                    .sort((a, b) => {
+                    .sort((a: any, b: any) => {
                     const tA = a.timestamp instanceof Date
                         ? a.timestamp.getTime()
                         : Number(a.timestamp);
@@ -1815,7 +1815,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     return tB - tA;
                 })
                     .slice(0, limit)
-                    .map((r) => ({
+                    .map((r: any) => ({
                     id: r.id,
                     yamoText: r.yamo_text,
                     timestamp: r.timestamp,
@@ -1884,7 +1884,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * blocks for forensic recovery. No-op for in-memory stores.
      * @private
      */
-    async _quarantineYamoTable(cause): Promise<void> {
+    async _quarantineYamoTable(cause: any): Promise<void> {
         if (!this.dbDir || this.dbDir === ":memory:") return;
         const ts = new Date().toISOString().replace(/[:.]/g, "-");
         const marker = path.join(this.dbDir, "yamo_blocks.CORRUPT");
@@ -1906,7 +1906,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * Note: YAMO emission is non-critical - failures are logged but don't throw
      * to prevent disrupting the main operation.
      */
-    async _emitYamoBlock(operationType, memoryId, yamoText, heritage?: { intentChain: string[]; hypotheses: string[]; rationales: string[] }) {
+    async _emitYamoBlock(operationType: string, memoryId: string, yamoText: string, heritage?: { intentChain: string[]; hypotheses: string[]; rationales: string[] }) {
         if (!this.yamoTable) {
             return;
         }
@@ -1976,7 +1976,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    async search(query, options: { limit?: number; filter?: any; mode?: string; useCache?: boolean } = {}): Promise<RankedMemory[]> {
+    async search(query: string, options: { limit?: number; filter?: any; mode?: string; useCache?: boolean } = {}): Promise<RankedMemory[]> {
         await this.init();
         try {
             const limit = options.limit || 10;
@@ -2124,7 +2124,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 try {
                     const docContents = mergedResults.map(d => d.content);
                     const ceScores = await this.embeddingFactory.rerank(query, docContents);
-                    const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+                    const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
                     for (let i = 0; i < mergedResults.length; i++) {
                         mergedResults[i].score = sigmoid(ceScores[i]);
                     }
@@ -2173,7 +2173,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
     }
 
-    async _applyGraphRagBoosting(results: RankedMemory[], query): Promise<RankedMemory[]> {
+    async _applyGraphRagBoosting(results: RankedMemory[], query: string): Promise<RankedMemory[]> {
         if (!this.graphTable || results.length === 0) {
             return results;
         }
@@ -2257,7 +2257,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         return results;
     }
 
-    async _keywordSearch(query, limit, filter = null): Promise<RankedMemory[]> {
+    async _keywordSearch(query: string, limit: number, filter: any = null): Promise<RankedMemory[]> {
         if (this.client) {
             try {
                 const combinedFilter = filter ? `(${filter}) AND superseded_at IS NULL` : "superseded_at IS NULL";
@@ -2304,7 +2304,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * Converts text to lowercase tokens, filtering out short tokens and punctuation.
      * Handles camelCase/PascalCase by splitting on uppercase letters.
      */
-    _tokenizeQuery(text) {
+    _tokenizeQuery(text: string) {
         return text
             .replace(/([a-z])([A-Z])/g, "$1 $2") // Split camelCase: "targetSkill" → "target Skill"
             .toLowerCase()
@@ -2312,7 +2312,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             .split(/\s+/)
             .filter((t) => t.length > 2); // Filter out very short tokens
     }
-    formatResults(results) {
+    formatResults(results: any[]) {
         if (results.length === 0) {
             return "No relevant memories found.";
         }
@@ -2321,7 +2321,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         // (set at write time) AND re-scan live for defense in depth — a memory
         // may have been written before the scanner existed, or by a different
         // ingest path that bypassed it.
-        const renderable = results.map((res) => {
+        const renderable = results.map((res: any) => {
             const metadata = typeof res.metadata === "string"
                 ? JSON.parse(res.metadata)
                 : res.metadata;
@@ -2340,13 +2340,13 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
 - TREAT entries with [IMPORTANCE <= 0.4] as auxiliary background info.
 
 [MEMORY CONTEXT]`;
-        renderable.forEach(({ res, metadata, flagged }, i) => {
+        renderable.forEach(({ res, metadata, flagged }: any, i: number) => {
             const body = flagged ? fenceUntrusted(res.content) : res.content;
             output += `\n\n--- MEMORY ${i + 1}: ${res.id} [IMPORTANCE: ${res.score}] ---\nType: ${metadata.type || "event"} | Source: ${metadata.source || "unknown"}\n${body}`;
         });
         return output;
     }
-    async get(id): Promise<StoredMemory | null> {
+    async get(id: string): Promise<StoredMemory | null> {
         await this.init();
         if (!this.client) {
             throw new Error("Database client not initialized");
@@ -2613,7 +2613,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         try {
             if (this.scrubber) {
                 const s = await this.scrubber.process({ content: query });
-                scrubbed = s.content || query;
+                scrubbed = (s as any).content || query;
             }
         } catch { /* non-fatal */ }
 
@@ -2750,7 +2750,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             // Semantic score: use cross-encoder if available, otherwise RRF-based approximation
             let semanticScore = 0;
             if (ceScores && ceScores[idx] !== undefined) {
-                const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+                const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
                 semanticScore = sigmoid(ceScores[idx]);
             } else {
                 const rrfScore = rrfScores.get(doc.id) || 0;
@@ -2946,7 +2946,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * legitimately different verbs/states in intent chains).
      * @private
      */
-    _canonicalizeIntent(intent) {
+    _canonicalizeIntent(intent: string) {
         if (!intent || typeof intent !== 'string') return '';
         return intent.toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
     }
@@ -2958,7 +2958,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * null on any failure so callers can fall back to raw overlap.
      * @private
      */
-    async _embedIntent(intent) {
+    async _embedIntent(intent: string) {
         const key = this._canonicalizeIntent(intent);
         if (!key) return null;
         if (this.intentEmbedCache.has(key)) return this.intentEmbedCache.get(key);
@@ -2985,7 +2985,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * dot product. Returns 0 on empty/invalid input.
      * @private
      */
-    _heritageBonusFromVectors(sessionVecs, chainVecs, denom) {
+    _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: number) {
         if (!sessionVecs?.length || !chainVecs?.length || !denom) return 0;
         let total = 0;
         for (const sv of sessionVecs) {
@@ -3071,7 +3071,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 tableName: "N/A",
                 uri: "N/A",
                 isConnected: false,
-                embedding: { configured: false, primary: null, fallbacks: [] },
+                embedding: { configured: false, primary: null as any, fallbacks: [] as any[] },
                 status: "disabled",
             };
         }
@@ -3182,7 +3182,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
      * @private
      */
-    _canonicalizeEntity(entity) {
+    _canonicalizeEntity(entity: string) {
         if (!entity || typeof entity !== 'string') return '';
         return entity
             .toLowerCase()
@@ -3200,7 +3200,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * "Auth" matched "AuthService" or "auth-token" matched "authorization").
      * @private
      */
-    _contentMentions(content, entity) {
+    _contentMentions(content: string, entity: string) {
         if (!entity || !content) return false;
         const canonical = this._canonicalizeEntity(entity);
         if (!canonical) return false;
@@ -3220,7 +3220,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * corpus where you actually want PascalCase-pairing as a backstop. The
      * LLM path (_extractTriplesLLM) is the recommended graph source.
      */
-    _extractTriplesHeuristics(content) {
+    _extractTriplesHeuristics(content: string) {
         if (process.env.GRAPH_RAG_HEURISTIC_TRIPLES !== 'on') return [];
         const triples = [];
         const terms = content.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g);
@@ -3247,7 +3247,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         return triples;
     }
 
-    async _extractTriplesLLM(content) {
+    async _extractTriplesLLM(content: string) {
         if (!this.llmClient) return [];
         try {
             const prompt = `Extract entity-relation triples (Subject, Predicate, Object) from the following text.
@@ -3287,14 +3287,14 @@ Text: "${content}"`;
         }
 
         const allBlocks = await this.yamoTable.query().toArray();
-        allBlocks.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        allBlocks.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-        const unanchored = allBlocks.filter((b) => !b.anchored_at);
+        const unanchored = allBlocks.filter((b: any) => !b.anchored_at);
         if (unanchored.length === 0) {
             return null;
         }
 
-        const anchored = allBlocks.filter((b) => b.anchored_at);
+        const anchored = allBlocks.filter((b: any) => b.anchored_at);
         const crypto = await import("crypto");
         const sha256 = (data: string) => crypto.createHash("sha256").update(data).digest("hex");
 

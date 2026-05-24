@@ -56,13 +56,13 @@ export const EMBEDDING_DIMENSIONS = {
  * @param {string} modelName - Embedding model name or path
  * @returns {number} Vector dimension
  */
-export function getEmbeddingDimension(modelName) {
+export function getEmbeddingDimension(modelName: string) {
     if (!modelName) {
         return DEFAULT_VECTOR_DIMENSION;
     }
     // Check exact match
-    if (EMBEDDING_DIMENSIONS[modelName]) {
-        return EMBEDDING_DIMENSIONS[modelName];
+    if (EMBEDDING_DIMENSIONS[modelName as keyof typeof EMBEDDING_DIMENSIONS]) {
+        return EMBEDDING_DIMENSIONS[modelName as keyof typeof EMBEDDING_DIMENSIONS];
     }
     // Check for partial matches
     for (const [key, dimension] of Object.entries(EMBEDDING_DIMENSIONS)) {
@@ -134,8 +134,8 @@ export function createSynthesizedSkillSchema(vectorDim = DEFAULT_VECTOR_DIMENSIO
  * @param {arrow.Schema} schema - Table schema to check
  * @returns {boolean} True if V2 schema detected
  */
-export function isSchemaV2(schema) {
-    return schema.fields.some((f) => f.name === "session_id");
+export function isSchemaV2(schema: any) {
+    return schema.fields.some((f: any) => f.name === "session_id");
 }
 /**
  * Migrate an existing table to V2:
@@ -144,7 +144,7 @@ export function isSchemaV2(schema) {
  *
  * Safe to call on any table — non-memory tables skip the schema column additions.
  */
-export async function migrateTableV2(table) {
+export async function migrateTableV2(table: any) {
     // Step 1: manifest path migration (idempotent on already-migrated tables)
     try {
         await table.migrateManifestPathsV2();
@@ -163,7 +163,7 @@ export async function migrateTableV2(table) {
         return; // Can't inspect schema — skip
     }
     // Only add V2 columns if the table has the V1 memory_entries shape
-    const fieldNames = schema.fields.map((f) => f.name);
+    const fieldNames = schema.fields.map((f: any) => f.name);
     if (!fieldNames.includes("content") || !fieldNames.includes("vector")) return;
     
     const missingColumns = [];
@@ -198,11 +198,11 @@ export async function migrateTableV2(table) {
  * Skipped when: table has too few rows, index already exists, or table is a mock.
  * Called automatically by createMemoryTableWithDimension after migration.
  */
-export async function ensureVectorIndex(table) {
+export async function ensureVectorIndex(table: any) {
     if (typeof table.listIndices !== "function") return;
     try {
         const indices = await table.listIndices();
-        if (indices.some((i) => i.columns.includes("vector"))) return;
+        if (indices.some((i: any) => i.columns.includes("vector"))) return;
         const rowCount = await table.countRows();
         if (rowCount < INDEX_CONFIG.vector.num_partitions) return;
         await table.createIndex("vector", {
@@ -246,7 +246,7 @@ export const INDEX_CONFIG = {
  * @throws {Error} If table creation fails
  * @deprecated Use createMemoryTableWithDimension() for dynamic dimensions
  */
-export async function createMemoryTable(db, tableName = "memory_entries") {
+export async function createMemoryTable(db: any, tableName = "memory_entries") {
     return createMemoryTableWithDimension(db, tableName, DEFAULT_VECTOR_DIMENSION);
 }
 /**
@@ -257,7 +257,7 @@ export async function createMemoryTable(db, tableName = "memory_entries") {
  * @returns {Promise<lancedb.Table>} The created or opened table
  * @throws {Error} If table creation fails
  */
-export async function createMemoryTableWithDimension(db, tableName, vectorDim) {
+export async function createMemoryTableWithDimension(db: any, tableName: string, vectorDim: number) {
     try {
         const existingTables = await db.tableNames();
         let table;
@@ -289,7 +289,7 @@ export async function createMemoryTableWithDimension(db, tableName, vectorDim) {
  * Ensure the content column has a Full-Text Search (FTS) index.
  * Called automatically by createMemoryTableWithDimension after migration.
  */
-export async function ensureFtsIndex(table) {
+export async function ensureFtsIndex(table: any) {
     if (typeof table.createIndex !== "function") return;
     try {
         await table.createIndex("content", {
@@ -320,7 +320,7 @@ export function createGraphSchema() {
 /**
  * Creates/opens a graph_edges table in LanceDB
  */
-export async function createGraphTable(db, tableName = "graph_edges") {
+export async function createGraphTable(db: any, tableName = "graph_edges") {
     try {
         const existingTables = await db.tableNames();
         if (existingTables.includes(tableName)) {

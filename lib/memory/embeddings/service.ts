@@ -54,7 +54,7 @@ export class EmbeddingService {
     batchSize;
     normalize;
     apiKey;
-    model;
+    model: any;
     cache;
     cacheMaxSize;
     initialized;
@@ -144,7 +144,7 @@ export class EmbeddingService {
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[]>} Embedding vector
      */
-    async embed(text, options: { isQuery?: boolean; targetDimension?: number } = {}) {
+    async embed(text: string, options: { isQuery?: boolean; targetDimension?: number } = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,
@@ -222,7 +222,7 @@ export class EmbeddingService {
      * trade-offs. Non-Matryoshka models tolerate it with some quality loss.
      * @private
      */
-    _maybeTruncate(embedding, targetDimension) {
+    _maybeTruncate(embedding: number[], targetDimension: number) {
         if (!targetDimension || targetDimension >= embedding.length) {
             return embedding;
         }
@@ -235,7 +235,7 @@ export class EmbeddingService {
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[][]>} Array of embedding vectors
      */
-    async embedBatch(texts, options = {}) {
+    async embedBatch(texts: any[], options: any = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,
@@ -291,7 +291,7 @@ export class EmbeddingService {
      * @param spans    Array of { start, end } char ranges (non-overlapping, in order).
      * @returns Array of L2-normalized vectors aligned to spans, or null.
      */
-    async embedLateChunked(fullText, spans, options: { isQuery?: boolean; targetDimension?: number } = {}) {
+    async embedLateChunked(fullText: string, spans: any[], options: { isQuery?: boolean; targetDimension?: number } = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,
@@ -398,7 +398,7 @@ export class EmbeddingService {
      * MaxSim's cosine assumption holds. Skips [CLS]/[SEP]/[PAD] tokens
      * via their [0,0] offset markers.
      */
-    async embedTokens(text, options: { isQuery?: boolean } = {}) {
+    async embedTokens(text: string, options: { isQuery?: boolean } = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,
@@ -489,7 +489,7 @@ export class EmbeddingService {
             // Load feature extraction pipeline
             this.model = await pipeline("feature-extraction", this.modelName, {
                 quantized: true,
-                progress_callback: (progress) => {
+                progress_callback: (progress: any) => {
                     // Optional: Log model download progress
                     if (progress.status === "downloading") {
                         // Silently handle progress
@@ -579,7 +579,7 @@ export class EmbeddingService {
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    async _embedLocal(text) {
+    async _embedLocal(text: string) {
         if (!this.model) {
             throw new EmbeddingError("Model not initialized");
         }
@@ -607,7 +607,7 @@ export class EmbeddingService {
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    async _embedOllama(text) {
+    async _embedOllama(text: string) {
         if (!this.model) {
             throw new EmbeddingError("Model not initialized");
         }
@@ -652,7 +652,7 @@ export class EmbeddingService {
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    async _embedOpenAI(text) {
+    async _embedOpenAI(text: string) {
         if (!this.model) {
             throw new EmbeddingError("Model not initialized");
         }
@@ -678,7 +678,7 @@ export class EmbeddingService {
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    async _embedCohere(text) {
+    async _embedCohere(text: string) {
         if (!this.model) {
             throw new EmbeddingError("Model not initialized");
         }
@@ -705,7 +705,7 @@ export class EmbeddingService {
      * @returns {number[]} Normalized vector
      * @private
      */
-    _normalize(vector) {
+    _normalize(vector: number[]) {
         // Calculate magnitude
         const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
         // Avoid division by zero
@@ -721,10 +721,10 @@ export class EmbeddingService {
      * @returns {string} Cache key
      * @private
      */
-    _getCacheKey(text) {
+    _getCacheKey(text: string) {
         return crypto.createHash("md5").update(text).digest("hex");
     }
-    _setCache(key, value) {
+    _setCache(key: string, value: any) {
         // Evict oldest if at capacity
         if (this.cache.size >= this.cacheMaxSize) {
             const firstKey = this.cache.keys().next().value;

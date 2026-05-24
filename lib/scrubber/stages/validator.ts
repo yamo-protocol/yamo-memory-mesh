@@ -9,7 +9,7 @@ import { ValidationError } from '../errors/scrubber-error.js';
 export class Validator {
   config;
   tokenCounter;
-  constructor(config) {
+  constructor(config: any) {
     this.config = config;
     this.tokenCounter = new TokenCounter();
   }
@@ -19,7 +19,7 @@ export class Validator {
    * @param {Array} chunks - Array of chunks
    * @returns {Promise<Array>} - Validated chunks
    */
-  async validate(chunks) {
+  async validate(chunks: any[]) {
     const valid = [];
     const errors = [];
 
@@ -39,7 +39,7 @@ export class Validator {
     return valid;
   }
 
-  _validateChunk(chunk) {
+  _validateChunk(chunk: any) {
     const errors = [];
 
     if (this.config.rejectEmptyChunks && !chunk.text.trim()) {

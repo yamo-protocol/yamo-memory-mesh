@@ -11,11 +11,11 @@ export declare class MemoryContextManager {
     /**
      * Capture an interaction as memory
      */
-    captureInteraction(prompt: any, response: any, context?: {}): Promise<any>;
+    captureInteraction(prompt: string, response: string, context?: any): Promise<any>;
     /**
      * Recall relevant memories for a query
      */
-    recallMemories(query: any, options?: {
+    recallMemories(query: string, options?: {
         limit?: number;
         useCache?: boolean;
         memoryType?: string | null;
@@ -24,7 +24,7 @@ export declare class MemoryContextManager {
     /**
      * Format memories for inclusion in prompt
      */
-    formatMemoriesForPrompt(memories: any, options?: {}): string;
+    formatMemoriesForPrompt(memories: any[], options?: any): string;
     clearCache(): void;
     getCacheStats(): {
         size: number;

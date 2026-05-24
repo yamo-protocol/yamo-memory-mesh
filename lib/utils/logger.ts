@@ -59,6 +59,6 @@ export const logger = pino({
  * const logger = createLogger('kernel');
  * logger.info({ action: 'boot' }, 'Kernel starting');
  */
-export function createLogger(module) {
+export function createLogger(module: string) {
     return logger.child({ module });
 }

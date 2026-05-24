@@ -9,7 +9,7 @@ export declare class MemoryTranslator {
      * @param {TranslationOptions} options - Translation options
      * @returns {string} Formatted YAMO agent context
      */
-    static toYAMOContext(memories: any, options?: {
+    static toYAMOContext(memories: any[], options?: {
         mode?: string;
         includeMetadata?: boolean;
         maxContentLength?: number;

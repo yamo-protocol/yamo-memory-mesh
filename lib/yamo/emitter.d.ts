@@ -39,9 +39,9 @@ export declare class YamoEmitter {
      * Validate a YAMO block structure
      * Checks for required sections and proper formatting
      */
-    static validateBlock(yamoBlock: any): {
+    static validateBlock(yamoBlock: string): {
         valid: boolean;
-        errors: any[];
+        errors: string[];
     };
 }
 export default YamoEmitter;

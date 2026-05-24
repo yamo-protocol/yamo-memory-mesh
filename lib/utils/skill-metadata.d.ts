@@ -6,7 +6,7 @@
  *   2. Legacy v0.4 root-level compact declarations
  *   3. Content-hash fallback — deterministic and idempotent
  */
-export declare function extractSkillIdentity(content: any): {
+export declare function extractSkillIdentity(content: string): {
     name: any;
     intent: any;
     description: any;
@@ -21,4 +21,4 @@ export declare function extractSkillIdentity(content: any): {
  * This function ONLY reads the YAML frontmatter block and does NOT parse
  * the skill body, following the same safety constraints as extractSkillIdentity.
  */
-export declare function extractSkillTags(content: any): any;
+export declare function extractSkillTags(content: string): string[];

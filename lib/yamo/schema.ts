@@ -38,7 +38,7 @@ export function createYamoSchema() {
  * @returns {Promise<lancedb.Table>} The created or opened table
  * @throws {Error} If table creation fails
  */
-export async function createYamoTable(db, tableName = "yamo_blocks") {
+export async function createYamoTable(db: any, tableName = "yamo_blocks") {
     try {
         const existingTables = await db.tableNames();
         let table;
@@ -50,7 +50,7 @@ export async function createYamoTable(db, tableName = "yamo_blocks") {
             // providing an embedding function.
             const existingSchema = await table.schema();
             const hasVectorField = existingSchema.fields.some(
-                (f) => f.name === "vector" && f.type.constructor.name === "FixedSizeList",
+                (f: any) => f.name === "vector" && f.type.constructor.name === "FixedSizeList",
             );
             if (hasVectorField) {
                 await db.dropTable(tableName);
@@ -60,7 +60,7 @@ export async function createYamoTable(db, tableName = "yamo_blocks") {
                     storageOptions: { new_table_data_storage_version: "stable" },
                 });
             } else {
-                const fieldNames = existingSchema.fields.map((f) => f.name);
+                const fieldNames = existingSchema.fields.map((f: any) => f.name);
                 const newCols = [];
                 if (!fieldNames.includes("block_hash")) {
                     newCols.push({ name: "block_hash", valueSql: "cast(null as string)" });
@@ -105,7 +105,7 @@ export async function createYamoTable(db, tableName = "yamo_blocks") {
  * Validate a YAMO block record before insertion
  * Checks for required fields and valid values
  */
-export function validateYamoRecord(record) {
+export function validateYamoRecord(record: any) {
     const errors = [];
     // Check required fields
     if (!record.id) {
@@ -151,7 +151,7 @@ export function validateYamoRecord(record) {
  * @param {string} operationType - Type of operation
  * @returns {string} Generated YAMO block ID
  */
-export function generateYamoId(operationType) {
+export function generateYamoId(operationType: string) {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 10);
     return `yamo_${operationType}_${timestamp}_${random}`;
@@ -163,9 +163,9 @@ export function generateYamoId(operationType) {
  * @param {arrow.Schema} schema - Table schema to check
  * @returns {boolean} True if YAMO schema detected
  */
-export function isYamoSchema(schema) {
+export function isYamoSchema(schema: any) {
     // Check for unique YAMO fields
-    const hasYamoFields = schema.fields.some((f) => f.name === "operation_type" || f.name === "yamo_text");
+    const hasYamoFields = schema.fields.some((f: any) => f.name === "operation_type" || f.name === "yamo_text");
     return hasYamoFields;
 }
 // Export schema function as default for consistency with lancedb/schema.js

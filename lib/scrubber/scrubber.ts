@@ -25,7 +25,7 @@ export class Scrubber {
      * @param {Object} document - { content: string, source: string, type: 'html'|'md'|'txt' }
      * @returns {Promise<Object>} - { chunks: Array, metadata: Object, telemetry: Object }
      */
-    async process(document) {
+    async process(document: { content: string; source?: string; type?: string; documentContext?: string }) {
         const startTime = Date.now();
         const result: {
             chunks: any[];
@@ -80,7 +80,7 @@ export class Scrubber {
             return result;
         }
     }
-    async _executeStage(stageName, stageFn) {
+    async _executeStage(stageName: string, stageFn: () => Promise<any>) {
         const startTime = Date.now();
         try {
             const result = await stageFn();
@@ -99,7 +99,7 @@ export class Scrubber {
             structural: new StructuralCleaner(this.config.structural),
             semantic: new SemanticFilter(this.config.semantic),
             normalizer: new Normalizer(this.config.normalization),
-            chunker: new Chunker({ ...this.config.chunking, embedFn: this.config.embedFn }),
+            chunker: new Chunker({ ...this.config.chunking, embedFn: (this.config as any).embedFn }),
             metadata: new MetadataAnnotator(this.config.metadata),
             validator: new Validator(this.config.validation),
         };

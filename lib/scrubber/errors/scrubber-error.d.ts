@@ -3,22 +3,22 @@
  * @module smora/scrubber/errors/scrubber-error
  */
 export declare class ScrubberError extends Error {
-    details: any;
-    timestamp: any;
-    constructor(message: any, details?: {});
+    details: Record<string, any>;
+    timestamp: string;
+    constructor(message: string, details?: Record<string, any>);
     toJSON(): {
         name: string;
         message: string;
-        details: any;
-        timestamp: any;
+        details: Record<string, any>;
+        timestamp: string;
     };
 }
 export declare class StructuralCleaningError extends ScrubberError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: Record<string, any>);
 }
 export declare class ChunkingError extends ScrubberError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: Record<string, any>);
 }
 export declare class ValidationError extends ScrubberError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: Record<string, any>);
 }

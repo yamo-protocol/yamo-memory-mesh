@@ -48,7 +48,7 @@ export declare const EMBEDDING_DIMENSIONS: {
  * @param {string} modelName - Embedding model name or path
  * @returns {number} Vector dimension
  */
-export declare function getEmbeddingDimension(modelName: any): any;
+export declare function getEmbeddingDimension(modelName: string): number;
 /**
  * Create a memory schema with a specific vector dimension
  * @param {number} vectorDim - Vector dimension (e.g., 384, 768, 1536)
@@ -125,7 +125,7 @@ export declare function createMemoryTable(db: any, tableName?: string): Promise<
  * @returns {Promise<lancedb.Table>} The created or opened table
  * @throws {Error} If table creation fails
  */
-export declare function createMemoryTableWithDimension(db: any, tableName: any, vectorDim: any): Promise<any>;
+export declare function createMemoryTableWithDimension(db: any, tableName: string, vectorDim: number): Promise<any>;
 /**
  * Ensure the content column has a Full-Text Search (FTS) index.
  * Called automatically by createMemoryTableWithDimension after migration.

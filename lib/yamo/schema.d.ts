@@ -28,7 +28,7 @@ export declare function createYamoTable(db: any, tableName?: string): Promise<an
  */
 export declare function validateYamoRecord(record: any): {
     valid: boolean;
-    errors: any[];
+    errors: string[];
 };
 /**
  * Generate a YAMO block ID
@@ -37,7 +37,7 @@ export declare function validateYamoRecord(record: any): {
  * @param {string} operationType - Type of operation
  * @returns {string} Generated YAMO block ID
  */
-export declare function generateYamoId(operationType: any): string;
+export declare function generateYamoId(operationType: string): string;
 /**
  * Check if a table uses YAMO schema
  * Detects if a table has the YAMO block schema structure

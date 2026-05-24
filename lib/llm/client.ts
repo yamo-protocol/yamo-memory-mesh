@@ -53,7 +53,7 @@ export class LLMClient {
             anthropic: "claude-3-5-haiku-20241022",
             ollama: "llama3.2",
         };
-        return defaults[this.provider] || "gpt-4o-mini";
+        return defaults[this.provider as keyof typeof defaults] || "gpt-4o-mini";
     }
     /**
      * Get default base URL for provider
@@ -65,13 +65,13 @@ export class LLMClient {
             anthropic: "https://api.anthropic.com/v1",
             ollama: "http://localhost:11434",
         };
-        return defaults[this.provider] || "https://api.openai.com/v1";
+        return defaults[this.provider as keyof typeof defaults] || "https://api.openai.com/v1";
     }
     /**
      * Generate reflection from memories
      * Main entry point for reflection generation
      */
-    async reflect(prompt, memories) {
+    async reflect(prompt: string, memories: any[]) {
         this.stats.totalRequests++;
         if (!memories || memories.length === 0) {
             return this._fallback("No memories provided");
@@ -107,7 +107,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
     /**
      * Complete a prompt with system prompt guidance
      */
-    async complete(systemPrompt, userContent) {
+    async complete(systemPrompt: string, userContent: string = "") {
         this.stats.totalRequests++;
         try {
             const response = await this._callWithRetry(systemPrompt, userContent);
@@ -123,7 +123,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Format memories for LLM consumption
      * @private
      */
-    _formatMemoriesForLLM(prompt, memories) {
+    _formatMemoriesForLLM(prompt: string, memories: any[]) {
         const memoryList = memories
             .map((m, i) => `${i + 1}. ${m.content}`)
             .join("\n");
@@ -133,7 +133,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Call LLM with retry logic
      * @private
      */
-    async _callWithRetry(systemPrompt, userContent) {
+    async _callWithRetry(systemPrompt: string, userContent: string) {
         let lastError = null;
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
             try {
@@ -153,7 +153,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Call LLM based on provider
      * @private
      */
-    async _callLLM(systemPrompt, userContent) {
+    async _callLLM(systemPrompt: string, userContent: string) {
         switch (this.provider) {
             case "openai":
                 return this._callOpenAI(systemPrompt, userContent);
@@ -169,7 +169,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Call OpenAI API
      * @private
      */
-    async _callOpenAI(systemPrompt, userContent) {
+    async _callOpenAI(systemPrompt: string, userContent: string) {
         if (!this.apiKey) {
             throw new Error("OpenAI API key not configured");
         }
@@ -213,7 +213,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Call Anthropic (Claude) API
      * @private
      */
-    async _callAnthropic(systemPrompt, userContent) {
+    async _callAnthropic(systemPrompt: string, userContent: string) {
         if (!this.apiKey) {
             throw new Error("Anthropic API key not configured");
         }
@@ -255,7 +255,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Call Ollama (local) API
      * @private
      */
-    async _callOllama(systemPrompt, userContent) {
+    async _callOllama(systemPrompt: string, userContent: string) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
         try {
@@ -297,7 +297,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Fallback when LLM fails
      * @private
      */
-    _fallback(reason, memories = []) {
+    _fallback(reason: string, memories: any[] = []) {
         this.stats.fallbackCount++;
         if (memories && memories.length > 0) {
             // Simple aggregation fallback
@@ -318,7 +318,7 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
      * Sleep utility
      * @private
      */
-    _sleep(ms) {
+    _sleep(ms: number) {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
     /**

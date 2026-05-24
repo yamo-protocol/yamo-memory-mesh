@@ -24,7 +24,7 @@ export class YamoEmitter {
      * Build a YAMO block for reflect operation
      * Reflect operations synthesize insights from existing memories
      */
-    static buildReflectBlock(params) {
+    static buildReflectBlock(params: any) {
         const { topic, memoryCount, agentId = "default", reflection, confidence = 0.8, } = params;
         const timestamp = new Date().toISOString();
         return `agent: MemoryMesh_${escapeValue(agentId)};
@@ -51,7 +51,7 @@ handoff: End;
      * Build a YAMO block for retain (add) operation
      * Retain operations store new memories into the system
      */
-    static buildRetainBlock(params) {
+    static buildRetainBlock(params: any) {
         const { content, metadata: _metadata = {}, id, agentId = "default", memoryType = "event", } = params;
         const timestamp = new Date().toISOString();
         const contentPreview = content.length > 100 ? `${content.substring(0, 100)}...` : content;
@@ -82,7 +82,7 @@ handoff: End;
      * Build a YAMO block for recall (search) operation
      * Recall operations retrieve memories based on semantic similarity
      */
-    static buildRecallBlock(params) {
+    static buildRecallBlock(params: any) {
         const { query, resultCount, limit = 10, agentId = "default", searchType = "semantic", } = params;
         const timestamp = new Date().toISOString();
         const recallRatio = resultCount > 0 ? (resultCount / limit).toFixed(2) : "0.00";
@@ -111,7 +111,7 @@ handoff: End;
      * Build a YAMO block for delete operation (optional)
      * Delete operations remove memories from the system
      */
-    static buildDeleteBlock(params) {
+    static buildDeleteBlock(params: any) {
         const { id, agentId = "default", reason = "user_request" } = params;
         const timestamp = new Date().toISOString();
         return `agent: MemoryMesh_${escapeValue(agentId)};
@@ -137,7 +137,7 @@ handoff: End;
      * Validate a YAMO block structure
      * Checks for required sections and proper formatting
      */
-    static validateBlock(yamoBlock) {
+    static validateBlock(yamoBlock: string) {
         const errors = [];
         // Check for required sections
         const requiredSections = [

@@ -16,4 +16,4 @@ export declare const logger: pino.Logger<never, boolean>;
  * const logger = createLogger('kernel');
  * logger.info({ action: 'boot' }, 'Kernel starting');
  */
-export declare function createLogger(module: any): pino.Logger<never, boolean>;
+export declare function createLogger(module: string): pino.Logger<never, boolean>;

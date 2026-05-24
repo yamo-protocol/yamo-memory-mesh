@@ -77,7 +77,7 @@ export declare function loadMemoryConfig(): {
 /**
  * Validate configuration
  */
-export declare function validateConfig(config: any): any[];
+export declare function validateConfig(config: Record<string, any>): string[];
 /**
  * Get validated configuration
  */

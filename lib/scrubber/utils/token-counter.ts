@@ -29,7 +29,7 @@ export class TokenCounter {
    * Estimate token count for a string.
    * Empirically within ~10-15% of cl100k_base on mixed English / code / CJK.
    */
-  count(text) {
+  count(text: string) {
     if (!text) return 0;
     // 1. CJK characters: each ≈ 1.5 tokens
     const cjkMatches = text.match(CJK_RE);
@@ -57,8 +57,8 @@ export class TokenCounter {
    * Whitespace-and-punctuation word count. Kept for callers that want a
    * pure word-level metric independent of model tokenization.
    */
-  countAccurate(text) {
-    const words = text.split(/\s+/).filter(w => w.length > 0);
+  countAccurate(text: string) {
+    const words = text.split(/\s+/).filter((w: string) => w.length > 0);
     let tokens = words.length;
     const punctuationMatches = text.match(/[.,!?;:]/g);
     if (punctuationMatches) {

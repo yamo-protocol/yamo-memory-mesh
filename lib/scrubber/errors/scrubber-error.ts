@@ -6,7 +6,7 @@
 export class ScrubberError extends Error {
   details;
   timestamp;
-  constructor(message, details = {}) {
+  constructor(message: string, details: Record<string, any> = {}) {
     super(message);
     this.name = 'ScrubberError';
     this.details = details;
@@ -24,21 +24,21 @@ export class ScrubberError extends Error {
 }
 
 export class StructuralCleaningError extends ScrubberError {
-  constructor(message, details = {}) {
+  constructor(message: string, details: Record<string, any> = {}) {
     super(message, details);
     this.name = 'StructuralCleaningError';
   }
 }
 
 export class ChunkingError extends ScrubberError {
-  constructor(message, details = {}) {
+  constructor(message: string, details: Record<string, any> = {}) {
     super(message, details);
     this.name = 'ChunkingError';
   }
 }
 
 export class ValidationError extends ScrubberError {
-  constructor(message, details = {}) {
+  constructor(message: string, details: Record<string, any> = {}) {
     super(message, details);
     this.name = 'ValidationError';
   }

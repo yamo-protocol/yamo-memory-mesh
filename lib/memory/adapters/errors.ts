@@ -15,7 +15,7 @@ export class LanceDBError extends Error {
      * @param {string} code - Machine-readable error code (e.g., 'EMBEDDING_ERROR')
      * @param {Object} details - Additional error context and metadata
      */
-    constructor(message, code, details = {}) {
+    constructor(message: string, code: string, details: any = {}) {
         super(message);
         this.name = "LanceDBError";
         this.code = code;
@@ -31,7 +31,7 @@ export class LanceDBError extends Error {
  * Error raised when embedding generation or comparison fails
  */
 export class EmbeddingError extends LanceDBError {
-    constructor(message, details = {}) {
+    constructor(message: string, details: any = {}) {
         super(message, "EMBEDDING_ERROR", details);
         this.name = "EmbeddingError";
     }
@@ -40,7 +40,7 @@ export class EmbeddingError extends LanceDBError {
  * Error raised when storage operations (read/write/delete) fail
  */
 export class StorageError extends LanceDBError {
-    constructor(message, details = {}) {
+    constructor(message: string, details: any = {}) {
         super(message, "STORAGE_ERROR", details);
         this.name = "StorageError";
     }
@@ -49,7 +49,7 @@ export class StorageError extends LanceDBError {
  * Error raised when database queries fail or return invalid results
  */
 export class QueryError extends LanceDBError {
-    constructor(message, details = {}) {
+    constructor(message: string, details: any = {}) {
         super(message, "QUERY_ERROR", details);
         this.name = "QueryError";
     }
@@ -58,7 +58,7 @@ export class QueryError extends LanceDBError {
  * Error raised when configuration is missing or invalid
  */
 export class ConfigurationError extends LanceDBError {
-    constructor(message, details = {}) {
+    constructor(message: string, details: any = {}) {
         super(message, "CONFIGURATION_ERROR", details);
         this.name = "ConfigurationError";
     }
@@ -68,7 +68,7 @@ export class ConfigurationError extends LanceDBError {
  * @param {string} message - Error message to sanitize
  * @returns {string} Sanitized error message
  */
-export function sanitizeErrorMessage(message) {
+export function sanitizeErrorMessage(message: string) {
     if (typeof message !== "string") {
         return "[Non-string error message]";
     }
@@ -93,7 +93,7 @@ export function sanitizeErrorMessage(message) {
  * @param {Object} context - Additional context about where/when the error occurred
  * @returns {Object} Formatted error response with success: false
  */
-export function handleError(error, context = {}) {
+export function handleError(error: any, context: any = {}) {
     if (error instanceof LanceDBError) {
         return {
             success: false,

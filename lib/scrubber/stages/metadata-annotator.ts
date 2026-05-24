@@ -8,7 +8,7 @@ import { HashUtil } from '../utils/hash.js';
 export class MetadataAnnotator {
   config;
   hashUtil;
-  constructor(config) {
+  constructor(config: any) {
     this.config = config;
     this.hashUtil = new HashUtil();
   }
@@ -19,8 +19,8 @@ export class MetadataAnnotator {
    * @param {Object} document - Original document metadata
    * @returns {Promise<Array>} - Annotated chunks
    */
-  async annotate(chunks, document) {
-    const headingPath = [];
+  async annotate(chunks: any[], document: any) {
+    const headingPath: string[] = [];
 
     return chunks.map((chunk, index) => {
       const metadata = {
@@ -48,14 +48,14 @@ export class MetadataAnnotator {
     });
   }
 
-  _extractSection(chunk) {
+  _extractSection(chunk: any) {
     if (chunk.metadata.heading) {
       return chunk.metadata.heading;
     }
     return 'unnamed-section';
   }
 
-  _buildHeadingPath(chunk, currentPath) {
+  _buildHeadingPath(chunk: any, currentPath: string[]) {
     const heading = chunk.metadata.heading;
 
     if (heading && heading !== currentPath[currentPath.length - 1]) {
@@ -70,7 +70,7 @@ export class MetadataAnnotator {
     return [...currentPath];
   }
 
-  _isSubHeading(heading1, heading2) {
+  _isSubHeading(heading1: string, heading2: string) {
     return heading1.length > heading2.length;
   }
 }

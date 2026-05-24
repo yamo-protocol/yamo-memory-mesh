@@ -16,7 +16,7 @@ export class MemoryContextManager {
         maxSize: 100,
         ttlMs: 2 * 60 * 1000, // 2 minutes
     };
-    #cleanupTimer = null;
+    #cleanupTimer: any = null;
     /**
      * Create a new MemoryContextManager
      */
@@ -54,7 +54,7 @@ export class MemoryContextManager {
     /**
      * Capture an interaction as memory
      */
-    async captureInteraction(prompt, response, context = {}) {
+    async captureInteraction(prompt: string, response: string, context: any = {}) {
         try {
             if (this.#config.autoInit && !this.#initialized) {
                 await this.initialize();
@@ -86,7 +86,7 @@ export class MemoryContextManager {
     /**
      * Recall relevant memories for a query
      */
-    async recallMemories(query, options: { limit?: number; useCache?: boolean; memoryType?: string | null; skillName?: string | null } = {}) {
+    async recallMemories(query: string, options: { limit?: number; useCache?: boolean; memoryType?: string | null; skillName?: string | null } = {}) {
         try {
             if (this.#config.autoInit && !this.#initialized) {
                 await this.initialize();
@@ -121,7 +121,7 @@ export class MemoryContextManager {
                     useCache: false,
                 });
             }
-            memories = memories.map((memory) => {
+            memories = memories.map((memory: any) => {
                 const metadata = typeof memory.metadata === "string"
                     ? JSON.parse(memory.metadata)
                     : memory.metadata || {};
@@ -136,7 +136,7 @@ export class MemoryContextManager {
             });
             // Deduplicate by content — results are already sorted by score, so first occurrence wins
             const seen = new Set();
-            memories = memories.filter((memory) => {
+            memories = memories.filter((memory: any) => {
                 if (seen.has(memory.content)) {
                     return false;
                 }
@@ -146,7 +146,7 @@ export class MemoryContextManager {
             // Skill-scope filter: keep memories tagged with this skill OR untagged (global).
             // Untagged memories are shared context; tagged memories are skill-private.
             if (skillName) {
-                memories = memories.filter((memory) => {
+                memories = memories.filter((memory: any) => {
                     const meta = typeof memory.metadata === "string"
                         ? JSON.parse(memory.metadata)
                         : memory.metadata || {};
@@ -172,7 +172,7 @@ export class MemoryContextManager {
     /**
      * Format memories for inclusion in prompt
      */
-    formatMemoriesForPrompt(memories, options = {}) {
+    formatMemoriesForPrompt(memories: any[], options: any = {}) {
         try {
             if (!memories || memories.length === 0) {
                 return "";
@@ -184,19 +184,19 @@ export class MemoryContextManager {
             return "";
         }
     }
-    #logWarn(message) {
+    #logWarn(message: string) {
         if (!this.#config.silent || process.env.YAMO_DEBUG === "true") {
             logger.warn(message);
         }
     }
-    #formatInteraction(prompt, response) {
+    #formatInteraction(prompt: string, response: string) {
         const lines = [
             `[USER] ${prompt}`,
             `[ASSISTANT] ${response.substring(0, 500)}${response.length > 500 ? "..." : ""}`,
         ];
         return lines.join("\n\n");
     }
-    #buildMetadata(context) {
+    #buildMetadata(context: any) {
         const metadata: Record<string, any> = {
             interaction_type: context.interactionType || "llm_response",
             created_at: new Date().toISOString(),
@@ -218,14 +218,14 @@ export class MemoryContextManager {
         }
         return metadata;
     }
-    #cacheKey(query, options) {
+    #cacheKey(query: string, options: any) {
         return `recall:${query}:${JSON.stringify(options)}`;
     }
     /**
      * Get cached result if valid
      * Race condition fix: Update timestamp atomically for LRU tracking
      */
-    #getCached(key) {
+    #getCached(key: string) {
         const entry = this.#queryCache.get(key);
         if (!entry) {
             return null;
@@ -244,7 +244,7 @@ export class MemoryContextManager {
         });
         return entry.result;
     }
-    #setCached(key, result) {
+    #setCached(key: string, result: any) {
         if (this.#queryCache.size >= this.#cacheConfig.maxSize) {
             const firstKey = this.#queryCache.keys().next().value;
             if (firstKey !== undefined) {

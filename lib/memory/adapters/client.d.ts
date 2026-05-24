@@ -19,15 +19,15 @@ export interface SearchResult extends MemoryRecord {
  * LanceDB Client wrapper class
  */
 export declare class LanceDBClient {
-    uri: any;
-    tableName: any;
-    maxRetries: any;
-    retryDelay: any;
-    vectorDimension: any;
+    uri: string;
+    tableName: string;
+    maxRetries: number;
+    retryDelay: number;
+    vectorDimension: number;
     driver: any;
     db: any;
     table: any;
-    isConnected: any;
+    isConnected: boolean;
     tempDir: any;
     _exitHookListener: any;
     /**
@@ -70,7 +70,7 @@ export declare class LanceDBClient {
      * @returns {Promise<Object>} Result with count of added records
      * @throws {StorageError} If batch add fails
      */
-    addBatch(records: any): Promise<{
+    addBatch(records: any[]): Promise<{
         count: number;
         success: boolean;
     }>;
@@ -81,7 +81,7 @@ export declare class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with scores
      * @throws {QueryError} If search fails
      */
-    search(vector: any, options?: {
+    search(vector: number[], options?: {
         limit?: number;
         nprobes?: number;
         filter?: string | null;
@@ -95,7 +95,7 @@ export declare class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
      * @throws {QueryError} If search fails
      */
-    searchFts(queryText: any, options?: {
+    searchFts(queryText: string, options?: {
         limit?: number;
         filter?: string | null;
         timeoutMs?: number;
@@ -106,7 +106,7 @@ export declare class LanceDBClient {
      * @returns {Promise<Object|null>} Record object or null if not found
      * @throws {QueryError} If query fails
      */
-    getById(id: any): Promise<MemoryRecord | null>;
+    getById(id: string): Promise<MemoryRecord | null>;
     /**
      * Get all records from the database
      * @param {Object} options - Options
@@ -121,7 +121,7 @@ export declare class LanceDBClient {
      * @param {Object} [options={}] - Query options
      * @returns {Promise<Array<Object>>} Array of matching records
      */
-    getWhere(filter: any, options?: {
+    getWhere(filter: string, options?: {
         limit?: number;
     }): Promise<MemoryRecord[]>;
     /**
@@ -130,8 +130,8 @@ export declare class LanceDBClient {
      * @returns {Promise<Object>} Result with success status
      * @throws {StorageError} If delete fails
      */
-    delete(id: any): Promise<{
-        id: any;
+    delete(id: string): Promise<{
+        id: string;
         success: boolean;
     }>;
     /**
@@ -141,8 +141,8 @@ export declare class LanceDBClient {
      * @returns {Promise<Object>} Result with success status
      * @throws {StorageError} If update fails
      */
-    update(id: any, data: any): Promise<{
-        id: any;
+    update(id: string, data: any): Promise<{
+        id: string;
         success: boolean;
     }>;
     /**
@@ -151,10 +151,10 @@ export declare class LanceDBClient {
      * @throws {QueryError} If stats query fails
      */
     getStats(): Promise<{
-        tableName: any;
-        uri: any;
+        tableName: string;
+        uri: string;
         count: number;
-        isConnected: any;
+        isConnected: boolean;
     }>;
     /**
      * Compact old data files and prune versions older than 7 days.
@@ -166,7 +166,7 @@ export declare class LanceDBClient {
      * Removes any characters that aren't alphanumeric, underscore, or hyphen
      * @private
      */
-    _sanitizeId(id: any): any;
+    _sanitizeId(id: string): string;
     /**
      * Validate a record object
      * @private
@@ -190,7 +190,7 @@ export declare class LanceDBClient {
      * Sleep for a specified duration
      * @private
      */
-    _sleep(ms: any): Promise<unknown>;
+    _sleep(ms: number): Promise<unknown>;
     /**
      * Check if an error is retryable (transient network/connection issues)
      * @private
@@ -200,6 +200,6 @@ export declare class LanceDBClient {
      * Retry an operation with exponential backoff
      * @private
      */
-    _retryOperation<T>(operation: () => Promise<T>, maxRetries?: any, baseDelay?: any): Promise<T>;
+    _retryOperation<T>(operation: () => Promise<T>, maxRetries?: number, baseDelay?: number): Promise<T>;
 }
 export default LanceDBClient;

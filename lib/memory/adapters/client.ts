@@ -46,11 +46,11 @@ export class LanceDBClient {
     retryDelay;
     vectorDimension;
     driver;
-    db;
-    table;
+    db: any;
+    table: any;
     isConnected;
-    tempDir; // Track temp dirs for cleanup
-    _exitHookListener;
+    tempDir: any; // Track temp dirs for cleanup
+    _exitHookListener: any;
 
     /**
      * Create a new LanceDBClient instance
@@ -163,7 +163,7 @@ export class LanceDBClient {
      * @returns {Promise<Object>} Result with id and success status
      * @throws {StorageError} If add operation fails
      */
-    async add(data) {
+    async add(data: any) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -190,7 +190,7 @@ export class LanceDBClient {
      * @returns {Promise<Object>} Result with count of added records
      * @throws {StorageError} If batch add fails
      */
-    async addBatch(records) {
+    async addBatch(records: any[]) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -223,7 +223,7 @@ export class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with scores
      * @throws {QueryError} If search fails
      */
-    async search(vector, options: { limit?: number; nprobes?: number; filter?: string | null; refineFactor?: number; timeoutMs?: number } = {}): Promise<SearchResult[]> {
+    async search(vector: number[], options: { limit?: number; nprobes?: number; filter?: string | null; refineFactor?: number; timeoutMs?: number } = {}): Promise<SearchResult[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -261,7 +261,7 @@ export class LanceDBClient {
             const resultsArray = await query.limit(limit).toArray(
                 timeoutMs ? { timeoutMs } : undefined,
             );
-            return resultsArray.map((row) => ({
+            return resultsArray.map((row: any) => ({
                 id: row.id,
                 content: row.content,
                 metadata: row.metadata ? JSON.parse(row.metadata) : null,
@@ -280,7 +280,7 @@ export class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
      * @throws {QueryError} If search fails
      */
-    async searchFts(queryText, options: { limit?: number; filter?: string | null; timeoutMs?: number } = {}): Promise<SearchResult[]> {
+    async searchFts(queryText: string, options: { limit?: number; filter?: string | null; timeoutMs?: number } = {}): Promise<SearchResult[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -297,7 +297,7 @@ export class LanceDBClient {
             const resultsArray = await query.limit(limit).toArray(
                 timeoutMs ? { timeoutMs } : undefined,
             );
-            return resultsArray.map((row) => ({
+            return resultsArray.map((row: any) => ({
                 id: row.id,
                 content: row.content,
                 metadata: row.metadata ? JSON.parse(row.metadata) : null,
@@ -314,7 +314,7 @@ export class LanceDBClient {
      * @returns {Promise<Object|null>} Record object or null if not found
      * @throws {QueryError} If query fails
      */
-    async getById(id): Promise<MemoryRecord | null> {
+    async getById(id: string): Promise<MemoryRecord | null> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -362,7 +362,7 @@ export class LanceDBClient {
                 query = query.limit(options.limit);
             }
             const resultsArray = await query.toArray();
-            return resultsArray.map((row) => ({
+            return resultsArray.map((row: any) => ({
                 id: row.id,
                 content: row.content,
                 metadata: row.metadata ? JSON.parse(row.metadata) : null,
@@ -379,7 +379,7 @@ export class LanceDBClient {
      * @param {Object} [options={}] - Query options
      * @returns {Promise<Array<Object>>} Array of matching records
      */
-    async getWhere(filter, options: { limit?: number } = {}): Promise<MemoryRecord[]> {
+    async getWhere(filter: string, options: { limit?: number } = {}): Promise<MemoryRecord[]> {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -392,7 +392,7 @@ export class LanceDBClient {
                 query = query.limit(options.limit);
             }
             const resultsArray = await query.toArray();
-            return resultsArray.map((row) => ({
+            return resultsArray.map((row: any) => ({
                 id: row.id,
                 content: row.content,
                 metadata: row.metadata ? JSON.parse(row.metadata) : null,
@@ -409,7 +409,7 @@ export class LanceDBClient {
      * @returns {Promise<Object>} Result with success status
      * @throws {StorageError} If delete fails
      */
-    async delete(id) {
+    async delete(id: string) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -431,7 +431,7 @@ export class LanceDBClient {
      * @returns {Promise<Object>} Result with success status
      * @throws {StorageError} If update fails
      */
-    async update(id, data) {
+    async update(id: string, data: any) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -511,7 +511,7 @@ export class LanceDBClient {
      * Removes any characters that aren't alphanumeric, underscore, or hyphen
      * @private
      */
-    _sanitizeId(id) {
+    _sanitizeId(id: string) {
         // Remove any characters that aren't alphanumeric, underscore, or hyphen
         // This prevents SQL injection via raw string interpolation in queries
         return id.replace(/[^a-zA-Z0-9_-]/g, "");
@@ -520,7 +520,7 @@ export class LanceDBClient {
      * Validate a record object
      * @private
      */
-    _validateRecord(record) {
+    _validateRecord(record: any) {
         if (!record || typeof record !== "object") {
             throw new StorageError("Record must be an object");
         }
@@ -539,7 +539,7 @@ export class LanceDBClient {
      * Validate a vector array
      * @private
      */
-    _validateVector(vector) {
+    _validateVector(vector: any) {
         if (!Array.isArray(vector)) {
             throw new QueryError("Vector must be an array");
         }
@@ -590,14 +590,14 @@ export class LanceDBClient {
      * Sleep for a specified duration
      * @private
      */
-    _sleep(ms) {
+    _sleep(ms: number) {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
     /**
      * Check if an error is retryable (transient network/connection issues)
      * @private
      */
-    _isRetryableError(error) {
+    _isRetryableError(error: any) {
         if (!error || !error.message) {
             return false;
         }
@@ -637,7 +637,7 @@ export class LanceDBClient {
      * Retry an operation with exponential backoff
      * @private
      */
-    async _retryOperation<T>(operation: () => Promise<T>, maxRetries?, baseDelay?): Promise<T> {
+    async _retryOperation<T>(operation: () => Promise<T>, maxRetries?: number, baseDelay?: number): Promise<T> {
         const max = maxRetries ?? this.maxRetries;
         const delay = baseDelay ?? this.retryDelay;
         let lastError = null;

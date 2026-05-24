@@ -20,10 +20,10 @@ export declare class TokenCounter {
      * Estimate token count for a string.
      * Empirically within ~10-15% of cl100k_base on mixed English / code / CJK.
      */
-    count(text: any): any;
+    count(text: string): number;
     /**
      * Whitespace-and-punctuation word count. Kept for callers that want a
      * pure word-level metric independent of model tokenization.
      */
-    countAccurate(text: any): any;
+    countAccurate(text: string): number;
 }

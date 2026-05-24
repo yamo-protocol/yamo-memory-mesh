@@ -10,8 +10,8 @@ export declare class Normalizer {
      * @param {string} content - Filtered content
      * @returns {Promise<string>} - Normalized content
      */
-    normalize(content: any): Promise<any>;
-    _normalizeHeadings(content: any): any;
-    _normalizeLists(content: any): any;
-    _normalizePunctuation(content: any): any;
+    normalize(content: string): Promise<string>;
+    _normalizeHeadings(content: string): string;
+    _normalizeLists(content: string): string;
+    _normalizePunctuation(content: string): string;
 }

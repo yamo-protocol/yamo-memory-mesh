@@ -8,7 +8,7 @@ export class MemoryTranslator {
      * @param {TranslationOptions} options - Translation options
      * @returns {string} Formatted YAMO agent context
      */
-    static toYAMOContext(memories, options: { mode?: string; includeMetadata?: boolean; maxContentLength?: number } = {}) {
+    static toYAMOContext(memories: any[], options: { mode?: string; includeMetadata?: boolean; maxContentLength?: number } = {}) {
         if (!memories || memories.length === 0) {
             return "";
         }
@@ -25,7 +25,7 @@ export class MemoryTranslator {
      * Build YAMO agent header with operational context
      * @private
      */
-    static #buildHeader(memories, mode) {
+    static #buildHeader(memories: any[], mode: string) {
         return `[AGENT INVOCATION: MemoryRecall]
 agent: MemoryRecall;
 role: context_provider;
@@ -44,7 +44,7 @@ These are memories retrieved from past interactions.
      * Build memories section with structured entries
      * @private
      */
-    static #buildMemoriesSection(memories, options) {
+    static #buildMemoriesSection(memories: any[], options: any) {
         const sections = memories.map((memory, idx) => {
             return this.#formatMemory(memory, idx, options);
         });
@@ -54,7 +54,7 @@ These are memories retrieved from past interactions.
      * Format individual memory with metadata
      * @private
      */
-    static #formatMemory(memory, index, options) {
+    static #formatMemory(memory: any, index: number, options: any) {
         const { includeMetadata, maxContentLength } = options;
         // Truncate content if too long
         let content = memory.content;
@@ -92,7 +92,7 @@ timestamp: ${this.#formatTimestamp(memory.created_at)}`;
      * Build footer with usage guidance
      * @private
      */
-    static #buildFooter(memories) {
+    static #buildFooter(memories: any[]) {
         return `[END MEMORY RECALL]
 Total memories provided: ${memories.length}
 Usage: Reference these memories when relevant to the current query.
@@ -102,7 +102,7 @@ Priority: Current user query > Recent memories > Older memories`;
      * Format timestamp as relative time
      * @private
      */
-    static #formatTimestamp(timestamp) {
+    static #formatTimestamp(timestamp: any) {
         const date = new Date(timestamp);
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();

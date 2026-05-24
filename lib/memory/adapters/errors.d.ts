@@ -6,60 +6,60 @@
  * error constructor.
  */
 export declare class LanceDBError extends Error {
-    code: any;
+    code: string;
     details: any;
-    timestamp: any;
+    timestamp: string;
     /**
      * Create a new LanceDBError
      * @param {string} message - Human-readable error message
      * @param {string} code - Machine-readable error code (e.g., 'EMBEDDING_ERROR')
      * @param {Object} details - Additional error context and metadata
      */
-    constructor(message: any, code: any, details?: {});
+    constructor(message: string, code: string, details?: any);
 }
 /**
  * Error raised when embedding generation or comparison fails
  */
 export declare class EmbeddingError extends LanceDBError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: any);
 }
 /**
  * Error raised when storage operations (read/write/delete) fail
  */
 export declare class StorageError extends LanceDBError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: any);
 }
 /**
  * Error raised when database queries fail or return invalid results
  */
 export declare class QueryError extends LanceDBError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: any);
 }
 /**
  * Error raised when configuration is missing or invalid
  */
 export declare class ConfigurationError extends LanceDBError {
-    constructor(message: any, details?: {});
+    constructor(message: string, details?: any);
 }
 /**
  * Sanitize error messages by redacting sensitive information
  * @param {string} message - Error message to sanitize
  * @returns {string} Sanitized error message
  */
-export declare function sanitizeErrorMessage(message: any): string;
+export declare function sanitizeErrorMessage(message: string): string;
 /**
  * Normalize errors into a consistent response format
  * @param {Error} error - The error to handle
  * @param {Object} context - Additional context about where/when the error occurred
  * @returns {Object} Formatted error response with success: false
  */
-export declare function handleError(error: any, context?: {}): {
+export declare function handleError(error: any, context?: any): {
     success: boolean;
     error: {
-        code: any;
+        code: string;
         message: string;
         details: any;
-        context: {};
+        context: any;
         stack?: undefined;
     };
 } | {
@@ -68,7 +68,7 @@ export declare function handleError(error: any, context?: {}): {
         code: string;
         message: string;
         stack: string;
-        context: {};
+        context: any;
         details?: undefined;
     };
 };

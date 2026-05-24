@@ -8,7 +8,7 @@ export declare class HTMLParser {
      * @param {string} html - HTML content
      * @returns {string} - Extracted text
      */
-    parse(html: any): any;
-    _extractText(html: any): any;
-    _stripTags(html: any): any;
+    parse(html: string): string;
+    _extractText(html: string): string;
+    _stripTags(html: string): string;
 }

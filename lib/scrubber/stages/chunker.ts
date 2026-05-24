@@ -9,7 +9,7 @@ import { ChunkingError, ScrubberError } from '../errors/scrubber-error.js';
 export class Chunker {
   config;
   tokenCounter;
-  constructor(config) {
+  constructor(config: any) {
     this.config = config;
     this.tokenCounter = new TokenCounter();
   }
@@ -19,7 +19,7 @@ export class Chunker {
    * @param {string} content - Normalized content
    * @returns {Promise<Array>} - Array of chunks with metadata
    */
-  async chunk(content, options: { documentContext?: string } = {}) {
+  async chunk(content: string, options: { documentContext?: string } = {}) {
     const { documentContext } = options;
     try {
       let rawChunks;
@@ -54,7 +54,7 @@ export class Chunker {
     }
   }
 
-  async _semanticChunk(content) {
+  async _semanticChunk(content: string) {
     const embedFn = this.config.embedFn;
     
     // 1. Split into sentences/logical lines
@@ -159,7 +159,7 @@ export class Chunker {
     return chunks;
   }
 
-  _paragraphChunk(content) {
+  _paragraphChunk(content: string) {
     const chunks = [];
     const paragraphs = content.split(/\n\n+/);
 
@@ -200,7 +200,7 @@ export class Chunker {
     return chunks;
   }
 
-  _cosineSimilarity(u, v) {
+  _cosineSimilarity(u: number[], v: number[]) {
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
@@ -212,11 +212,11 @@ export class Chunker {
     return normA === 0 || normB === 0 ? 0 : dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  _isHeading(line) {
+  _isHeading(line: string) {
     return /^#{1,6}\s/.test(line);
   }
 
-  _shouldStartNewChunk(currentChunk, para, paraTokens, isHeading) {
+  _shouldStartNewChunk(currentChunk: any, para: string, paraTokens: number, isHeading: boolean) {
     if (this.config.splitOnHeadings && isHeading && currentChunk.tokens > 0) {
       return true;
     }
@@ -229,12 +229,12 @@ export class Chunker {
     return false;
   }
 
-  _extractInitialHeading(content) {
+  _extractInitialHeading(content: string) {
     const match = content.match(/^#{1,6}\s+(.+)$/m);
     return match ? match[1] : null;
   }
 
-  _extractHeadingText(headingLine) {
+  _extractHeadingText(headingLine: string) {
     const match = headingLine.match(/^#{1,6}\s+(.+)$/);
     return match ? match[1] : null;
   }

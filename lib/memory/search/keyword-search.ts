@@ -35,7 +35,7 @@ export class KeywordSearch {
      * @param {string} text
      * @returns {string[]} tokens
      */
-    tokenize(text) {
+    tokenize(text: string) {
         if (!text) {
             return [];
         }
@@ -52,7 +52,7 @@ export class KeywordSearch {
      * @param {string} content
      * @param {Object} [metadata]
      */
-    add(id, content, metadata = {}) {
+    add(id: string, content: string, metadata: Record<string, any> = {}) {
         const tokens = this.tokenize(content);
         const termFreqs = new Map();
         tokens.forEach((t) => {
@@ -73,7 +73,7 @@ export class KeywordSearch {
      * Remove a document
      * @param {string} id
      */
-    remove(id) {
+    remove(id: string) {
         this.docLengths.delete(id);
         this.docs.delete(id);
         // This is expensive O(Vocab), but okay for small scale
@@ -110,7 +110,7 @@ export class KeywordSearch {
      * @param {Object} options
      * @returns {Array<{id: string, score: number, matches: string[], content: string, metadata: Object}>}
      */
-    search(query, options: { limit?: number } = {}) {
+    search(query: string, options: { limit?: number } = {}) {
         this._computeStats();
         const tokens = this.tokenize(query);
         const scores = new Map(); // docId -> score
@@ -154,7 +154,7 @@ export class KeywordSearch {
      * Bulk load records
      * @param {Array} records
      */
-    load(records) {
-        records.forEach((r) => this.add(r.id, r.content, r.metadata));
+    load(records: any[]) {
+        records.forEach((r: any) => this.add(r.id, r.content, r.metadata));
     }
 }

@@ -7,13 +7,13 @@ import { ConfigurationError, EmbeddingError } from "../adapters/errors.js";
 import { createLogger } from "../../utils/logger.js";
 const logger = createLogger("embedding-factory");
 class EmbeddingFactory {
-    primaryService;
-    fallbackServices;
+    primaryService: any;
+    fallbackServices: any[];
     configured;
     ServiceClass;
     primaryServiceFailedUntil;
-    rerankerModel;
-    rerankerTokenizer;
+    rerankerModel: any;
+    rerankerTokenizer: any;
     constructor(ServiceClass = EmbeddingService) {
         this.primaryService = null;
         this.fallbackServices = [];
@@ -26,7 +26,7 @@ class EmbeddingFactory {
      * @param {Array} configs - Array of { modelType, modelName, priority, apiKey }
      * @returns {Object} Success status
      */
-    configure(configs) {
+    configure(configs: any[]) {
         // Sort by priority (lower = higher priority)
         configs.sort((a, b) => (a.priority || 0) - (b.priority || 0));
         if (configs.length > 0) {
@@ -65,7 +65,7 @@ class EmbeddingFactory {
      * @param {Object} options - Options
      * @returns {Promise<number[]>} Embedding vector
      */
-    async embed(text, options = {}) {
+    async embed(text: string, options: any = {}) {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
@@ -96,7 +96,7 @@ class EmbeddingFactory {
      * Internal helper to execute fallback embedding chain
      * @private
      */
-    async _fallbackEmbed(text, options, primaryErrorMsg) {
+    async _fallbackEmbed(text: string, options: any, primaryErrorMsg: string) {
         for (const fallback of this.fallbackServices) {
             try {
                 if (!fallback.initialized) {
@@ -120,7 +120,7 @@ class EmbeddingFactory {
      * @param {Object} options - Options
      * @returns {Promise<number[][]>} Array of embedding vectors
      */
-    async embedBatch(texts, options = {}) {
+    async embedBatch(texts: any[], options: any = {}) {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
@@ -162,7 +162,7 @@ class EmbeddingFactory {
      * Token-level embedding forwarder for ColBERT MaxSim. Returns null if
      * the primary service can't produce token-level outputs.
      */
-    async embedTokens(text, options = {}) {
+    async embedTokens(text: string, options: any = {}) {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
@@ -186,7 +186,7 @@ class EmbeddingFactory {
      * over a candidate set pays per-doc inference; repeats hit the
      * embedding cache. Pre-computed token storage is a future optimization.
      */
-    async colbertRerank(queryText, candidates, options: { normalized?: boolean } = {}) {
+    async colbertRerank(queryText: string, candidates: any[], options: { normalized?: boolean } = {}) {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
@@ -220,7 +220,7 @@ class EmbeddingFactory {
      * Returns null if the primary service can't compute token-level pooled
      * embeddings (callers fall back to per-chunk embed()).
      */
-    async embedLateChunked(fullText, spans, options = {}) {
+    async embedLateChunked(fullText: string, spans: any[], options: any = {}) {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
@@ -278,7 +278,7 @@ class EmbeddingFactory {
      * single forward pass per chunk (RERANKER_BATCH_SIZE, default 32) — for
      * typical rerank candidate sets of 20-40, this is one forward pass.
      */
-    async rerank(query, documents) {
+    async rerank(query: string, documents: any[]) {
         if (!documents || documents.length === 0) {
             return [];
         }

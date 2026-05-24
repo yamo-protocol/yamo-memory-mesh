@@ -42,17 +42,17 @@ export class PatternMatcher {
     return this.boilerplatePatterns;
   }
 
-  addPattern(pattern) {
+  addPattern(pattern: RegExp) {
     this.boilerplatePatterns.push(pattern);
   }
 
-  removePattern(index) {
+  removePattern(index: number) {
     if (index >= 0 && index < this.boilerplatePatterns.length) {
       this.boilerplatePatterns.splice(index, 1);
     }
   }
 
-  isBoilerplate(text) {
+  isBoilerplate(text: string) {
     const lowerText = text.toLowerCase().trim();
     return this.boilerplatePatterns.some(pattern => {
       if (pattern instanceof RegExp) {

@@ -9,8 +9,8 @@ export declare class ScrubberTelemetry {
         errors: number;
     }>;
     constructor();
-    recordStage(stage: any, duration: any, success?: boolean): void;
-    getStageStats(stage: any): {
+    recordStage(stage: string, duration: number, success?: boolean): void;
+    getStageStats(stage: string): {
         count: number;
         avgTime: number;
         totalTime: number;

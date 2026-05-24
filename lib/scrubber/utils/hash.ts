@@ -10,7 +10,7 @@ export class HashUtil {
    * @param {string} content - Content to hash
    * @returns {string} - SHA256 hash
    */
-  hash(content) {
+  hash(content: string) {
     const normalized = content
       .toLowerCase()
       .trim()
@@ -27,7 +27,7 @@ export class HashUtil {
    * @param {string} content - Content to hash
    * @returns {string} - Simple hash
    */
-  fastHash(content) {
+  fastHash(content: string) {
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);

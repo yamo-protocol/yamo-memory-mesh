@@ -9,7 +9,7 @@ import { StructuralCleaningError, ScrubberError } from '../errors/scrubber-error
 export class StructuralCleaner {
   config;
   htmlParser;
-  constructor(config) {
+  constructor(config: any) {
     this.config = config;
     this.htmlParser = new HTMLParser();
   }
@@ -19,7 +19,7 @@ export class StructuralCleaner {
    * @param {string} content - Raw document content
    * @returns {Promise<string>} - Cleaned content
    */
-  async clean(content) {
+  async clean(content: string) {
     try {
       let cleaned = this._redactSensitiveData(content);
       const type = this._detectType(cleaned);
@@ -45,17 +45,17 @@ export class StructuralCleaner {
     }
   }
 
-  _detectType(content) {
+  _detectType(content: string) {
     if (content.trim().startsWith('<')) return 'html';
     if (/^#{1,6}\s/.test(content) || /^#{1,6}[A-Za-z]/.test(content)) return 'markdown';
     return 'text';
   }
 
-  async _cleanHTML(content) {
+  async _cleanHTML(content: string) {
     return this.htmlParser.parse(content);
   }
 
-  async _cleanMarkdown(content) {
+  async _cleanMarkdown(content: string) {
     let cleaned = content;
     // Add space after heading markers when missing
     cleaned = cleaned.replace(/(#{1,6})([^\s#])/g, '$1 $2');
@@ -69,17 +69,17 @@ export class StructuralCleaner {
     return cleaned;
   }
 
-  _collapseWhitespace(content) {
+  _collapseWhitespace(content: string) {
     let cleaned = content.replace(/[ \t]+/g, ' ');
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
     return cleaned;
   }
 
-  _normalizeLineBreaks(content) {
+  _normalizeLineBreaks(content: string) {
     return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   }
 
-  _redactSensitiveData(content) {
+  _redactSensitiveData(content: string) {
     if (!content) return content;
     let redacted = content;
 

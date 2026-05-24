@@ -20,6 +20,6 @@ export declare class MemoryScorer {
      * @param {number} threshold - Similarity threshold (default 0.9)
      * @returns {Promise<boolean>} True if duplicate exists
      */
-    isDuplicate(content: any, threshold?: number): Promise<boolean>;
+    isDuplicate(content: string, threshold?: number): Promise<boolean>;
 }
 export default MemoryScorer;

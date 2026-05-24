@@ -18,18 +18,23 @@ export declare function getInstructionPrefix(modelName: string): {
  * using multiple backend providers (local ONNX models or cloud APIs).
  */
 export declare class EmbeddingService {
-    modelType: any;
-    modelName: any;
-    baseUrl: any;
-    dimension: any;
-    batchSize: any;
-    normalize: any;
-    apiKey: any;
+    modelType: string;
+    modelName: string;
+    baseUrl: string;
+    dimension: number;
+    batchSize: number;
+    normalize: boolean;
+    apiKey: string;
     model: any;
-    cache: any;
-    cacheMaxSize: any;
-    initialized: any;
-    stats: any;
+    cache: Map<any, any>;
+    cacheMaxSize: number;
+    initialized: boolean;
+    stats: {
+        totalEmbeddings: number;
+        cacheHits: number;
+        cacheMisses: number;
+        batchCount: number;
+    };
     /**
      * Create a new EmbeddingService instance
      * @param {Object} [config={}] - Configuration options
@@ -55,10 +60,10 @@ export declare class EmbeddingService {
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[]>} Embedding vector
      */
-    embed(text: any, options?: {
+    embed(text: string, options?: {
         isQuery?: boolean;
         targetDimension?: number;
-    }): Promise<any>;
+    }): Promise<number[]>;
     /**
      * Matryoshka-style truncation: slice the vector to targetDimension and
      * re-normalize. Matryoshka-trained models (nomic-embed-text-v1.5, Jina-v3,
@@ -66,14 +71,14 @@ export declare class EmbeddingService {
      * trade-offs. Non-Matryoshka models tolerate it with some quality loss.
      * @private
      */
-    _maybeTruncate(embedding: any, targetDimension: any): any;
+    _maybeTruncate(embedding: number[], targetDimension: number): number[];
     /**
      * Generate embeddings for a batch of texts
      * @param {string[]} texts - Array of texts to embed
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[][]>} Array of embedding vectors
      */
-    embedBatch(texts: any, options?: {}): Promise<any[]>;
+    embedBatch(texts: any[], options?: any): Promise<number[][]>;
     /**
      * Late Chunking (Jina, Sep 2024): embed the full document through the
      * encoder once with pooling disabled, then mean-pool the token-level
@@ -93,10 +98,10 @@ export declare class EmbeddingService {
      * @param spans    Array of { start, end } char ranges (non-overlapping, in order).
      * @returns Array of L2-normalized vectors aligned to spans, or null.
      */
-    embedLateChunked(fullText: any, spans: any, options?: {
+    embedLateChunked(fullText: string, spans: any[], options?: {
         isQuery?: boolean;
         targetDimension?: number;
-    }): Promise<any[]>;
+    }): Promise<any[][]>;
     /**
      * Token-level embedding for ColBERT-style late-interaction scoring.
      * Returns the per-token vectors as a flat Float32Array (length =
@@ -109,7 +114,7 @@ export declare class EmbeddingService {
      * MaxSim's cosine assumption holds. Skips [CLS]/[SEP]/[PAD] tokens
      * via their [0,0] offset markers.
      */
-    embedTokens(text: any, options?: {
+    embedTokens(text: string, options?: {
         isQuery?: boolean;
     }): Promise<{
         data: Float32Array<ArrayBuffer>;
@@ -143,61 +148,61 @@ export declare class EmbeddingService {
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    _embedLocal(text: any): Promise<unknown[]>;
+    _embedLocal(text: string): Promise<unknown[]>;
     /**
      * Generate embedding using Ollama API
      * @param {string} text - Text to embed
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    _embedOllama(text: any): Promise<any>;
+    _embedOllama(text: string): Promise<any>;
     /**
      * Generate embedding using OpenAI API
      * @param {string} text - Text to embed
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    _embedOpenAI(text: any): Promise<any>;
+    _embedOpenAI(text: string): Promise<any>;
     /**
      * Generate embedding using Cohere API
      * @param {string} text - Text to embed
      * @returns {Promise<number[]>} Embedding vector
      * @private
      */
-    _embedCohere(text: any): Promise<any>;
+    _embedCohere(text: string): Promise<any>;
     /**
      * Normalize vector to unit length
      * @param {number[]} vector - Vector to normalize
      * @returns {number[]} Normalized vector
      * @private
      */
-    _normalize(vector: any): any;
+    _normalize(vector: number[]): number[];
     /**
      * Generate cache key from text
      * @param {string} text - Text to generate key from
      * @returns {string} Cache key
      * @private
      */
-    _getCacheKey(text: any): string;
-    _setCache(key: any, value: any): void;
+    _getCacheKey(text: string): string;
+    _setCache(key: string, value: any): void;
     /**
      * Get service statistics
      * @returns {Object} Statistics object
      */
     getStats(): {
-        modelType: any;
-        modelName: any;
-        dimension: any;
-        initialized: any;
-        totalEmbeddings: any;
-        cacheHits: any;
-        cacheMisses: any;
-        cacheSize: any;
-        cacheMaxSize: any;
+        modelType: string;
+        modelName: string;
+        dimension: number;
+        initialized: boolean;
+        totalEmbeddings: number;
+        cacheHits: number;
+        cacheMisses: number;
+        cacheSize: number;
+        cacheMaxSize: number;
         cacheHitRate: number;
-        batchCount: any;
-        batchSize: any;
-        normalize: any;
+        batchCount: number;
+        batchSize: number;
+        normalize: boolean;
     };
     /**
      * Clear the embedding cache

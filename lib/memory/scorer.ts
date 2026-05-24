@@ -6,7 +6,7 @@ export class MemoryScorer {
     /**
      * @param {MemoryMesh} mesh - MemoryMesh instance for duplicate checking
      */
-    constructor(mesh) {
+    constructor(mesh: any) {
         this.#mesh = mesh;
     }
     /**
@@ -60,7 +60,7 @@ export class MemoryScorer {
      * @param {number} threshold - Similarity threshold (default 0.9)
      * @returns {Promise<boolean>} True if duplicate exists
      */
-    async isDuplicate(content, threshold = 0.9) {
+    async isDuplicate(content: string, threshold = 0.9) {
         try {
             const results = await this.#mesh.search(content, {
                 limit: 1,

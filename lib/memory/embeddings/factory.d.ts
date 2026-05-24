@@ -5,10 +5,10 @@
 import EmbeddingService from "./service.js";
 declare class EmbeddingFactory {
     primaryService: any;
-    fallbackServices: any;
-    configured: any;
-    ServiceClass: any;
-    primaryServiceFailedUntil: any;
+    fallbackServices: any[];
+    configured: boolean;
+    ServiceClass: typeof EmbeddingService;
+    primaryServiceFailedUntil: number;
     rerankerModel: any;
     rerankerTokenizer: any;
     constructor(ServiceClass?: typeof EmbeddingService);
@@ -17,7 +17,7 @@ declare class EmbeddingFactory {
      * @param {Array} configs - Array of { modelType, modelName, priority, apiKey }
      * @returns {Object} Success status
      */
-    configure(configs: any): {
+    configure(configs: any[]): {
         success: boolean;
     };
     /**
@@ -27,7 +27,7 @@ declare class EmbeddingFactory {
     init(): Promise<{
         success: boolean;
         primary: any;
-        fallbacks: any;
+        fallbacks: any[];
     }>;
     /**
      * Generate embedding with automatic fallback
@@ -35,24 +35,24 @@ declare class EmbeddingFactory {
      * @param {Object} options - Options
      * @returns {Promise<number[]>} Embedding vector
      */
-    embed(text: any, options?: {}): Promise<any>;
+    embed(text: string, options?: any): Promise<any>;
     /**
      * Internal helper to execute fallback embedding chain
      * @private
      */
-    _fallbackEmbed(text: any, options: any, primaryErrorMsg: any): Promise<any>;
+    _fallbackEmbed(text: string, options: any, primaryErrorMsg: string): Promise<any>;
     /**
      * Generate embeddings for batch of texts
      * @param {string[]} texts - Texts to embed
      * @param {Object} options - Options
      * @returns {Promise<number[][]>} Array of embedding vectors
      */
-    embedBatch(texts: any, options?: {}): Promise<any>;
+    embedBatch(texts: any[], options?: any): Promise<any>;
     /**
      * Token-level embedding forwarder for ColBERT MaxSim. Returns null if
      * the primary service can't produce token-level outputs.
      */
-    embedTokens(text: any, options?: {}): Promise<any>;
+    embedTokens(text: string, options?: any): Promise<any>;
     /**
      * ColBERT late-interaction rerank: embeds the query at token level,
      * embeds each candidate's content at token level, scores via MaxSim,
@@ -65,23 +65,23 @@ declare class EmbeddingFactory {
      * over a candidate set pays per-doc inference; repeats hit the
      * embedding cache. Pre-computed token storage is a future optimization.
      */
-    colbertRerank(queryText: any, candidates: any, options?: {
+    colbertRerank(queryText: string, candidates: any[], options?: {
         normalized?: boolean;
-    }): Promise<any>;
+    }): Promise<any[]>;
     /**
      * Late Chunking forwarder — see EmbeddingService.embedLateChunked.
      * Returns null if the primary service can't compute token-level pooled
      * embeddings (callers fall back to per-chunk embed()).
      */
-    embedLateChunked(fullText: any, spans: any, options?: {}): Promise<any>;
+    embedLateChunked(fullText: string, spans: any[], options?: any): Promise<any>;
     /**
      * Get factory statistics
      * @returns {Object} Statistics
      */
     getStats(): {
-        configured: any;
+        configured: boolean;
         primary: any;
-        fallbacks: any;
+        fallbacks: any[];
     };
     /**
      * Clear all caches
@@ -103,6 +103,6 @@ declare class EmbeddingFactory {
      * single forward pass per chunk (RERANKER_BATCH_SIZE, default 32) — for
      * typical rerank candidate sets of 20-40, this is one forward pass.
      */
-    rerank(query: any, documents: any): Promise<number[]>;
+    rerank(query: string, documents: any[]): Promise<number[]>;
 }
 export default EmbeddingFactory;

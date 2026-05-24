@@ -9,14 +9,14 @@
  *   new KeywordSearch({ k1: 1.5, b: 0.5 })
  */
 export declare class KeywordSearch {
-    index: any;
-    docLengths: any;
-    idf: any;
-    docs: any;
-    isDirty: any;
-    avgDocLength: any;
-    k1: any;
-    b: any;
+    index: Map<any, any>;
+    docLengths: Map<any, any>;
+    idf: Map<any, any>;
+    docs: Map<any, any>;
+    isDirty: boolean;
+    avgDocLength: number;
+    k1: number;
+    b: number;
     constructor(options?: {
         k1?: number;
         b?: number;
@@ -26,19 +26,19 @@ export declare class KeywordSearch {
      * @param {string} text
      * @returns {string[]} tokens
      */
-    tokenize(text: any): any;
+    tokenize(text: string): string[];
     /**
      * Add a document to the index
      * @param {string} id
      * @param {string} content
      * @param {Object} [metadata]
      */
-    add(id: any, content: any, metadata?: {}): void;
+    add(id: string, content: string, metadata?: Record<string, any>): void;
     /**
      * Remove a document
      * @param {string} id
      */
-    remove(id: any): void;
+    remove(id: string): void;
     /**
      * Recalculate BM25 IDF and average document length.
      * BM25 IDF: log((N - df + 0.5) / (df + 0.5) + 1) — the "+1" inside log
@@ -51,12 +51,12 @@ export declare class KeywordSearch {
      * @param {Object} options
      * @returns {Array<{id: string, score: number, matches: string[], content: string, metadata: Object}>}
      */
-    search(query: any, options?: {
+    search(query: string, options?: {
         limit?: number;
     }): any[];
     /**
      * Bulk load records
      * @param {Array} records
      */
-    load(records: any): void;
+    load(records: any[]): void;
 }

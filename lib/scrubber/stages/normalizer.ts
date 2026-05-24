@@ -5,7 +5,7 @@
 
 export class Normalizer {
   config;
-  constructor(config) {
+  constructor(config: any) {
     this.config = config;
   }
 
@@ -14,7 +14,7 @@ export class Normalizer {
    * @param {string} content - Filtered content
    * @returns {Promise<string>} - Normalized content
    */
-  async normalize(content) {
+  async normalize(content: string) {
     let normalized = content;
 
     if (this.config.normalizeHeadings) {
@@ -32,14 +32,14 @@ export class Normalizer {
     return normalized;
   }
 
-  _normalizeHeadings(content) {
+  _normalizeHeadings(content: string) {
     let normalized = content.replace(/(#{1,6})([^\s#])/g, '$1 $2');
     normalized = normalized.replace(/^\s*(#{1,6})/gm, '$1');
     normalized = normalized.replace(/#{7,}/g, '######');
     return normalized;
   }
 
-  _normalizeLists(content) {
+  _normalizeLists(content: string) {
     // Anchor to line start, and require a genuine single-character list marker —
     // negative lookahead (?![*+\-]) prevents **bold** or -- from being split.
     let normalized = content.replace(/^([ \t]*)([-*+])(?![*+\-])([^ \t\n])/gm, '$1$2 $3');
@@ -48,7 +48,7 @@ export class Normalizer {
     return normalized;
   }
 
-  _normalizePunctuation(content) {
+  _normalizePunctuation(content: string) {
     // Remove quotes (both straight and curly)
     let normalized = content.replace(/["'""''`]/g, '');
     normalized = normalized.replace(/ +/g, ' ');
