@@ -83,6 +83,23 @@ export declare class EmbeddingService {
      */
     embedLateChunked(fullText: any, spans: any, options?: {}): Promise<any[]>;
     /**
+     * Token-level embedding for ColBERT-style late-interaction scoring.
+     * Returns the per-token vectors as a flat Float32Array (length =
+     * numTokens × dim) plus shape metadata, or null if the backend can't
+     * produce token-level output. Caller pairs this with maxSim() from
+     * ./colbert.js to score query/doc token alignment.
+     *
+     * Applies the configured instruction prefix (for query/passage
+     * asymmetry) and L2-normalizes each token vector individually so
+     * MaxSim's cosine assumption holds. Skips [CLS]/[SEP]/[PAD] tokens
+     * via their [0,0] offset markers.
+     */
+    embedTokens(text: any, options?: {}): Promise<{
+        data: Float32Array<ArrayBuffer>;
+        numTokens: number;
+        dim: any;
+    }>;
+    /**
      * Initialize local ONNX model using Xenova/Transformers.js
      * @private
      */

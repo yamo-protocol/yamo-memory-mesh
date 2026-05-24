@@ -47,6 +47,24 @@ declare class EmbeddingFactory {
      */
     embedBatch(texts: any, options?: {}): Promise<any>;
     /**
+     * Token-level embedding forwarder for ColBERT MaxSim. Returns null if
+     * the primary service can't produce token-level outputs.
+     */
+    embedTokens(text: any, options?: {}): Promise<any>;
+    /**
+     * ColBERT late-interaction rerank: embeds the query at token level,
+     * embeds each candidate's content at token level, scores via MaxSim,
+     * returns candidates sorted descending by MaxSim score. Each candidate
+     * gets a new `_colbertScore` field. Returns the candidates unmodified
+     * if the model can't produce token embeddings (caller can detect via
+     * the lack of _colbertScore).
+     *
+     * Cost note: this computes token embeddings on the fly. First call
+     * over a candidate set pays per-doc inference; repeats hit the
+     * embedding cache. Pre-computed token storage is a future optimization.
+     */
+    colbertRerank(queryText: any, candidates: any, options?: {}): Promise<any>;
+    /**
      * Late Chunking forwarder — see EmbeddingService.embedLateChunked.
      * Returns null if the primary service can't compute token-level pooled
      * embeddings (callers fall back to per-chunk embed()).

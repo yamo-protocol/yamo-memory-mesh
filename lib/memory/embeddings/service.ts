@@ -388,6 +388,98 @@ export class EmbeddingService {
         }
     }
     /**
+     * Token-level embedding for ColBERT-style late-interaction scoring.
+     * Returns the per-token vectors as a flat Float32Array (length =
+     * numTokens × dim) plus shape metadata, or null if the backend can't
+     * produce token-level output. Caller pairs this with maxSim() from
+     * ./colbert.js to score query/doc token alignment.
+     *
+     * Applies the configured instruction prefix (for query/passage
+     * asymmetry) and L2-normalizes each token vector individually so
+     * MaxSim's cosine assumption holds. Skips [CLS]/[SEP]/[PAD] tokens
+     * via their [0,0] offset markers.
+     */
+    async embedTokens(text, options = {}) {
+        if (!this.initialized) {
+            throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
+                modelType: this.modelType,
+            });
+        }
+        if (typeof text !== 'string' || text.length === 0) return null;
+        if (this.modelType !== 'local') return null;
+        const prefix = getInstructionPrefix(this.modelName);
+        const isQuery = !!options.isQuery;
+        const prefixedText = (prefix ? (isQuery ? prefix.query : prefix.passage) : '') + text;
+        try {
+            const output = await this.model(prefixedText, {
+                pooling: 'none',
+                normalize: false,
+            });
+            const dims = output.dims;
+            if (!Array.isArray(dims) || dims.length !== 3) return null;
+            const numTokens = dims[1];
+            const dim = dims[2];
+            const raw = output.data;
+            if (!raw || raw.length !== numTokens * dim) return null;
+
+            // Tokenizer offsets let us drop special tokens before pooling.
+            const tokenizer = this.model?.tokenizer;
+            let keepMask: boolean[] | null = null;
+            if (tokenizer && (typeof tokenizer === 'function' || typeof tokenizer.encode === 'function')) {
+                try {
+                    const encoded = await (typeof tokenizer === 'function'
+                        ? tokenizer(prefixedText, { return_offsets_mapping: true })
+                        : tokenizer.encode(prefixedText, { return_offsets_mapping: true }));
+                    let offsets: any = encoded?.offset_mapping ?? encoded?.offsets;
+                    if (offsets) {
+                        if (offsets.dims && Array.isArray(offsets.data)) {
+                            const flat = offsets.data;
+                            const pairs: number[][] = [];
+                            for (let i = 0; i < numTokens; i++) {
+                                pairs.push([Number(flat[i * 2]), Number(flat[i * 2 + 1])]);
+                            }
+                            offsets = pairs;
+                        }
+                        if (Array.isArray(offsets) && Array.isArray(offsets[0])) {
+                            keepMask = offsets.map(([s, e]: number[]) => !(s === 0 && e === 0));
+                        }
+                    }
+                } catch {
+                    // Offsets are optional; without them we keep all tokens.
+                }
+            }
+
+            // Pack kept tokens into a fresh Float32Array, normalizing each.
+            const kept: number[] = [];
+            for (let t = 0; t < numTokens; t++) {
+                if (keepMask && !keepMask[t]) continue;
+                kept.push(t);
+            }
+            if (kept.length === 0) return null;
+            const packed = new Float32Array(kept.length * dim);
+            for (let i = 0; i < kept.length; i++) {
+                const tIdx = kept[i];
+                const srcBase = tIdx * dim;
+                const dstBase = i * dim;
+                let sumSq = 0;
+                for (let d = 0; d < dim; d++) {
+                    const v = raw[srcBase + d];
+                    packed[dstBase + d] = v;
+                    sumSq += v * v;
+                }
+                if (this.normalize) {
+                    const mag = Math.sqrt(sumSq);
+                    if (mag > 0) {
+                        for (let d = 0; d < dim; d++) packed[dstBase + d] = packed[dstBase + d] / mag;
+                    }
+                }
+            }
+            return { data: packed, numTokens: kept.length, dim };
+        } catch (_error) {
+            return null;
+        }
+    }
+    /**
      * Initialize local ONNX model using Xenova/Transformers.js
      * @private
      */
