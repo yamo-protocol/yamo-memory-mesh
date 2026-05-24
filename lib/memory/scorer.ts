@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * MemoryScorer - Calculate memory importance and detect duplicates
  */
@@ -16,7 +15,7 @@ export class MemoryScorer {
      * @param {Object} metadata - Associated metadata
      * @returns {Promise<number>} Importance score (0-1)
      */
-    calculateImportance(content, metadata = {}) {
+    calculateImportance(content: string, metadata: Record<string, any> = {}) {
         let score = 0;
         // Content length (longer = more important, up to a point)
         const length = content.length;

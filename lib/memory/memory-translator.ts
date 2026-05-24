@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * MemoryTranslator - Converts memories to YAMO agent format
  */
@@ -9,7 +8,7 @@ export class MemoryTranslator {
      * @param {TranslationOptions} options - Translation options
      * @returns {string} Formatted YAMO agent context
      */
-    static toYAMOContext(memories, options = {}) {
+    static toYAMOContext(memories, options: { mode?: string; includeMetadata?: boolean; maxContentLength?: number } = {}) {
         if (!memories || memories.length === 0) {
             return "";
         }

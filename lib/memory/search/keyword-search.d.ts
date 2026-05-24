@@ -17,7 +17,10 @@ export declare class KeywordSearch {
     avgDocLength: any;
     k1: any;
     b: any;
-    constructor(options?: {});
+    constructor(options?: {
+        k1?: number;
+        b?: number;
+    });
     /**
      * Tokenize text into normalized terms
      * @param {string} text
@@ -48,7 +51,9 @@ export declare class KeywordSearch {
      * @param {Object} options
      * @returns {Array<{id: string, score: number, matches: string[], content: string, metadata: Object}>}
      */
-    search(query: any, options?: {}): any[];
+    search(query: any, options?: {
+        limit?: number;
+    }): any[];
     /**
      * Bulk load records
      * @param {Array} records

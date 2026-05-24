@@ -100,7 +100,7 @@ export declare const MEMORY_SCHEMA: arrow.Schema<any>;
 export declare const INDEX_CONFIG: {
     vector: {
         index_type: string;
-        metric: string;
+        metric: "cosine";
         num_partitions: number;
         num_sub_vectors: number;
     };
@@ -145,7 +145,7 @@ declare const _default: {
     INDEX_CONFIG: {
         vector: {
             index_type: string;
-            metric: string;
+            metric: "cosine";
             num_partitions: number;
             num_sub_vectors: number;
         };

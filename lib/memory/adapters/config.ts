@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LanceDB Configuration Loader
  * Loads and validates configuration from environment variables
@@ -63,7 +62,7 @@ export const MEMORY_DEFAULTS = {
  * Load configuration with validation
  */
 export function loadConfig() {
-    const config = {};
+    const config: Record<string, string> = {};
     for (const [key, defaultValue] of Object.entries(DEFAULTS)) {
         config[key] = process.env[key] || defaultValue;
     }

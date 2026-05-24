@@ -13,7 +13,7 @@ export declare class MemoryScorer {
      * @param {Object} metadata - Associated metadata
      * @returns {Promise<number>} Importance score (0-1)
      */
-    calculateImportance(content: any, metadata?: {}): number;
+    calculateImportance(content: string, metadata?: Record<string, any>): number;
     /**
      * Check if content is duplicate of existing memory
      * @param {string} content - Content to check

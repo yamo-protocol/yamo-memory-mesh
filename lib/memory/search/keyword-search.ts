@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * In-Memory Keyword Search — BM25 ranking.
  *
@@ -18,7 +17,7 @@ export class KeywordSearch {
     avgDocLength;
     k1;
     b;
-    constructor(options = {}) {
+    constructor(options: { k1?: number; b?: number } = {}) {
         this.index = new Map();
         this.docLengths = new Map();
         this.idf = new Map();
@@ -111,7 +110,7 @@ export class KeywordSearch {
      * @param {Object} options
      * @returns {Array<{id: string, score: number, matches: string[], content: string, metadata: Object}>}
      */
-    search(query, options = {}) {
+    search(query, options: { limit?: number } = {}) {
         this._computeStats();
         const tokens = this.tokenize(query);
         const scores = new Map(); // docId -> score

@@ -46,7 +46,7 @@ export declare const MEMORY_DEFAULTS: {
 /**
  * Load configuration with validation
  */
-export declare function loadConfig(): {};
+export declare function loadConfig(): Record<string, string>;
 /**
  * Load memory-specific configuration
  * @returns {Object} Memory configuration object
@@ -81,7 +81,7 @@ export declare function validateConfig(config: any): any[];
 /**
  * Get validated configuration
  */
-export declare function getConfig(): {};
+export declare function getConfig(): Record<string, string>;
 declare const _default: {
     loadConfig: typeof loadConfig;
     validateConfig: typeof validateConfig;

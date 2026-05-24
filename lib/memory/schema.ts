@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LanceDB Schema Definitions for MemoryManager
  * Uses Apache Arrow Schema format for LanceDB JavaScript SDK
@@ -231,7 +230,7 @@ export const MEMORY_SCHEMA = createMemorySchema(DEFAULT_VECTOR_DIMENSION);
 export const INDEX_CONFIG = {
     vector: {
         index_type: "ivf_pq",
-        metric: "cosine",
+        metric: "cosine" as const,
         num_partitions: 256,
         num_sub_vectors: 8,
     },
