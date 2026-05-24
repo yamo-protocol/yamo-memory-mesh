@@ -560,6 +560,8 @@ export class MemoryMesh {
                 }
             }
             this.keywordSearch.add(record.id, record.content, sanitizedMetadata);
+            // Invalidate cached search results — they predate this write.
+            this.queryCache.clear();
             if (this.graphTable) {
                 try {
                     let triples = [];
@@ -819,6 +821,9 @@ export class MemoryMesh {
                 ids.push(mem.id);
             }
         }
+        // The late-chunk path writes directly via client.add(), bypassing the
+        // cache clear in add(). Do it here so cached searches don't go stale.
+        this.queryCache.clear();
         return { documentId, chunks: ids.length, ids, lateChunked: !!lateVectors };
     }
 
@@ -2214,6 +2219,8 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         try {
             await this.client.delete(id);
             this.keywordSearch?.remove?.(id);
+            // Invalidate cached search results — they may reference this id.
+            this.queryCache.clear();
         } catch (error: any) {
             if (error instanceof Error && error.message.includes("not found")) return;
             throw error;
