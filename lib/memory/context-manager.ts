@@ -47,7 +47,7 @@ export class MemoryContextManager {
             this.#initialized = true;
         }
         catch (error) {
-            this.#logWarn(`Initialization failed: ${error.message}`);
+            this.#logWarn(`Initialization failed: ${error instanceof Error ? error.message : String(error)}`);
             this.#initialized = false;
         }
     }
@@ -79,7 +79,7 @@ export class MemoryContextManager {
             return memory;
         }
         catch (error) {
-            this.#logWarn(`Failed to capture interaction: ${error.message}`);
+            this.#logWarn(`Failed to capture interaction: ${error instanceof Error ? error.message : String(error)}`);
             return null;
         }
     }
@@ -165,7 +165,7 @@ export class MemoryContextManager {
             return memories;
         }
         catch (error) {
-            this.#logWarn(`Failed to recall memories: ${error.message}`);
+            this.#logWarn(`Failed to recall memories: ${error instanceof Error ? error.message : String(error)}`);
             return [];
         }
     }
@@ -180,7 +180,7 @@ export class MemoryContextManager {
             return MemoryTranslator.toYAMOContext(memories, options);
         }
         catch (error) {
-            this.#logWarn(`Failed to format memories: ${error.message}`);
+            this.#logWarn(`Failed to format memories: ${error instanceof Error ? error.message : String(error)}`);
             return "";
         }
     }
@@ -282,7 +282,7 @@ export class MemoryContextManager {
         catch (error) {
             health.checks.mesh = {
                 status: "error",
-                error: error.message,
+                error: error instanceof Error ? error.message : String(error),
             };
             health.status = "unhealthy";
         }

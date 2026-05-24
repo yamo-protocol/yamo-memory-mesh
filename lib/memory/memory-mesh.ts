@@ -1286,7 +1286,7 @@ export class MemoryMesh {
             return { id, name, intent };
         }
         catch (error) {
-            throw new Error(`Skill ingestion failed: ${error.message}`);
+            throw new Error(`Skill ingestion failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -1468,7 +1468,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 logger.error({ err: e }, "SkillCreator agent failed");
                 return {
                     status: "error",
-                    error: e.message,
+                    error: e instanceof Error ? e.message : String(e),
                     analysis: "SkillCreator agent failed",
                 };
             }
@@ -1516,7 +1516,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             };
         }
         catch (error) {
-            throw new Error(`Failed to update skill reliability: ${error.message}`);
+            throw new Error(`Failed to update skill reliability: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -1574,7 +1574,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             };
         }
         catch (error) {
-            throw new Error(`Pruning failed: ${error.message}`);
+            throw new Error(`Pruning failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -1822,7 +1822,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 }));
             }
             catch (error) {
-                const msg = error.message || "";
+                const msg = (error instanceof Error ? error.message : String(error)) || "";
                 const isRetryable = msg.includes("LanceError(IO)") ||
                     msg.includes("next batch") ||
                     msg.includes("No such file") ||

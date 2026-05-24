@@ -105,7 +105,7 @@ export declare class Scrubber {
             chunking: number;
             metadata: number;
             validation: number;
-            total: any;
+            total: number;
         };
     };
     healthCheck(): Promise<{

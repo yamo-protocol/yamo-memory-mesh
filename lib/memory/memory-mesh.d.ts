@@ -367,7 +367,7 @@ export declare class MemoryMesh {
         error?: undefined;
     } | {
         status: string;
-        error: any;
+        error: string;
         analysis: string;
         skill_id?: undefined;
         skill_name?: undefined;

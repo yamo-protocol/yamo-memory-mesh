@@ -114,7 +114,7 @@ export class LanceDBClient {
             }
             catch (error) {
                 lastError = error;
-                const msg = error.message.toLowerCase();
+                const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
                 // Specific check for locking/busy errors
                 if (msg.includes("busy") ||
                     msg.includes("locked") ||
@@ -653,7 +653,7 @@ export class LanceDBClient {
                 if (attempt === max) {
                     throw error;
                 }
-                const message = (error.message || "").toLowerCase();
+                const message = ((error instanceof Error ? error.message : String(error)) || "").toLowerCase();
                 // If error suggests a stale handle, try to refresh before retrying
                 if (message.includes("lanceerror(io)") || message.includes("manifest") || message.includes("closed")) {
                     try {
@@ -668,7 +668,7 @@ export class LanceDBClient {
                 logger.debug({
                     attempt,
                     max,
-                    message: error.message,
+                    message: error instanceof Error ? error.message : String(error),
                     retryDelayMs: Math.round(backoffMs + jitterMs),
                 }, "Retryable error, retrying");
                 await this._sleep(backoffMs + jitterMs);

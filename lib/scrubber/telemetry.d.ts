@@ -29,7 +29,7 @@ export declare class ScrubberTelemetry {
             chunking: number;
             metadata: number;
             validation: number;
-            total: any;
+            total: number;
         };
     };
     reset(): void;
