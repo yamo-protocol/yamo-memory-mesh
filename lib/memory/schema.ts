@@ -16,14 +16,37 @@ import { Index } from "@lancedb/lancedb";
  */
 export const DEFAULT_VECTOR_DIMENSION = 384;
 /**
- * Common embedding model dimensions
+ * Common embedding model dimensions. Used by getEmbeddingDimension() to
+ * size the LanceDB vector column. Matryoshka-capable models (Nomic v1.5,
+ * Jina v3, Arctic v2) can be stored at a smaller dimension by passing
+ * EMBEDDING_DIMENSION explicitly — the embed call will truncate + renorm.
  */
 export const EMBEDDING_DIMENSIONS = {
+    // MiniLM family (default)
     "Xenova/all-MiniLM-L6-v2": 384,
     "Xenova/all-mpnet-base-v2": 768,
     "Xenova/distiluse-base-multilingual-cased-v1": 512,
     "sentence-transformers/all-MiniLM-L6-v2": 384,
     "sentence-transformers/all-mpnet-base-v2": 768,
+    // BGE family (instruction-aware, multilingual)
+    "Xenova/bge-base-en-v1.5": 768,
+    "Xenova/bge-large-en-v1.5": 1024,
+    "Xenova/bge-small-en-v1.5": 384,
+    "Xenova/bge-m3": 1024,
+    "BAAI/bge-base-en-v1.5": 768,
+    "BAAI/bge-large-en-v1.5": 1024,
+    "BAAI/bge-m3": 1024,
+    // Nomic family (Matryoshka — truncatable 64 ≤ d ≤ 768)
+    "Xenova/nomic-embed-text-v1": 768,
+    "Xenova/nomic-embed-text-v1.5": 768,
+    "nomic-ai/nomic-embed-text-v1.5": 768,
+    // Jina family (Matryoshka — truncatable from 1024)
+    "Xenova/jina-embeddings-v2-base-en": 768,
+    "jinaai/jina-embeddings-v3": 1024,
+    // E5 family (instruction-aware)
+    "intfloat/e5-base-v2": 768,
+    "intfloat/multilingual-e5-large": 1024,
+    // Cohere / OpenAI cloud
     "openai/text-embedding-3-small": 1536,
     "openai/text-embedding-3-large": 3072,
     "cohere/embed-english-light-v3.0": 1024,

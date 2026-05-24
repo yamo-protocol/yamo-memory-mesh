@@ -1164,7 +1164,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             const queryTokens = this._tokenizeQuery(query);
 
             // 2a. Vector search (get more candidates for fusion)
-            const vector = await this.embeddingFactory.embed(query);
+            const vector = await this.embeddingFactory.embed(query, { isQuery: true });
             const vectorResults = await this.skillTable
                 .search(vector)
                 .limit(limit * 3)
@@ -1523,7 +1523,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 return boosted;
             }
 
-            const vector = await this.embeddingFactory.embed(query);
+            const vector = await this.embeddingFactory.embed(query, { isQuery: true });
             if (!this.client) {
                 throw new Error("Database client not initialized");
             }
@@ -2086,8 +2086,10 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
 
         // Layer 2: Multi-channel retrieval (semantic original, semantic HyDE, keyword BM25)
-        const queryVec = await this.embeddingFactory.embed(scrubbed);
-        const hydeVec = hydeQuery ? await this.embeddingFactory.embed(hydeQuery) : null;
+        // HyDE expansion already reads like a document, so embed it as a passage
+        // rather than a query — the prefix difference matters for instruction-aware models.
+        const queryVec = await this.embeddingFactory.embed(scrubbed, { isQuery: true });
+        const hydeVec = hydeQuery ? await this.embeddingFactory.embed(hydeQuery, { isQuery: false }) : null;
 
         const [semanticOrig, semanticHyde, keywordResults] = await Promise.all([
             this.client.search(queryVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }),
@@ -2674,7 +2676,7 @@ export async function run() {
         }
         else if (action === "search-skills") {
             await mesh.init();
-            const vector = await mesh.embeddingFactory.embed(input.query);
+            const vector = await mesh.embeddingFactory.embed(input.query, { isQuery: true });
             if (mesh.skillTable) {
                 const results = await mesh.skillTable
                     .search(vector)

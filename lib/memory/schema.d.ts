@@ -13,7 +13,10 @@ import * as arrow from "apache-arrow";
  */
 export declare const DEFAULT_VECTOR_DIMENSION = 384;
 /**
- * Common embedding model dimensions
+ * Common embedding model dimensions. Used by getEmbeddingDimension() to
+ * size the LanceDB vector column. Matryoshka-capable models (Nomic v1.5,
+ * Jina v3, Arctic v2) can be stored at a smaller dimension by passing
+ * EMBEDDING_DIMENSION explicitly — the embed call will truncate + renorm.
  */
 export declare const EMBEDDING_DIMENSIONS: {
     "Xenova/all-MiniLM-L6-v2": number;
@@ -21,6 +24,20 @@ export declare const EMBEDDING_DIMENSIONS: {
     "Xenova/distiluse-base-multilingual-cased-v1": number;
     "sentence-transformers/all-MiniLM-L6-v2": number;
     "sentence-transformers/all-mpnet-base-v2": number;
+    "Xenova/bge-base-en-v1.5": number;
+    "Xenova/bge-large-en-v1.5": number;
+    "Xenova/bge-small-en-v1.5": number;
+    "Xenova/bge-m3": number;
+    "BAAI/bge-base-en-v1.5": number;
+    "BAAI/bge-large-en-v1.5": number;
+    "BAAI/bge-m3": number;
+    "Xenova/nomic-embed-text-v1": number;
+    "Xenova/nomic-embed-text-v1.5": number;
+    "nomic-ai/nomic-embed-text-v1.5": number;
+    "Xenova/jina-embeddings-v2-base-en": number;
+    "jinaai/jina-embeddings-v3": number;
+    "intfloat/e5-base-v2": number;
+    "intfloat/multilingual-e5-large": number;
     "openai/text-embedding-3-small": number;
     "openai/text-embedding-3-large": number;
     "cohere/embed-english-light-v3.0": number;
@@ -152,6 +169,20 @@ declare const _default: {
         "Xenova/distiluse-base-multilingual-cased-v1": number;
         "sentence-transformers/all-MiniLM-L6-v2": number;
         "sentence-transformers/all-mpnet-base-v2": number;
+        "Xenova/bge-base-en-v1.5": number;
+        "Xenova/bge-large-en-v1.5": number;
+        "Xenova/bge-small-en-v1.5": number;
+        "Xenova/bge-m3": number;
+        "BAAI/bge-base-en-v1.5": number;
+        "BAAI/bge-large-en-v1.5": number;
+        "BAAI/bge-m3": number;
+        "Xenova/nomic-embed-text-v1": number;
+        "Xenova/nomic-embed-text-v1.5": number;
+        "nomic-ai/nomic-embed-text-v1.5": number;
+        "Xenova/jina-embeddings-v2-base-en": number;
+        "jinaai/jina-embeddings-v3": number;
+        "intfloat/e5-base-v2": number;
+        "intfloat/multilingual-e5-large": number;
         "openai/text-embedding-3-small": number;
         "openai/text-embedding-3-large": number;
         "cohere/embed-english-light-v3.0": number;

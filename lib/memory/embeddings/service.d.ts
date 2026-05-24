@@ -1,4 +1,19 @@
 /**
+ * Return per-task instruction prefixes for embedding models that were
+ * trained with them. Asymmetric retrieval performance regresses badly
+ * if these are omitted (BGE-base: ~10pt MRR loss without query prefix).
+ *
+ * Returns null for models that don't use prefixes (BGE-M3, MiniLM, mpnet,
+ * etc.) — in that case caller passes raw text both ways.
+ *
+ * EMBEDDING_INSTRUCTION_PREFIXES=off disables prefixing even for matched
+ * models (useful for backward compat or experiments).
+ */
+export declare function getInstructionPrefix(modelName: string): {
+    query: string;
+    passage: string;
+} | null;
+/**
  * EmbeddingService provides a unified interface for generating text embeddings
  * using multiple backend providers (local ONNX models or cloud APIs).
  */
@@ -31,14 +46,22 @@ export declare class EmbeddingService {
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[]>} Embedding vector
      */
-    embed(text: any, _options?: {}): Promise<any>;
+    embed(text: any, options?: {}): Promise<any>;
+    /**
+     * Matryoshka-style truncation: slice the vector to targetDimension and
+     * re-normalize. Matryoshka-trained models (nomic-embed-text-v1.5, Jina-v3,
+     * Arctic-embed-l-v2) explicitly support this for storage/latency
+     * trade-offs. Non-Matryoshka models tolerate it with some quality loss.
+     * @private
+     */
+    _maybeTruncate(embedding: any, targetDimension: any): any;
     /**
      * Generate embeddings for a batch of texts
      * @param {string[]} texts - Array of texts to embed
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[][]>} Array of embedding vectors
      */
-    embedBatch(texts: any, _options?: {}): Promise<any[]>;
+    embedBatch(texts: any, options?: {}): Promise<any[]>;
     /**
      * Initialize local ONNX model using Xenova/Transformers.js
      * @private
