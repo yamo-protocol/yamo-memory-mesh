@@ -107,6 +107,25 @@ export interface SMORAResponse {
 /** Public projection of a stored row returned by get() — omits vector and superseded_at. */
 type StoredMemory = Pick<MemoryRecord, "id" | "content" | "metadata" | "created_at" | "updated_at">;
 
+/**
+ * A result flowing through the search() retrieval pipeline (vector + keyword + RRF
+ * merge + graph-RAG boost). Shapes are heterogeneous by source — vector results carry
+ * `vector`/`superseded_at`, keyword results carry `matches` and spread doc fields — so
+ * only `id` and `score` are guaranteed; the rest are optional.
+ */
+interface RankedMemory {
+    id: string;
+    score: number;
+    content?: string;
+    metadata?: Record<string, any> | null;
+    vector?: number[];
+    matches?: string[];
+    created_at?: any;
+    updated_at?: any;
+    superseded_at?: any;
+    _distance?: number;
+}
+
 interface MemoryMeshOptions {
     enableYamo?: boolean;
     enableLLM?: boolean;
@@ -145,7 +164,7 @@ export class MemoryMesh {
     graphTable;
     llmClient;
     scrubber;
-    queryCache;
+    queryCache: Map<string, { result: RankedMemory[]; timestamp: number }>;
     cacheConfig;
     hydeCache; // query → { text, timestamp } for LLM-generated HyDE expansions
     intentEmbedCache; // canonical intent → embedding vector (heritage rerank)
@@ -242,7 +261,7 @@ export class MemoryMesh {
      * where another operation could observe the key as missing. We use a try-finally
      * pattern to ensure atomicity at the application level.
      */
-    _getCachedResult(key) {
+    _getCachedResult(key): RankedMemory[] | null {
         const entry = this.queryCache.get(key);
         if (!entry) {
             return null;
@@ -267,7 +286,7 @@ export class MemoryMesh {
      * Cache a search result
      * @private
      */
-    _cacheResult(key, result) {
+    _cacheResult(key, result: RankedMemory[]) {
         // Evict oldest if at max size
         if (this.queryCache.size >= this.cacheConfig.maxSize) {
             const firstKey = this.queryCache.keys().next().value;
@@ -1957,7 +1976,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      * @throws {Error} If embedding generation fails
      * @throws {Error} If database client is not initialized
      */
-    async search(query, options: { limit?: number; filter?: any; mode?: string; useCache?: boolean } = {}) {
+    async search(query, options: { limit?: number; filter?: any; mode?: string; useCache?: boolean } = {}): Promise<RankedMemory[]> {
         await this.init();
         try {
             const limit = options.limit || 10;
@@ -2037,8 +2056,8 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             // Optimized Reciprocal Rank Fusion (RRF) with min-heap for O(n log k) performance
             // Instead of sorting all results (O(n log n)), we maintain a heap of size k (O(n log k))
             const k = 60; // RRF constant
-            const scores = new Map();
-            const docMap = new Map();
+            const scores = new Map<string, number>();
+            const docMap = new Map<string, RankedMemory>();
             // Process vector results - O(m) where m = vectorResults.length
             for (let rank = 0; rank < vectorResults.length; rank++) {
                 const doc = vectorResults[rank];
@@ -2154,7 +2173,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
     }
 
-    async _applyGraphRagBoosting(results, query) {
+    async _applyGraphRagBoosting(results: RankedMemory[], query): Promise<RankedMemory[]> {
         if (!this.graphTable || results.length === 0) {
             return results;
         }
@@ -2238,7 +2257,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         return results;
     }
 
-    async _keywordSearch(query, limit, filter = null) {
+    async _keywordSearch(query, limit, filter = null): Promise<RankedMemory[]> {
         if (this.client) {
             try {
                 const combinedFilter = filter ? `(${filter}) AND superseded_at IS NULL` : "superseded_at IS NULL";
@@ -2256,7 +2275,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
         return this.keywordSearch.search(query, { limit });
     }
-    _normalizeScores(results) {
+    _normalizeScores(results: RankedMemory[]): RankedMemory[] {
         if (results.length === 0) {
             return [];
         }

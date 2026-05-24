@@ -30,6 +30,24 @@ export interface SMORAResponse {
 }
 /** Public projection of a stored row returned by get() — omits vector and superseded_at. */
 type StoredMemory = Pick<MemoryRecord, "id" | "content" | "metadata" | "created_at" | "updated_at">;
+/**
+ * A result flowing through the search() retrieval pipeline (vector + keyword + RRF
+ * merge + graph-RAG boost). Shapes are heterogeneous by source — vector results carry
+ * `vector`/`superseded_at`, keyword results carry `matches` and spread doc fields — so
+ * only `id` and `score` are guaranteed; the rest are optional.
+ */
+interface RankedMemory {
+    id: string;
+    score: number;
+    content?: string;
+    metadata?: Record<string, any> | null;
+    vector?: number[];
+    matches?: string[];
+    created_at?: any;
+    updated_at?: any;
+    superseded_at?: any;
+    _distance?: number;
+}
 interface MemoryMeshOptions {
     enableYamo?: boolean;
     enableLLM?: boolean;
@@ -67,7 +85,10 @@ export declare class MemoryMesh {
     graphTable: any;
     llmClient: any;
     scrubber: any;
-    queryCache: any;
+    queryCache: Map<string, {
+        result: RankedMemory[];
+        timestamp: number;
+    }>;
     cacheConfig: any;
     hydeCache: any;
     intentEmbedCache: any;
@@ -96,12 +117,12 @@ export declare class MemoryMesh {
      * where another operation could observe the key as missing. We use a try-finally
      * pattern to ensure atomicity at the application level.
      */
-    _getCachedResult(key: any): any;
+    _getCachedResult(key: any): RankedMemory[] | null;
     /**
      * Cache a search result
      * @private
      */
-    _cacheResult(key: any, result: any): void;
+    _cacheResult(key: any, result: RankedMemory[]): void;
     /**
      * Clear all cached results
      */
@@ -110,7 +131,7 @@ export declare class MemoryMesh {
      * Get cache statistics
      */
     getCacheStats(): {
-        size: any;
+        size: number;
         maxSize: any;
         ttlMs: any;
     };
@@ -465,10 +486,10 @@ export declare class MemoryMesh {
         filter?: any;
         mode?: string;
         useCache?: boolean;
-    }): Promise<any>;
-    _applyGraphRagBoosting(results: any, query: any): Promise<any>;
-    _keywordSearch(query: any, limit: any, filter?: any): Promise<any>;
-    _normalizeScores(results: any): any;
+    }): Promise<RankedMemory[]>;
+    _applyGraphRagBoosting(results: RankedMemory[], query: any): Promise<RankedMemory[]>;
+    _keywordSearch(query: any, limit: any, filter?: any): Promise<RankedMemory[]>;
+    _normalizeScores(results: RankedMemory[]): RankedMemory[];
     /**
      * Tokenize query for keyword matching (private helper for searchSkills)
      * Converts text to lowercase tokens, filtering out short tokens and punctuation.
