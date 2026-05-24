@@ -49,6 +49,7 @@ export declare class MemoryMesh {
     queryCache: any;
     cacheConfig: any;
     hydeCache: any;
+    intentEmbedCache: any;
     skillDirectories: any;
     dbDir: any;
     semanticInjection: any;
@@ -539,6 +540,31 @@ export declare class MemoryMesh {
         mergedContent?: string;
         rationale?: string;
     }, neighborId: string, newContent: string): Promise<void>;
+    /**
+     * Canonicalize an intent string for caching + lookup. Mirrors
+     * _canonicalizeEntity's lightweight normalization but preserves
+     * intent vocabulary (no plural stripping — "debug" and "debugs" are
+     * legitimately different verbs/states in intent chains).
+     * @private
+     */
+    _canonicalizeIntent(intent: any): string;
+    /**
+     * Embed a single intent string with persistent caching. Intents are
+     * low-cardinality (handfuls per project) and stable across queries, so
+     * the cache hits hard. Cap at 500 entries with LRU eviction. Returns
+     * null on any failure so callers can fall back to raw overlap.
+     * @private
+     */
+    _embedIntent(intent: any): Promise<any>;
+    /**
+     * Heritage bonus from intent vector matrices. For each session intent,
+     * take its max cosine similarity against any chain intent (MaxSim),
+     * sum, divide by sessionIntent count. Vectors are assumed
+     * L2-normalized (embedding service normalizes by default), so cosine =
+     * dot product. Returns 0 on empty/invalid input.
+     * @private
+     */
+    _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: any): number;
     /**
      * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
      *
