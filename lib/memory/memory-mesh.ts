@@ -470,18 +470,36 @@ export class MemoryMesh {
                 }
             }
             const vector = await this.embeddingFactory.embed(embeddingText);
-            // Dedup: search by the already-computed vector before inserting.
-            // Catches exact duplicates regardless of which write path is used,
-            // protecting callers that bypass captureInteraction()'s dedup guard.
-            if (this.client) {
+            // Dedup: similarity-threshold match against the nearest neighbor.
+            // Bypassed when the caller is using a higher-level idempotency mechanism:
+            //   - metadata.key            → belief-revision supersedes-by-key
+            //   - metadata.replaces_memory_id → explicit replacement
+            //   - metadata.lesson_pattern_id  → RFC-0011 lesson idempotency (distillLesson)
+            //   - metadata.skipDedup === true → caller opt-out
+            // Threshold configurable via DEDUP_SIMILARITY_THRESHOLD (default 0.95 —
+            // high bar to avoid blocking semantically distinct memories).
+            const explicitVersioning =
+                !!sanitizedMetadata.key ||
+                !!sanitizedMetadata.replaces_memory_id ||
+                !!sanitizedMetadata.lesson_pattern_id ||
+                sanitizedMetadata.skipDedup === true;
+            if (this.client && !explicitVersioning) {
                 const nearest = await this.client.search(vector, { limit: 1 });
-                if (nearest.length > 0 && nearest[0].content === sanitizedContent) {
-                    return {
-                        id: nearest[0].id,
-                        content: sanitizedContent,
-                        metadata: sanitizedMetadata,
-                        created_at: new Date().toISOString(),
-                    };
+                if (nearest.length > 0) {
+                    const threshold = parseFloat(process.env.DEDUP_SIMILARITY_THRESHOLD || '0.95');
+                    // Adapter returns LanceDB cosine _distance in the `score` field
+                    // (range [0, 2] for normalized embeddings). Convert to [0, 1] similarity.
+                    const rawDistance = typeof nearest[0].score === 'number' ? nearest[0].score : 1.0;
+                    const similarity = Math.max(0, Math.min(1, 1 - rawDistance / 2));
+                    const isExactMatch = nearest[0].content === sanitizedContent;
+                    if (isExactMatch || similarity >= threshold) {
+                        return {
+                            id: nearest[0].id,
+                            content: sanitizedContent,
+                            metadata: sanitizedMetadata,
+                            created_at: new Date().toISOString(),
+                        };
+                    }
                 }
             }
             const id = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
