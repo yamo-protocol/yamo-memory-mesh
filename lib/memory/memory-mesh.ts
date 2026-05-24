@@ -2608,12 +2608,17 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             enableHyDE = true,
         } = options;
 
-        // Layer 0: scrub query
+        // Layer 0: scrub query. Mirror add()'s pattern — scrubber.process() returns
+        // { chunks, metadata, telemetry, success }, not a `content` field, so derive
+        // the cleaned text by joining chunk texts. Falls back to the raw query when
+        // scrubbing fails or yields no chunks.
         let scrubbed = query;
         try {
             if (this.scrubber) {
                 const s = await this.scrubber.process({ content: query });
-                scrubbed = (s as any).content || query;
+                if (s.success && s.chunks.length > 0) {
+                    scrubbed = s.chunks.map((c: any) => c.text).join("\n\n");
+                }
             }
         } catch { /* non-fatal */ }
 
