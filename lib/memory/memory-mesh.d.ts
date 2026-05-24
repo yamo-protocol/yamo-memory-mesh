@@ -608,6 +608,32 @@ export declare class MemoryMesh {
      */
     optimize(): Promise<any>;
     close(): Promise<void>;
+    /**
+     * Canonicalize an entity string for graph storage and matching.
+     * Lowercase, leading '#' stripped, hyphens/underscores → spaces,
+     * trailing plural 's' stripped, whitespace collapsed. Lets the graph
+     * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
+     * @private
+     */
+    _canonicalizeEntity(entity: any): string;
+    /**
+     * Check if a content string mentions an entity using a case-insensitive
+     * word-boundary regex with simple plural tolerance. Fixes the substring
+     * false positives of the old `content.includes(entity)` check (where
+     * "Auth" matched "AuthService" or "auth-token" matched "authorization").
+     * @private
+     */
+    _contentMentions(content: any, entity: any): boolean;
+    /**
+     * Heuristic triple extractor — pairs consecutive PascalCase tokens with
+     * a between-window verb guess. Produces low-precision edges that pollute
+     * the Graph-RAG boost step. Disabled by default — return [] so no graph
+     * noise from non-LLM writes.
+     *
+     * Opt in via GRAPH_RAG_HEURISTIC_TRIPLES=on env when running against a
+     * corpus where you actually want PascalCase-pairing as a backstop. The
+     * LLM path (_extractTriplesLLM) is the recommended graph source.
+     */
     _extractTriplesHeuristics(content: any): any[];
     _extractTriplesLLM(content: any): Promise<{
         source: string;

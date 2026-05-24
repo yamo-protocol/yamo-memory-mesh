@@ -21,16 +21,19 @@ describe('Graph-RAG 2-Hop Boosting', () => {
         where: (filterExpr: string) => {
           return {
             toArray: async () => {
-              if (filterExpr.includes("'EntityA'")) {
+              // Filter expressions use canonicalized entities (lowercase,
+              // hyphen/underscore→space, plural-stripped) — see
+              // MemoryMesh._canonicalizeEntity.
+              if (filterExpr.includes("'entitya'")) {
                 // 1-hop edges query
                 return [
-                  { source: 'EntityA', target: 'EntityB', relation: 'uses', weight: 1.0 }
+                  { source: 'entitya', target: 'entityb', relation: 'uses', weight: 1.0 }
                 ];
               }
-              if (filterExpr.includes("'EntityB'")) {
+              if (filterExpr.includes("'entityb'")) {
                 // 2-hop edges query
                 return [
-                  { source: 'EntityB', target: 'EntityC', relation: 'uses', weight: 1.0 }
+                  { source: 'entityb', target: 'entityc', relation: 'uses', weight: 1.0 }
                 ];
               }
               return [];
