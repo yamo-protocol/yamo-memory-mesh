@@ -126,30 +126,30 @@ async function retrieve(
   limit: number,
 ): Promise<Array<{ id: string }>> {
   if (mode === 'smora') {
-    const r = await (mesh as any).smora(query, {
+    const r = await mesh.smora(query, {
       limit,
       retrievalLimit: Math.max(30, limit * 2),
       enableHyDE: true,
     });
-    return r.results.map((x: any) => ({ id: x.id }));
+    return r.results.map((x) => ({ id: x.id }));
   }
   if (mode === 'hybrid-rerank') {
     // Reranker is on by default when enableReranker:true; mode 'hybrid' uses it.
-    const r = await (mesh as any).search(query, { limit, mode: 'hybrid', useCache: false });
+    const r = await mesh.search(query, { limit, mode: 'hybrid', useCache: false });
     return r;
   }
   // For 'hybrid' without rerank, temporarily disable the reranker on this call.
   if (mode === 'hybrid') {
-    const prev = (mesh as any).enableReranker;
-    (mesh as any).enableReranker = false;
+    const prev = mesh.enableReranker;
+    mesh.enableReranker = false;
     try {
-      return await (mesh as any).search(query, { limit, mode: 'hybrid', useCache: false });
+      return await mesh.search(query, { limit, mode: 'hybrid', useCache: false });
     } finally {
-      (mesh as any).enableReranker = prev;
+      mesh.enableReranker = prev;
     }
   }
   // vector | keyword
-  return await (mesh as any).search(query, { limit, mode, useCache: false });
+  return await mesh.search(query, { limit, mode, useCache: false });
 }
 
 export function loadFixtures(corpusPath: string, queriesPath: string): {
