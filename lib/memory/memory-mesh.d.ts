@@ -405,6 +405,41 @@ export declare class MemoryMesh {
         };
     }>;
     /**
+     * Agentic memory write judge (Mem0 / A-MEM / Letta pattern).
+     *
+     * Called from add() when a candidate memory falls in the gray zone of
+     * similarity to an existing neighbor (similar but not a duplicate).
+     * The LLM decides one of:
+     *   - ADD:    new memory is genuinely new info → store alongside
+     *   - UPDATE: new memory supersedes existing one → mark existing as
+     *             superseded via metadata.replaces_memory_id
+     *   - MERGE:  combine the two into a single richer memory → rewrite
+     *             content and supersede the existing
+     *   - NOOP:   new memory adds nothing the existing one doesn't cover
+     *
+     * Falls back to ADD on any failure (LLM disabled, throws, times out,
+     * returns malformed JSON, returns an unknown decision). Latency bounded
+     * by AGENTIC_OPS_TIMEOUT_MS (default 5000ms).
+     */
+    _judgeMemoryWrite(newContent: string, neighbor: {
+        id: string;
+        content: string;
+        score?: number;
+    }): Promise<{
+        decision: 'ADD' | 'UPDATE' | 'MERGE' | 'NOOP';
+        mergedContent?: string;
+        rationale?: string;
+    }>;
+    /**
+     * Emit a YAMO block recording an agentic ops decision for provenance.
+     * Non-critical — failures are swallowed (caller wraps in .catch).
+     */
+    _emitAgenticDecisionBlock(judgment: {
+        decision: string;
+        mergedContent?: string;
+        rationale?: string;
+    }, neighborId: string, newContent: string): Promise<void>;
+    /**
      * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
      *
      * When an LLM is available, generates a 2-3 sentence hypothetical passage
