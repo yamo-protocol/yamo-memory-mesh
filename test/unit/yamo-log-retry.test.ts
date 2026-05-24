@@ -1,16 +1,21 @@
 /**
- * Tests for getYamoLog() retry hardening (Issue 1: yamo_blocks IO corruption).
+ * Tests for getYamoLog() IO-corruption handling (workspace-77e).
  *
- * Verifies:
- * - Normal path returns results from yamoTable
- * - IO error on final retry triggers dropTable + recreate (not just a warn)
- * - Non-IO final failure logs and returns []
+ * The YAMO audit trail is append-only and Merkle-anchored, so a read failure
+ * must NEVER drop it. Verifies:
+ * - Normal path returns mapped rows from yamoTable
  * - Non-retryable error breaks immediately and returns []
- * - If recreate also fails, yamoTable is set to null (fail-safe)
+ * - IO error exhausting all retries disables the log (yamoTable = null) and
+ *   does NOT destroy data — it quarantines the table instead
+ * - _quarantineYamoTable preserves the table (moves it aside) + writes a marker
+ * - init() refuses to recreate yamo_blocks while a corruption marker is present
  */
 
-import { describe, it, before } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { MemoryMesh } from '../../lib/memory/memory-mesh.js';
 
 function makeMesh(dbDir = '/tmp/test-lancedb') {
@@ -40,7 +45,7 @@ function makeQueryTable(rows: any[], errorOnQuery?: Error) {
   };
 }
 
-describe('getYamoLog() retry hardening', () => {
+describe('getYamoLog() IO-corruption handling', () => {
   it('returns [] when yamoTable is null', async () => {
     const mesh = makeMesh();
     mesh.yamoTable = null;
@@ -78,45 +83,73 @@ describe('getYamoLog() retry hardening', () => {
     assert.strictEqual(callCount, 1);
   });
 
-  it('triggers dropTable+recreate on IO corruption after all retries', async () => {
-    const mesh = makeMesh();
-    let dropCalled = false;
-    let createCalled = false;
-    const freshTable = makeQueryTable([]);
-
-    // Patch lancedb.connect by monkey-patching the mesh's dbDir handling
-    // We simulate by injecting a stale table that always throws IO error
-    const ioError = new Error('LanceError(IO): No such file or directory: 0abc.lance');
-    mesh.yamoTable = makeQueryTable([], ioError) as any;
-
-    // Override the dynamic import + lancedb.connect chain by patching at the module level
-    // Since memory-mesh.ts uses `await import("../yamo/schema.js")` and `lancedb.connect`,
-    // we instead test the observable side effects: yamoTable gets replaced.
-    //
-    // We do this by replacing the internal table after corruption is detected.
-    // The actual test: after getYamoLog() exhaust all 5 retries with IO error,
-    // yamoTable should either be a fresh table or null (not the stale one).
-    const staleTable = mesh.yamoTable;
-    await mesh.getYamoLog({ limit: 3 });
-    // After exhaustion, yamoTable must NOT still be the stale broken table
-    // (it will be either the recreated table or null, depending on whether
-    //  the real LanceDB dropTable call succeeds — in test env it may fail)
-    assert.notStrictEqual(
-      mesh.yamoTable,
-      staleTable,
-      'yamoTable should be replaced after IO corruption exhaustion',
-    );
-  });
-
-  it('sets yamoTable to null when dropTable+recreate also fails', async () => {
-    // When dbDir points to a non-existent path, lancedb.connect will fail
-    // in the recreate path → catch block sets yamoTable = null
+  it('disables the log (does NOT drop the table) on IO corruption after all retries', async () => {
+    // Point at a non-existent dir so the retry-refresh keeps failing and the
+    // quarantine fs writes throw (caught) — the contract is that yamoTable ends
+    // up null and getYamoLog never calls dropTable.
     const mesh = makeMesh('/nonexistent/path/that/does/not/exist');
     const ioError = new Error('LanceError(IO): No such file or directory: missing.lance');
     mesh.yamoTable = makeQueryTable([], ioError) as any;
 
-    await mesh.getYamoLog({ limit: 3 });
-    // Recreate will fail since path doesn't exist → yamoTable = null
-    assert.strictEqual(mesh.yamoTable, null);
+    const result = await mesh.getYamoLog({ limit: 3 });
+    assert.deepStrictEqual(result, []);
+    assert.strictEqual(mesh.yamoTable, null, 'audit log should be disabled after corruption');
+  });
+});
+
+describe('_quarantineYamoTable() preserves the audit trail', () => {
+  let tmpDir: string;
+
+  before(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yamo-quarantine-'));
+  });
+
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('moves the table aside and writes a marker instead of deleting', async () => {
+    // Simulate an on-disk table directory with anchored data.
+    const tableDir = path.join(tmpDir, 'yamo_blocks.lance');
+    fs.mkdirSync(tableDir);
+    fs.writeFileSync(path.join(tableDir, 'anchored.block'), 'merkle-anchored-audit-data');
+
+    const mesh = makeMesh(tmpDir);
+    await mesh._quarantineYamoTable(new Error('LanceError(IO): boom'));
+
+    // Original table directory is gone from the active namespace...
+    assert.ok(!fs.existsSync(tableDir), 'active table dir should be moved aside');
+    // ...but preserved under a timestamped corrupt-* dir, data intact.
+    const aside = fs.readdirSync(tmpDir).find((n) => n.startsWith('yamo_blocks.corrupt-'));
+    assert.ok(aside, 'a quarantined copy should exist');
+    const preserved = fs.readFileSync(path.join(tmpDir, aside!, 'anchored.block'), 'utf8');
+    assert.strictEqual(preserved, 'merkle-anchored-audit-data', 'audit data must be preserved');
+    // And a marker is written so init() requires operator intervention.
+    assert.ok(fs.existsSync(path.join(tmpDir, 'yamo_blocks.CORRUPT')), 'corruption marker should exist');
+  });
+
+  it('is a no-op for in-memory stores', async () => {
+    const mesh = makeMesh(':memory:');
+    await assert.doesNotReject(() => mesh._quarantineYamoTable(new Error('boom')));
+  });
+});
+
+describe('init() honors the yamo_blocks corruption marker', () => {
+  let tmpDir: string;
+
+  before(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yamo-marker-'));
+    fs.writeFileSync(path.join(tmpDir, 'yamo_blocks.CORRUPT'), JSON.stringify({ quarantinedAt: 'x', reason: 'test' }));
+  });
+
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('leaves yamoTable null (audit log off) when the marker is present', async () => {
+    const mesh = new MemoryMesh({ dbDir: tmpDir, enableLLM: false, enableYamo: true });
+    await mesh.init();
+    assert.strictEqual(mesh.yamoTable, null, 'yamo log must stay disabled until operator clears the marker');
+    await mesh.close();
   });
 });

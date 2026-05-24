@@ -373,8 +373,17 @@ export class MemoryMesh {
             // Initialize extension tables if enabled
             if (this.enableYamo && this.client && this.client.db) {
                 try {
-                    const { createYamoTable } = await import("../yamo/schema.js");
-                    this.yamoTable = await createYamoTable(this.client.db, "yamo_blocks");
+                    const corruptionMarker = (this.dbDir && this.dbDir !== ":memory:")
+                        ? path.join(this.dbDir, "yamo_blocks.CORRUPT")
+                        : null;
+                    if (corruptionMarker && fs.existsSync(corruptionMarker)) {
+                        logger.error({ marker: corruptionMarker }, "yamo_blocks is quarantined from a prior IO corruption — audit log disabled. An operator must inspect the moved-aside table and remove the marker to re-enable logging.");
+                        this.yamoTable = null;
+                    }
+                    else {
+                        const { createYamoTable } = await import("../yamo/schema.js");
+                        this.yamoTable = await createYamoTable(this.client.db, "yamo_blocks");
+                    }
                     // Initialize synthesized skills table (Recursive Skill Synthesis)
                     // const { createSynthesizedSkillSchema } = await import('./schema'); // Imported statically now
                     const existingTables = await this.client.db.tableNames();
@@ -1798,24 +1807,22 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     await new Promise((resolve) => setTimeout(resolve, delay));
                     continue;
                 }
-                // Only log warning on final failure
+                // Only act on final failure
                 if (attempt === maxRetries) {
                     if (isRetryable && this.dbDir) {
-                        // All retries exhausted with IO error — manifest corruption is unrecoverable
-                        // (re-opening finds the same stale manifest each time). Drop and recreate
-                        // so the next heartbeat cycle starts with a clean table.
-                        logger.warn({ err: error }, "yamo_blocks IO corruption: recreating table");
+                        // All retries exhausted with IO error. The YAMO audit trail is
+                        // append-only and Merkle-anchored, so we MUST NOT drop it. Quarantine
+                        // the corrupt table (preserve on disk, move aside) and disable the log
+                        // for this session; an operator must inspect it and clear the corruption
+                        // marker before a fresh table is created (see init()).
+                        logger.error({ err: error, table: "yamo_blocks", dbDir: this.dbDir }, "yamo_blocks IO corruption persisted after retries — quarantining table and disabling audit log; operator intervention required");
                         try {
-                            const { createYamoTable: recreateYamoTable } = await import("../yamo/schema.js");
-                            const db = await lancedb.connect(this.dbDir);
-                            await db.dropTable("yamo_blocks");
-                            this.yamoTable = await recreateYamoTable(db, "yamo_blocks");
-                            logger.info("Recreated yamo_blocks table after IO corruption");
+                            await this._quarantineYamoTable(error);
                         }
-                        catch (recreateErr) {
-                            logger.warn({ err: recreateErr }, "Failed to recreate yamo_blocks table — disabling yamo log");
-                            this.yamoTable = null;
+                        catch (quarantineErr) {
+                            logger.error({ err: quarantineErr }, "Failed to quarantine corrupt yamo_blocks table (data left in place)");
                         }
+                        this.yamoTable = null;
                     }
                     else {
                         logger.warn({ err: error }, "Failed to get log after retries");
@@ -1829,6 +1836,28 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             }
         }
         return [];
+    }
+    /**
+     * Quarantine a corrupt yamo_blocks table without destroying it.
+     * Writes a CORRUPT marker (so init() refuses to silently recreate) and moves
+     * the table directory aside with a timestamp suffix, preserving anchored audit
+     * blocks for forensic recovery. No-op for in-memory stores.
+     * @private
+     */
+    async _quarantineYamoTable(cause): Promise<void> {
+        if (!this.dbDir || this.dbDir === ":memory:") return;
+        const ts = new Date().toISOString().replace(/[:.]/g, "-");
+        const marker = path.join(this.dbDir, "yamo_blocks.CORRUPT");
+        fs.writeFileSync(marker, JSON.stringify({
+            quarantinedAt: ts,
+            reason: String((cause && cause.message) || cause || "unknown"),
+        }, null, 2));
+        const tableDir = path.join(this.dbDir, "yamo_blocks.lance");
+        if (fs.existsSync(tableDir)) {
+            const asideDir = path.join(this.dbDir, `yamo_blocks.corrupt-${ts}`);
+            fs.renameSync(tableDir, asideDir);
+            logger.warn({ from: tableDir, to: asideDir }, "Moved corrupt yamo_blocks table aside (preserved for recovery)");
+        }
     }
     /**
      * Emit a YAMO block to the YAMO blocks table
