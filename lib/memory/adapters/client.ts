@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LanceDB Client Wrapper
  *
@@ -37,7 +36,7 @@ export class LanceDBClient {
      * Create a new LanceDBClient instance
      * @param {Object} [config={}] - Configuration object
      */
-    constructor(config = {}) {
+    constructor(config: { uri?: string; tableName?: string; maxRetries?: number; retryDelay?: number; vectorDimension?: number; driver?: any } = {}) {
         this.uri =
             (config && config.uri) || process.env.LANCEDB_URI || "./data/lancedb";
         this.tableName =
@@ -204,7 +203,7 @@ export class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with scores
      * @throws {QueryError} If search fails
      */
-    async search(vector, options = {}) {
+    async search(vector, options: { limit?: number; nprobes?: number; filter?: string | null; refineFactor?: number; timeoutMs?: number } = {}) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -261,7 +260,7 @@ export class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
      * @throws {QueryError} If search fails
      */
-    async searchFts(queryText, options = {}) {
+    async searchFts(queryText, options: { limit?: number; filter?: string | null; timeoutMs?: number } = {}) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -330,7 +329,7 @@ export class LanceDBClient {
      * @param {Object} options - Options
      * @returns {Promise<Array<Object>>} Array of all records
      */
-    async getAll(options = {}) {
+    async getAll(options: { limit?: number } = {}) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -360,7 +359,7 @@ export class LanceDBClient {
      * @param {Object} [options={}] - Query options
      * @returns {Promise<Array<Object>>} Array of matching records
      */
-    async getWhere(filter, options = {}) {
+    async getWhere(filter, options: { limit?: number } = {}) {
         if (!this.isConnected) {
             await this.connect();
         }
@@ -618,7 +617,7 @@ export class LanceDBClient {
      * Retry an operation with exponential backoff
      * @private
      */
-    async _retryOperation(operation, maxRetries, baseDelay) {
+    async _retryOperation(operation, maxRetries?, baseDelay?) {
         const max = maxRetries ?? this.maxRetries;
         const delay = baseDelay ?? this.retryDelay;
         let lastError = null;

@@ -17,7 +17,14 @@ export declare class LanceDBClient {
      * Create a new LanceDBClient instance
      * @param {Object} [config={}] - Configuration object
      */
-    constructor(config?: {});
+    constructor(config?: {
+        uri?: string;
+        tableName?: string;
+        maxRetries?: number;
+        retryDelay?: number;
+        vectorDimension?: number;
+        driver?: any;
+    });
     /**
      * Connect to LanceDB and initialize table
      * Creates the database directory and table if they don't exist
@@ -51,7 +58,13 @@ export declare class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with scores
      * @throws {QueryError} If search fails
      */
-    search(vector: any, options?: {}): Promise<any>;
+    search(vector: any, options?: {
+        limit?: number;
+        nprobes?: number;
+        filter?: string | null;
+        refineFactor?: number;
+        timeoutMs?: number;
+    }): Promise<any>;
     /**
      * Search for records using Full-Text Search (FTS)
      * @param {string} queryText - Query text to search for
@@ -59,7 +72,11 @@ export declare class LanceDBClient {
      * @returns {Promise<Array<Object>>} Array of search results with BM25 scores
      * @throws {QueryError} If search fails
      */
-    searchFts(queryText: any, options?: {}): Promise<any>;
+    searchFts(queryText: any, options?: {
+        limit?: number;
+        filter?: string | null;
+        timeoutMs?: number;
+    }): Promise<any>;
     /**
      * Get a record by ID
      * @param {string} id - Record ID
@@ -72,14 +89,18 @@ export declare class LanceDBClient {
      * @param {Object} options - Options
      * @returns {Promise<Array<Object>>} Array of all records
      */
-    getAll(options?: {}): Promise<any>;
+    getAll(options?: {
+        limit?: number;
+    }): Promise<any>;
     /**
      * Get records matching a filter expression
      * @param {string} filter - SQL-like filter expression
      * @param {Object} [options={}] - Query options
      * @returns {Promise<Array<Object>>} Array of matching records
      */
-    getWhere(filter: any, options?: {}): Promise<any>;
+    getWhere(filter: any, options?: {
+        limit?: number;
+    }): Promise<any>;
     /**
      * Delete a record by ID
      * @param {string} id - Record ID to delete
@@ -145,6 +166,6 @@ export declare class LanceDBClient {
      * Retry an operation with exponential backoff
      * @private
      */
-    _retryOperation(operation: any, maxRetries: any, baseDelay: any): Promise<any>;
+    _retryOperation(operation: any, maxRetries?: any, baseDelay?: any): Promise<any>;
 }
 export default LanceDBClient;

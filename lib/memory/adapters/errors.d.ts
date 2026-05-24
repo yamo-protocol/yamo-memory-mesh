@@ -21,25 +21,25 @@ export declare class LanceDBError extends Error {
  * Error raised when embedding generation or comparison fails
  */
 export declare class EmbeddingError extends LanceDBError {
-    constructor(message: any, details: any);
+    constructor(message: any, details?: {});
 }
 /**
  * Error raised when storage operations (read/write/delete) fail
  */
 export declare class StorageError extends LanceDBError {
-    constructor(message: any, details: any);
+    constructor(message: any, details?: {});
 }
 /**
  * Error raised when database queries fail or return invalid results
  */
 export declare class QueryError extends LanceDBError {
-    constructor(message: any, details: any);
+    constructor(message: any, details?: {});
 }
 /**
  * Error raised when configuration is missing or invalid
  */
 export declare class ConfigurationError extends LanceDBError {
-    constructor(message: any, details: any);
+    constructor(message: any, details?: {});
 }
 /**
  * Sanitize error messages by redacting sensitive information
