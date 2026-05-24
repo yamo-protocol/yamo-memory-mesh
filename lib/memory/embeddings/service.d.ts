@@ -34,7 +34,16 @@ export declare class EmbeddingService {
      * Create a new EmbeddingService instance
      * @param {Object} [config={}] - Configuration options
      */
-    constructor(config?: {});
+    constructor(config?: {
+        modelType?: string;
+        modelName?: string;
+        baseUrl?: string;
+        dimension?: number;
+        batchSize?: number;
+        normalize?: boolean;
+        apiKey?: string;
+        cacheMaxSize?: number;
+    });
     /**
      * Initialize the embedding model
      * Loads the model based on modelType (local, ollama, openai, cohere)
@@ -46,7 +55,10 @@ export declare class EmbeddingService {
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[]>} Embedding vector
      */
-    embed(text: any, options?: {}): Promise<any>;
+    embed(text: any, options?: {
+        isQuery?: boolean;
+        targetDimension?: number;
+    }): Promise<any>;
     /**
      * Matryoshka-style truncation: slice the vector to targetDimension and
      * re-normalize. Matryoshka-trained models (nomic-embed-text-v1.5, Jina-v3,
@@ -81,7 +93,10 @@ export declare class EmbeddingService {
      * @param spans    Array of { start, end } char ranges (non-overlapping, in order).
      * @returns Array of L2-normalized vectors aligned to spans, or null.
      */
-    embedLateChunked(fullText: any, spans: any, options?: {}): Promise<any[]>;
+    embedLateChunked(fullText: any, spans: any, options?: {
+        isQuery?: boolean;
+        targetDimension?: number;
+    }): Promise<any[]>;
     /**
      * Token-level embedding for ColBERT-style late-interaction scoring.
      * Returns the per-token vectors as a flat Float32Array (length =
@@ -94,7 +109,9 @@ export declare class EmbeddingService {
      * MaxSim's cosine assumption holds. Skips [CLS]/[SEP]/[PAD] tokens
      * via their [0,0] offset markers.
      */
-    embedTokens(text: any, options?: {}): Promise<{
+    embedTokens(text: any, options?: {
+        isQuery?: boolean;
+    }): Promise<{
         data: Float32Array<ArrayBuffer>;
         numTokens: number;
         dim: any;

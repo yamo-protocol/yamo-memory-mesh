@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * MemoryContextManager - High-level memory management for YAMO
  */
@@ -21,7 +20,7 @@ export class MemoryContextManager {
     /**
      * Create a new MemoryContextManager
      */
-    constructor(config = {}) {
+    constructor(config: Record<string, any> = {}) {
         this.#config = {
             autoInit: true,
             enableCache: true,
@@ -87,7 +86,7 @@ export class MemoryContextManager {
     /**
      * Recall relevant memories for a query
      */
-    async recallMemories(query, options = {}) {
+    async recallMemories(query, options: { limit?: number; useCache?: boolean; memoryType?: string | null; skillName?: string | null } = {}) {
         try {
             if (this.#config.autoInit && !this.#initialized) {
                 await this.initialize();
@@ -198,7 +197,7 @@ export class MemoryContextManager {
         return lines.join("\n\n");
     }
     #buildMetadata(context) {
-        const metadata = {
+        const metadata: Record<string, any> = {
             interaction_type: context.interactionType || "llm_response",
             created_at: new Date().toISOString(),
         };
@@ -272,7 +271,7 @@ export class MemoryContextManager {
             status: "healthy",
             timestamp: new Date().toISOString(),
             initialized: this.#initialized,
-            checks: {},
+            checks: {} as Record<string, any>,
         };
         try {
             health.checks.mesh = await this.#mesh.stats(); // brain.ts has stats()

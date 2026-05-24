@@ -9,6 +9,8 @@ declare class EmbeddingFactory {
     configured: any;
     ServiceClass: any;
     primaryServiceFailedUntil: any;
+    rerankerModel: any;
+    rerankerTokenizer: any;
     constructor(ServiceClass?: typeof EmbeddingService);
     /**
      * Configure embedding services with fallback chain
@@ -63,7 +65,9 @@ declare class EmbeddingFactory {
      * over a candidate set pays per-doc inference; repeats hit the
      * embedding cache. Pre-computed token storage is a future optimization.
      */
-    colbertRerank(queryText: any, candidates: any, options?: {}): Promise<any>;
+    colbertRerank(queryText: any, candidates: any, options?: {
+        normalized?: boolean;
+    }): Promise<any>;
     /**
      * Late Chunking forwarder — see EmbeddingService.embedLateChunked.
      * Returns null if the primary service can't compute token-level pooled

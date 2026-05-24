@@ -3,7 +3,7 @@ export declare class MemoryContextManager {
     /**
      * Create a new MemoryContextManager
      */
-    constructor(config?: {});
+    constructor(config?: Record<string, any>);
     /**
      * Initialize the memory context manager
      */
@@ -15,7 +15,12 @@ export declare class MemoryContextManager {
     /**
      * Recall relevant memories for a query
      */
-    recallMemories(query: any, options?: {}): Promise<any>;
+    recallMemories(query: any, options?: {
+        limit?: number;
+        useCache?: boolean;
+        memoryType?: string | null;
+        skillName?: string | null;
+    }): Promise<any>;
     /**
      * Format memories for inclusion in prompt
      */
@@ -30,7 +35,7 @@ export declare class MemoryContextManager {
         status: string;
         timestamp: string;
         initialized: boolean;
-        checks: {};
+        checks: Record<string, any>;
     }>;
     /**
      * Dispose of resources (cleanup timer and cache)

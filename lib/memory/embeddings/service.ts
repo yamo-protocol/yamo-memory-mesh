@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * EmbeddingService - Multi-provider embedding generation service
  *
@@ -64,7 +63,7 @@ export class EmbeddingService {
      * Create a new EmbeddingService instance
      * @param {Object} [config={}] - Configuration options
      */
-    constructor(config = {}) {
+    constructor(config: { modelType?: string; modelName?: string; baseUrl?: string; dimension?: number; batchSize?: number; normalize?: boolean; apiKey?: string; cacheMaxSize?: number } = {}) {
         this.modelType =
             (config && config.modelType) ||
                 process.env.EMBEDDING_MODEL_TYPE ||
@@ -145,7 +144,7 @@ export class EmbeddingService {
      * @param {Object} options - Options for embedding generation
      * @returns {Promise<number[]>} Embedding vector
      */
-    async embed(text, options = {}) {
+    async embed(text, options: { isQuery?: boolean; targetDimension?: number } = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,
@@ -292,7 +291,7 @@ export class EmbeddingService {
      * @param spans    Array of { start, end } char ranges (non-overlapping, in order).
      * @returns Array of L2-normalized vectors aligned to spans, or null.
      */
-    async embedLateChunked(fullText, spans, options = {}) {
+    async embedLateChunked(fullText, spans, options: { isQuery?: boolean; targetDimension?: number } = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,
@@ -399,7 +398,7 @@ export class EmbeddingService {
      * MaxSim's cosine assumption holds. Skips [CLS]/[SEP]/[PAD] tokens
      * via their [0,0] offset markers.
      */
-    async embedTokens(text, options = {}) {
+    async embedTokens(text, options: { isQuery?: boolean } = {}) {
         if (!this.initialized) {
             throw new EmbeddingError("Embedding service not initialized. Call init() first.", {
                 modelType: this.modelType,

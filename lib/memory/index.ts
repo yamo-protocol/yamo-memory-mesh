@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * YAMO Brain Module
  * Semantic memory mesh with vector search capabilities

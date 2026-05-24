@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * EmbeddingFactory - Multi-provider embedding with automatic fallback
  * Manages primary and fallback embedding services
@@ -13,6 +12,8 @@ class EmbeddingFactory {
     configured;
     ServiceClass;
     primaryServiceFailedUntil;
+    rerankerModel;
+    rerankerTokenizer;
     constructor(ServiceClass = EmbeddingService) {
         this.primaryService = null;
         this.fallbackServices = [];
@@ -185,7 +186,7 @@ class EmbeddingFactory {
      * over a candidate set pays per-doc inference; repeats hit the
      * embedding cache. Pre-computed token storage is a future optimization.
      */
-    async colbertRerank(queryText, candidates, options = {}) {
+    async colbertRerank(queryText, candidates, options: { normalized?: boolean } = {}) {
         if (!this.configured || !this.primaryService) {
             throw new ConfigurationError("EmbeddingFactory not configured");
         }
