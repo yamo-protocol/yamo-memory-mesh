@@ -16,7 +16,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { LanceDBClient } from "./adapters/client.js";
+import { LanceDBClient, MemoryRecord } from "./adapters/client.js";
 import { getConfig } from "./adapters/config.js";
 import { getEmbeddingDimension, createSynthesizedSkillSchema, } from "./schema.js";
 import { handleError } from "./adapters/errors.js";
@@ -103,6 +103,9 @@ export interface SMORAResponse {
         latencyMs: number;
     };
 }
+
+/** Public projection of a stored row returned by get() — omits vector and superseded_at. */
+type StoredMemory = Pick<MemoryRecord, "id" | "content" | "metadata" | "created_at" | "updated_at">;
 
 interface MemoryMeshOptions {
     enableYamo?: boolean;
@@ -2324,7 +2327,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         });
         return output;
     }
-    async get(id) {
+    async get(id): Promise<StoredMemory | null> {
         await this.init();
         if (!this.client) {
             throw new Error("Database client not initialized");

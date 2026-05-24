@@ -1,3 +1,4 @@
+import { MemoryRecord } from "./adapters/client.js";
 /** RFC-0012 S-MORA types */
 export interface SMORAOptions {
     limit?: number;
@@ -27,6 +28,8 @@ export interface SMORAResponse {
         latencyMs: number;
     };
 }
+/** Public projection of a stored row returned by get() — omits vector and superseded_at. */
+type StoredMemory = Pick<MemoryRecord, "id" | "content" | "metadata" | "created_at" | "updated_at">;
 interface MemoryMeshOptions {
     enableYamo?: boolean;
     enableLLM?: boolean;
@@ -473,13 +476,7 @@ export declare class MemoryMesh {
      */
     _tokenizeQuery(text: any): any;
     formatResults(results: any): string;
-    get(id: any): Promise<{
-        id: any;
-        content: any;
-        metadata: any;
-        created_at: any;
-        updated_at: any;
-    }>;
+    get(id: any): Promise<StoredMemory | null>;
     /**
      * Delete a memory entry by ID.
      */
