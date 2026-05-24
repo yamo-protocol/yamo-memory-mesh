@@ -2397,8 +2397,10 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
     async queryLessons(query = "", options: { limit?: number } = {}): Promise<any[]> {
         await this.init();
         const limit = options.limit || 10;
-        const all = await this.getAll({ limit: 1000 });
-        const lessons = all.filter((r: any) => {
+        if (!this.client) return [];
+        const filter = `memory_type == 'lesson' OR metadata LIKE '%"type":"lesson"%' OR metadata LIKE '%#lesson_learned%'`;
+        const matching = await this.client.getWhere(filter);
+        const lessons = matching.filter((r: any) => {
             try {
                 const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
                 return meta.type === "lesson" || (Array.isArray(meta.tags) && meta.tags.includes("#lesson_learned"));
@@ -2464,8 +2466,11 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
      */
     async getMemoriesByPattern(patternId: string): Promise<any[]> {
         await this.init();
-        const all = await this.getAll({ limit: 1000 });
-        return (all as any[]).filter((r) => {
+        if (!this.client) return [];
+        const escaped = patternId.replace(/'/g, "''");
+        const filter = `metadata LIKE '%"lesson_pattern_id":"${escaped}"%'`;
+        const matching = await this.client.getWhere(filter);
+        return (matching as any[]).filter((r) => {
             try {
                 const meta = typeof r.metadata === "string" ? JSON.parse(r.metadata) : r.metadata;
                 return meta.lesson_pattern_id === patternId;
