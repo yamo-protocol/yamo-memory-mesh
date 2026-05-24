@@ -1,0 +1,77 @@
+[
+  {
+    "slug": "jwt-expiry",
+    "content": "JWT tokens must include an exp claim for expiry validation; tokens without expiry are rejected by the auth middleware.",
+    "metadata": { "type": "insight", "tags": ["auth", "jwt", "security"] }
+  },
+  {
+    "slug": "jwt-rotation",
+    "content": "Rotating JWT signing keys requires a grace window where both old and new keys validate to avoid mid-flight session breakage.",
+    "metadata": { "type": "pattern", "tags": ["auth", "jwt", "operations"] }
+  },
+  {
+    "slug": "session-store",
+    "content": "User sessions are stored in Redis with a 24-hour TTL and refreshed on each authenticated request.",
+    "metadata": { "type": "pattern", "tags": ["auth", "session", "redis"] }
+  },
+  {
+    "slug": "redis-cache-invalidation",
+    "content": "Cache invalidation in Redis uses pub/sub channels keyed by entity type so all app instances drop stale entries simultaneously.",
+    "metadata": { "type": "pattern", "tags": ["cache", "redis", "scaling"] }
+  },
+  {
+    "slug": "redis-pipelining",
+    "content": "Pipelining Redis commands cuts round-trip latency by 5-10x on bulk operations; never issue thousands of single GETs in a loop.",
+    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "redis", "performance"] }
+  },
+  {
+    "slug": "payment-idempotency",
+    "content": "Payment processing must use idempotency keys on every charge; without them, network retries cause duplicate charges and chargebacks.",
+    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "payments", "reliability"] }
+  },
+  {
+    "slug": "payment-webhook-verification",
+    "content": "Stripe webhook payloads must be HMAC-verified using the signing secret before any side effect; never trust the payload directly.",
+    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "payments", "security"] }
+  },
+  {
+    "slug": "tdd-red-green-refactor",
+    "content": "The TDD cycle is red (failing test), green (minimal pass), refactor (clean up). Skipping red means you can't prove the test catches the bug.",
+    "metadata": { "type": "pattern", "tags": ["tdd", "engineering"] }
+  },
+  {
+    "slug": "tdd-pyramid",
+    "content": "The test pyramid puts unit tests at the base, integration tests in the middle, e2e at the top — invert it and CI times balloon.",
+    "metadata": { "type": "pattern", "tags": ["testing", "engineering"] }
+  },
+  {
+    "slug": "migration-zero-downtime",
+    "content": "Zero-downtime schema migrations require expand-contract: add nullable column, backfill, switch reads, drop old column in a later release.",
+    "metadata": { "type": "pattern", "tags": ["database", "migrations", "operations"] }
+  },
+  {
+    "slug": "migration-lock-timeout",
+    "content": "Long-held migration locks block writes; set lock_timeout to a few seconds and retry rather than blocking production traffic.",
+    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "database", "operations"] }
+  },
+  {
+    "slug": "profiling-p95",
+    "content": "Optimize the p95 latency, not the average. Averages hide tail behavior, and tail latency is what users perceive as slowness.",
+    "metadata": { "type": "insight", "tags": ["performance", "engineering"] }
+  },
+  {
+    "slug": "profiling-flame-graph",
+    "content": "Flame graphs make CPU hotspots obvious; the widest stack frames are where you spend time, not where you think you spend it.",
+    "metadata": { "type": "pattern", "tags": ["performance", "profiling", "engineering"] }
+  },
+  {
+    "slug": "yamo-heartbeat",
+    "content": "The YAMO kernel heartbeat monitors agent drift and triggers skill evolution when reliability drops below threshold.",
+    "metadata": { "type": "insight", "tags": ["yamo", "kernel", "evolution"] }
+  },
+  {
+    "slug": "yamo-merkle-anchor",
+    "content": "YAMO audit blocks are batched into a SHA-256 Merkle tree and periodically anchored to maintain cryptographic provenance.",
+    "metadata": { "type": "insight", "tags": ["yamo", "audit", "cryptography"] }
+  }
+]

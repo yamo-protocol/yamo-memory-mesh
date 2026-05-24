@@ -1,0 +1,34 @@
+[
+  {
+    "query": "how do JWT tokens handle expiration and key rotation?",
+    "gold": ["jwt-expiry", "jwt-rotation"]
+  },
+  {
+    "query": "what causes duplicate payment charges and how to prevent them?",
+    "gold": ["payment-idempotency"]
+  },
+  {
+    "query": "how should webhook payloads be verified securely?",
+    "gold": ["payment-webhook-verification"]
+  },
+  {
+    "query": "redis performance patterns for high throughput",
+    "gold": ["redis-pipelining", "redis-cache-invalidation"]
+  },
+  {
+    "query": "running schema migrations without downtime in production",
+    "gold": ["migration-zero-downtime", "migration-lock-timeout"]
+  },
+  {
+    "query": "why optimize tail latency instead of average response time?",
+    "gold": ["profiling-p95"]
+  },
+  {
+    "query": "what is the YAMO kernel heartbeat for?",
+    "gold": ["yamo-heartbeat"]
+  },
+  {
+    "query": "test-driven development cycle steps",
+    "gold": ["tdd-red-green-refactor", "tdd-pyramid"]
+  }
+]

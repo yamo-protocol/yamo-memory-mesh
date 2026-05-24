@@ -23,6 +23,7 @@
     "test": "npm run build && npx tsx --test test/**/*.test.ts",
     "test:unit": "npx tsx --test test/unit/*.test.ts",
     "test:e2e": "npm run build && npx tsx --test test/e2e/*.test.ts",
+    "eval:retrieval": "npx tsx lib/eval/cli.ts",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
