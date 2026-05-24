@@ -1,6 +1,12 @@
 /**
- * Simple Keyword Search Engine (In-Memory)
- * Provides basic TF-IDF style retrieval to complement vector search
+ * In-Memory Keyword Search — BM25 ranking.
+ *
+ * Used as the fallback path when LanceDB's native Tantivy FTS index is
+ * unavailable (fresh tables, test environments, IO errors). The native
+ * path also uses BM25, so this fallback keeps ranking consistent.
+ *
+ * Defaults k1=1.2, b=0.75 follow Lucene. Tune via constructor:
+ *   new KeywordSearch({ k1: 1.5, b: 0.5 })
  */
 export declare class KeywordSearch {
     index: any;
@@ -8,7 +14,10 @@ export declare class KeywordSearch {
     idf: any;
     docs: any;
     isDirty: any;
-    constructor();
+    avgDocLength: any;
+    k1: any;
+    b: any;
+    constructor(options?: {});
     /**
      * Tokenize text into normalized terms
      * @param {string} text
@@ -28,7 +37,9 @@ export declare class KeywordSearch {
      */
     remove(id: any): void;
     /**
-     * Recalculate IDF scores
+     * Recalculate BM25 IDF and average document length.
+     * BM25 IDF: log((N - df + 0.5) / (df + 0.5) + 1) — the "+1" inside log
+     * keeps it non-negative when df > N/2.
      */
     _computeStats(): void;
     /**

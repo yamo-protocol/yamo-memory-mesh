@@ -1,7 +1,13 @@
 // @ts-nocheck
 /**
- * Simple Keyword Search Engine (In-Memory)
- * Provides basic TF-IDF style retrieval to complement vector search
+ * In-Memory Keyword Search — BM25 ranking.
+ *
+ * Used as the fallback path when LanceDB's native Tantivy FTS index is
+ * unavailable (fresh tables, test environments, IO errors). The native
+ * path also uses BM25, so this fallback keeps ranking consistent.
+ *
+ * Defaults k1=1.2, b=0.75 follow Lucene. Tune via constructor:
+ *   new KeywordSearch({ k1: 1.5, b: 0.5 })
  */
 export class KeywordSearch {
     index; // token -> Map<docId, tf>
@@ -9,12 +15,21 @@ export class KeywordSearch {
     idf; // token -> idf value
     docs; // docId -> content (optional, for snippet)
     isDirty;
-    constructor() {
+    avgDocLength;
+    k1;
+    b;
+    constructor(options = {}) {
         this.index = new Map();
         this.docLengths = new Map();
         this.idf = new Map();
         this.docs = new Map();
         this.isDirty = false;
+        this.avgDocLength = 0;
+        // BM25 hyperparameters (Lucene defaults).
+        // k1: term frequency saturation — higher = more reward for repeated terms.
+        // b:  length normalization — 1.0 fully normalizes, 0.0 ignores doc length.
+        this.k1 = options.k1 ?? 1.2;
+        this.b = options.b ?? 0.75;
     }
     /**
      * Tokenize text into normalized terms
@@ -69,18 +84,23 @@ export class KeywordSearch {
         this.isDirty = true;
     }
     /**
-     * Recalculate IDF scores
+     * Recalculate BM25 IDF and average document length.
+     * BM25 IDF: log((N - df + 0.5) / (df + 0.5) + 1) — the "+1" inside log
+     * keeps it non-negative when df > N/2.
      */
     _computeStats() {
         if (!this.isDirty) {
             return;
         }
         const N = this.docLengths.size;
+        // avgdl over all docs (in tokens, as recorded at index time)
+        let totalLen = 0;
+        for (const len of this.docLengths.values()) totalLen += len;
+        this.avgDocLength = N > 0 ? totalLen / N : 0;
         this.idf.clear();
         for (const [token, docMap] of this.index.entries()) {
             const df = docMap.size;
-            // Standard IDF: log(N / (df + 1)) + 1
-            const idf = Math.log(N / (df + 1)) + 1;
+            const idf = Math.log((N - df + 0.5) / (df + 0.5) + 1);
             this.idf.set(token, idf);
         }
         this.isDirty = false;
@@ -97,6 +117,7 @@ export class KeywordSearch {
         const scores = new Map(); // docId -> score
         const matches = new Map(); // docId -> matched tokens
         const limit = options.limit || 10;
+        const { k1, b, avgDocLength } = this;
         for (const token of tokens) {
             const docMap = this.index.get(token);
             if (!docMap) {
@@ -104,10 +125,14 @@ export class KeywordSearch {
             }
             const idf = this.idf.get(token) || 0;
             for (const [docId, tf] of docMap.entries()) {
-                // TF-IDF Score
-                // Score = tf * idf * (normalization?)
-                // Simple variant:
-                const score = tf * idf;
+                // BM25:  idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * |D|/avgdl))
+                // Term-frequency saturation (k1) prevents long docs with many
+                // repeats from dominating; length normalization (b) penalizes
+                // long docs to keep short, focused docs competitive.
+                const docLen = this.docLengths.get(docId) || 0;
+                const norm = avgDocLength > 0 ? docLen / avgDocLength : 1;
+                const denom = tf + k1 * (1 - b + b * norm);
+                const score = denom > 0 ? idf * (tf * (k1 + 1)) / denom : 0;
                 scores.set(docId, (scores.get(docId) || 0) + score);
                 if (!matches.has(docId)) {
                     matches.set(docId, []);
