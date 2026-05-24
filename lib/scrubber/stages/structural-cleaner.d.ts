@@ -15,4 +15,5 @@ export declare class StructuralCleaner {
     _cleanMarkdown(content: any): Promise<any>;
     _collapseWhitespace(content: any): any;
     _normalizeLineBreaks(content: any): any;
+    _redactSensitiveData(content: any): any;
 }

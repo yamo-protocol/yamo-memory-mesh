@@ -74,6 +74,13 @@ export declare class LanceDBClient {
      */
     getAll(options?: {}): Promise<any>;
     /**
+     * Get records matching a filter expression
+     * @param {string} filter - SQL-like filter expression
+     * @param {Object} [options={}] - Query options
+     * @returns {Promise<Array<Object>>} Array of matching records
+     */
+    getWhere(filter: any, options?: {}): Promise<any>;
+    /**
      * Delete a record by ID
      * @param {string} id - Record ID to delete
      * @returns {Promise<Object>} Result with success status

@@ -549,9 +549,12 @@ export class MemoryMesh {
                 // 2. Semantic replacement by conflict tags (e.g. key)
                 if (sanitizedMetadata.key) {
                     try {
-                        const activeRecords = await this.client.getAll({ limit: 10000 });
+                        const escapedKey = sanitizedMetadata.key.replace(/'/g, "''");
+                        const activeRecords = await this.client.getWhere(
+                            `metadata LIKE '%"key":"${escapedKey}"%' AND superseded_at IS NULL`
+                        );
                         for (const r of activeRecords) {
-                            if (r.id !== result.id && r.metadata && r.metadata.key === sanitizedMetadata.key && !r.superseded_at) {
+                            if (r.id !== result.id) {
                                 await this.client.update(r.id, {
                                     superseded_at: new Date(),
                                 });
@@ -687,8 +690,8 @@ export class MemoryMesh {
         try {
             const identity = extractSkillIdentity(yamoText);
             const name = metadata.name || identity.name;
-            const intent = identity.intent;
-            const description = identity.description;
+            const intent = metadata.intent || identity.intent;
+            const description = metadata.description || identity.description;
             // RECURSION DETECTION: Check for recursive naming patterns
             // Patterns like "SkillSkill", "SkillSkillSkill" indicate filename-derived names
             const recursivePattern = /^(Skill|skill){2,}/;
@@ -1100,23 +1103,57 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             }
             // 2. Hybrid search: vector + keyword matching
             const limit = options.limit || 5;
+            const queryTokens = this._tokenizeQuery(query);
+
             // 2a. Vector search (get more candidates for fusion)
             const vector = await this.embeddingFactory.embed(query);
             const vectorResults = await this.skillTable
                 .search(vector)
                 .limit(limit * 3)
                 .toArray();
-            // 2b. Keyword matching against skill fields (including tags)
-            const queryTokens = this._tokenizeQuery(query);
+
+            // 2b. Parallel Keyword search at database level using LIKE expression
+            let keywordResults = [];
+            if (queryTokens.length > 0) {
+                const escapedTokens = queryTokens.map(t => t.replace(/'/g, "''"));
+                const filterExpr = escapedTokens
+                    .map(t => `(name LIKE '%${t}%' OR intent LIKE '%${t}%' OR yamo_text LIKE '%${t}%')`)
+                    .join(" OR ");
+                try {
+                    keywordResults = await this.skillTable
+                        .query()
+                        .where(filterExpr)
+                        .limit(limit * 3)
+                        .toArray();
+                } catch (err) {
+                    if (process.env.YAMO_DEBUG === "true") {
+                        logger.warn({ err }, "Keyword search query in searchSkills failed");
+                    }
+                }
+            }
+
+            // 2c. Merge and deduplicate candidates
+            const allCandidates = [...vectorResults, ...keywordResults];
+            const uniqueCandidates = [];
+            const seenIds = new Set();
+            for (const c of allCandidates) {
+                if (!seenIds.has(c.id)) {
+                    seenIds.add(c.id);
+                    uniqueCandidates.push(c);
+                }
+            }
+
+            // 2d. Compute keyword match score for all candidates
             const keywordScores = new Map();
             let maxKeywordScore = 0;
-            for (const result of vectorResults) {
+            for (const result of uniqueCandidates) {
                 let score = 0;
                 const nameTokens = this._tokenizeQuery(result.name);
                 const intentTokens = this._tokenizeQuery(result.intent || "");
                 const tags = extractSkillTags(result.yamo_text);
                 const tagTokens = tags.flatMap((t) => this._tokenizeQuery(t));
                 const descTokens = this._tokenizeQuery(result.yamo_text.substring(0, 500)); // First 500 chars
+
                 // Token matching with field-based weights
                 // Support both exact and partial matches (for compound words)
                 for (const qToken of queryTokens) {
@@ -1142,25 +1179,50 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     maxKeywordScore = Math.max(maxKeywordScore, score);
                 }
             }
-            // 2c. Combine scores using weighted fusion
-            const fusedResults = vectorResults.map((r) => {
-                // Normalize vector distance to [0, 1] similarity score
-                // LanceDB cosine distance ranges from 0 (identical) to 2 (opposite)
-                const rawDistance = r._distance !== undefined ? r._distance : 1.0;
-                const vectorScore = Math.max(0, Math.min(1.0, 1 - rawDistance / 2));
-                const keywordScore = keywordScores.get(r.id) || 0;
-                // Normalize keyword score by max observed (or use fixed max to avoid division by zero)
-                const normalizedKeyword = maxKeywordScore > 0 ? keywordScore / maxKeywordScore : 0;
-                // Weighted combination: 70% keyword, 30% vector
-                // Keywords get higher weight to prioritize exact matches
-                const combinedScore = 0.7 * normalizedKeyword + 0.3 * vectorScore;
-                return {
-                    ...r,
-                    score: combinedScore,
-                    _vectorScore: vectorScore,
-                    _keywordScore: keywordScore,
-                };
-            });
+
+            // Sort unique candidates by computed keyword score for RRF ranking
+            const keywordRanked = [...uniqueCandidates]
+                .filter(c => keywordScores.has(c.id))
+                .sort((a, b) => (keywordScores.get(b.id) || 0) - (keywordScores.get(a.id) || 0));
+
+            // 2e. Apply Reciprocal Rank Fusion (RRF)
+            const k = 60;
+            const rrfScores = new Map();
+            const skillMap = new Map();
+
+            function applyRRF(list, weight) {
+                for (let rank = 0; rank < list.length; rank++) {
+                    const skill = list[rank];
+                    if (!skill?.id) continue;
+                    rrfScores.set(skill.id, (rrfScores.get(skill.id) || 0) + weight / (k + rank + 1));
+                    if (!skillMap.has(skill.id)) skillMap.set(skill.id, skill);
+                }
+            }
+
+            applyRRF(vectorResults, 0.4);
+            applyRRF(keywordRanked, 0.6);
+
+            // 2f. Build fused results with combined score compatibility
+            const fusedResults = Array.from(rrfScores.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([id]) => {
+                    const r = skillMap.get(id);
+                    // Find vector similarity: 1 - distance / 2
+                    const vecMatch = vectorResults.find((v) => v.id === id);
+                    const rawDistance = vecMatch && vecMatch._distance !== undefined ? vecMatch._distance : 1.0;
+                    const vectorScore = Math.max(0, Math.min(1.0, 1 - rawDistance / 2));
+
+                    const keywordScore = keywordScores.get(id) || 0;
+                    const normalizedKeyword = maxKeywordScore > 0 ? keywordScore / maxKeywordScore : 0;
+                    const combinedScore = 0.7 * normalizedKeyword + 0.3 * vectorScore;
+
+                    return {
+                        ...r,
+                        score: combinedScore,
+                        _vectorScore: vectorScore,
+                        _keywordScore: keywordScore,
+                    };
+                });
             // Sort by combined score and return top results
             // Don't normalize - we already calculated hybrid scores
             return fusedResults

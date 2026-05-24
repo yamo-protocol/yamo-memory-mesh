@@ -14,7 +14,9 @@ Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent a
 
 ## Features
 
-- **Persistent Vector Storage**: Powered by LanceDB for semantic search.
+- **Persistent Vector Storage & Native FTS**: Powered by LanceDB for semantic vector search and native Tantivy-based Full-Text Search (FTS) with BM25 scoring and in-memory TF-IDF fallback.
+- **Situated Context / Contextual Retrieval**: Automatically extracts and prepends document global context (from metadata or document structure/headings) to segments during chunking to maintain query attention on fragmented chunks.
+- **Graph-RAG 2-Hop Traversal**: Unified neighborhood search boosting that traverses 1-hop (1.15x boost) and 2-hop (1.07x boost) relation networks, capped at a 1.0 maximum score.
 - **LanceDB V2 Schema (Active)**: Top-level columns `memory_type`, `importance_score`, `access_count`, `last_accessed`, `session_id`, `agent_id` — populated on every write, queried server-side (WHERE clause) instead of full-table scans.
 - **Layer 0 Scrubber**: Automatically sanitizes, deduplicates, and cleans content before embedding.
 - **Local Embeddings**: Runs 100% locally using ONNX (no API keys required).
@@ -94,8 +96,19 @@ memory-mesh stats
 import { MemoryMesh } from '@yamo/memory-mesh';
 
 const mesh = new MemoryMesh();
-await mesh.add('Content', { meta: 'data' });
-const results = await mesh.search('query');
+await mesh.init();
+
+// Store memory with explicit document context (Situated Context)
+await mesh.add('The database handle must be refreshed during IO error retries.', {
+  type: 'insight',
+  documentContext: 'LanceDB integration hardening for stability'
+});
+
+// Search can utilize 'hybrid' (combining semantic and native FTS keyword search), 'vector', or 'keyword' modes
+const results = await mesh.search('database handle retry', {
+  limit: 5,
+  mode: 'hybrid' // supports 'vector' | 'keyword' | 'hybrid'
+});
 ```
 
 ### Enhanced Reflections with LLM

@@ -41,6 +41,7 @@ program
   .option('-t, --type <type>', 'Memory type (e.g., insight, decision, error)', 'event')
   .option('-r, --rationale <text>', 'The constitutional rationale for this memory')
   .option('-h, --hypothesis <text>', 'The associated hypothesis')
+  .option('-d, --document-context <text>', 'Explicit global document/source context for situated chunking')
   .action(async (options) => {
     const mesh = new MemoryMesh();
     try {
@@ -49,6 +50,7 @@ program
         type: options.type,
         rationale: options.rationale,
         hypothesis: options.hypothesis,
+        documentContext: options.documentContext,
         source: 'cli-manual'
       };
       
@@ -136,11 +138,17 @@ program
   .description('Perform high-fidelity semantic recall')
   .argument('<query>', 'The semantic query')
   .option('-l, --limit <number>', 'Number of results', '5')
+  .option('-m, --mode <mode>', 'Search mode: hybrid, vector, keyword', 'hybrid')
+  .option('-f, --filter <sql>', 'LanceDB SQL filter clause')
   .action(async (query, options) => {
     const mesh = new MemoryMesh();
     try {
       ui.info(`Searching subconscious for "${pc.italic(query)}"...`);
-      const results = await mesh.search(query, { limit: parseInt(options.limit) });
+      const results = await mesh.search(query, {
+        limit: parseInt(options.limit),
+        mode: options.mode,
+        filter: options.filter
+      });
       
       if (results.length === 0) {
         ui.warn('No relevant memories found.');

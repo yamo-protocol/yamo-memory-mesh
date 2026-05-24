@@ -42,21 +42,28 @@ All operations go through the `memory-mesh` command (or `./tools/memory_mesh.js`
 # Minimal
 memory-mesh store --content "LanceDB V2 adds memory_type and importance_score columns"
 
-# With type and rationale
+# With type, rationale, and document context (Situated Context)
 memory-mesh store \
   --content "Always use fire-and-forget for V2 column populate to avoid blocking writes" \
   --type "insight" \
-  --rationale "Prevents latency regression on add()"
+  --rationale "Prevents latency regression on add()" \
+  --document-context "LanceDB schema and integration guidelines"
 ```
 
 ### Search by meaning
 
 ```bash
-# Basic semantic search
+# Basic semantic search (defaults to hybrid mode)
 memory-mesh search "LanceDB column population" --limit 5
 
-# With type filter (uses server-side WHERE on memory_type when available)
-memory-mesh search "consolidation results" --limit 3
+# Vector-only search mode
+memory-mesh search "LanceDB column population" --limit 5 --mode vector
+
+# Keyword-only (FTS / TF-IDF) search mode
+memory-mesh search "LanceDB column population" --limit 5 --mode keyword
+
+# Search with server-side SQL filter (WHERE clause on V2 columns)
+memory-mesh search "consolidation results" --limit 3 --filter "importance_score > 0.6"
 ```
 
 ### Retrieve by ID
@@ -147,24 +154,63 @@ console.log(reflection.reflection);
 console.log(reflection.confidence);  // 0.0–1.0
 ```
 
+### Search Options & Hybrid Search
+
+The `search` method supports vector similarity search, keyword search (native LanceDB FTS / TF-IDF), and hybrid combination (RRF merge):
+
+```javascript
+// Hybrid search (default): combines vector similarity and native FTS keyword search
+const results = await mesh.search('authentication fix', {
+  limit: 5,
+  mode: 'hybrid'
+});
+
+// Vector-only search mode
+const vectorOnly = await mesh.search('authentication fix', {
+  limit: 5,
+  mode: 'vector'
+});
+
+// Keyword-only search mode
+const keywordOnly = await mesh.search('authentication fix', {
+  limit: 5,
+  mode: 'keyword'
+});
+```
+
+### Situated Context / Contextual Retrieval
+
+When saving content, you can provide explicit document/source context to preserve semantic meaning across fragmented chunks:
+
+```javascript
+// Provide explicit document context during ingestion
+await mesh.add('The database handle must be refreshed during IO error retries.', {
+  type: 'insight',
+  documentContext: 'LanceDB integration hardening and reliability guidelines'
+});
+
+// If no documentContext is provided, it is automatically derived from
+// metadata.title, metadata.source, or parsed from the first heading (# Title)
+```
+
 ### Filtered search (V2 — recommended)
 
 ```javascript
-// Server-side filter on memory_type column
+// Server-side SQL filter on top-level V2 columns
 // Avoids loading the full table into memory
 const codeResults = await mesh.search('authentication fix', {
   limit: 5,
   filter: "memory_type = 'retain'",
 });
 
-// Exclude consolidation records
+// Exclude consolidation records using SQL comparison operators
 const rawResults = await mesh.search('debug patterns', {
   limit: 10,
   filter: "memory_type IS NULL OR memory_type != 'consolidation'",
 });
 ```
 
-The `filter` string is forwarded directly to LanceDB's WHERE clause on the vector search query. It supports standard SQL comparison operators on top-level V2 columns.
+The `filter` string is forwarded directly to LanceDB's WHERE clause on the search query. It supports standard SQL comparison operators on top-level V2 columns. Graph-RAG neighborhood boosting (1-hop 1.15x boost, 2-hop 1.07x boost) is automatically applied to all search modes.
 
 ### `getAll` with limit
 

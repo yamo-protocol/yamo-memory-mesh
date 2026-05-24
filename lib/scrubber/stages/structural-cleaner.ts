@@ -20,8 +20,8 @@ export class StructuralCleaner {
    */
   async clean(content) {
     try {
-      const type = this._detectType(content);
-      let cleaned = content;
+      let cleaned = this._redactSensitiveData(content);
+      const type = this._detectType(cleaned);
 
       if (type === 'html') {
         cleaned = await this._cleanHTML(cleaned);
@@ -76,5 +76,30 @@ export class StructuralCleaner {
 
   _normalizeLineBreaks(content) {
     return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  }
+
+  _redactSensitiveData(content) {
+    if (!content) return content;
+    let redacted = content;
+
+    // 1. Redact Emails
+    redacted = redacted.replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, '[REDACTED_EMAIL]');
+
+    // 2. Redact IP Addresses (IPv4)
+    redacted = redacted.replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, '[REDACTED_IP]');
+
+    // 3. Redact Blockchain/Private Keys (64 hex characters, optional 0x prefix)
+    redacted = redacted.replace(/\b(?:0x)?[a-fA-F0-9]{64}\b/g, '[REDACTED_SECRET_KEY]');
+
+    // 4. Redact OpenAI/Common API Keys (e.g. sk-...)
+    redacted = redacted.replace(/\bsk-[a-zA-Z0-9_-]{20,}\b/g, '[REDACTED_API_KEY]');
+
+    // 5. Redact Bearer Tokens
+    redacted = redacted.replace(/\bBearer\s+[a-zA-Z0-9_\-\.\~]{16,}\b/gi, 'Bearer [REDACTED_TOKEN]');
+
+    // 6. Redact Assignment-based Secrets (e.g. PASSWORD = "...", api_key: "...")
+    redacted = redacted.replace(/(\b(?:password|passwd|pass|token|secret|api_key|privatekey)\b\s*[:=]\s*(["']?))[a-zA-Z0-9_\-\.\~\@]{12,}(\2)/gi, '$1[REDACTED_SECRET]$3');
+
+    return redacted;
   }
 }

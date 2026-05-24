@@ -94,8 +94,9 @@ User/Agent Request
 │ Stage 4: Chunking                                        │
 │   - Split on semantic boundaries (headings, paragraphs)  │
 │   - Token range: 10-500 (4-char approximation)           │
-│   - Preserve context at boundaries                       │
-│   Output: ["Raw text"] (chunks)                          │
+│   - Prepend global document context (Situated Context)   │
+│   - Recalculate tokens including prepended context       │
+│   Output: ["Situated context\nChunk text"] (chunks)      │
 │                                                           │
 │ Stage 5: Metadata Annotation                             │
 │   - Add: source, section, heading_path                   │
@@ -1096,23 +1097,59 @@ node tools/memory_mesh.sh store --content "content" --type "test"
 [DEBUG] LanceDB: Write complete in 12ms
 ```
 
+## SOTA Cognitive Upgrades (Phase I & II)
+
+To achieve state-of-the-art cognitive capabilities matching the latest advancements in agentic memory architectures, MemoryMesh incorporates Phase I and Phase II cognitive upgrades.
+
+### 1. Semantic Chunking
+Instead of purely static paragraph or token-size splitting, the chunker ([chunker.ts](file:///home/dev/workspace/yamo-memory-mesh/lib/scrubber/stages/chunker.ts)) dynamically detects semantic shifts. It calculates cosine similarity between the embeddings of adjacent sentences or paragraphs. Splits are created only when the similarity falls below a dynamic threshold based on the variance of the text segment.
+
+### 2. Dense-Sparse Hybrid Search & Native FTS
+MemoryMesh supports three search modes: `vector`, `keyword`, and `hybrid`.
+*   **LanceDB Native FTS Indexing**: During table initialization, an idempotent FTS index is built on the `content` column using LanceDB's Tantivy integration.
+*   **BM25 Scoring**: FTS searches return BM25 scores. These are normalized relative to the maximum score in the result set to ensure compatibility with vector distance ranges.
+*   **Graceful Fallback**: If the native Tantivy index is unavailable or fails, search queries automatically fall back to an in-memory TF-IDF index.
+
+### 3. Situated Context / Contextual Retrieval
+During the chunking stage, global document context is prepended to each chunk (e.g., `[Document Context: <context>]\n<chunk_text>`).
+*   **Context Extraction**: Context is derived from `documentContext` options, document metadata (`title`, `source`), or parsed from the first header element if not explicitly provided.
+*   **Token Recalculation**: Token counts are automatically re-evaluated using the counter to include the prepended context text.
+
+### 4. Dense-Sparse Reranking (Cross-Encoder)
+After retrieving initial candidate records via vector or hybrid search, candidates can be reranked using a local ONNX Cross-Encoder model (`ms-marco-MiniLM-L-6-v2`). The model performs joint attention on the `(query, content)` pair, producing a highly accurate relevance score.
+
+### 5. Graph-RAG Neighborhood Boosting (2-Hop)
+Entity-relation graphs are persisted in a specialized `graph_edges` table (`id, source, target, relation, weight, created_at`).
+*   **Traversal**: During search, the query is analyzed for entity mentions. The graph is traversed to identify 1-hop and 2-hop neighborhoods of the query entities.
+*   **Dual-Tier Boosting**: Search results matching entities in the neighborhood receive a score boost:
+    *   **1-Hop Neighbors**: $1.15\times$ boost.
+    *   **2-Hop Neighbors**: $1.07\times$ boost.
+*   **Capping**: Boosted scores are capped at a maximum of $1.0$.
+
+### 6. Epistemic Belief Revision
+MemoryMesh supports key-value updates and key supersession. When a new memory specifies that it supersedes a prior memory ID or keys, the previous entry is not deleted but marked with a `superseded_at` timestamp. Search queries automatically filter out superseded records, keeping the active working memory logically consistent.
+
+### 7. Cryptographic Merkle Anchoring
+For YAMO audit trail compliance, unanchored memory blocks are hashed and structured into a SHA-256 Merkle tree. Epoch anchors are periodically submitted to maintain cryptographic proof of provenance and block state.
+
+---
+
 ## Conclusion
 
-Memory Mesh v2.1.0 represents a **self-improving AI agent infrastructure** that combines:
+Memory Mesh v3.2.6 represents a **self-improving AI agent infrastructure** that combines:
 
-1. **Deterministic preprocessing** (Layer 0 Scrubber) for consistent embeddings
-2. **Local-first architecture** (ONNX) for privacy and cost efficiency
-3. **Semantic search** (LanceDB + cosine similarity) for context-aware retrieval
-4. **YAMO protocol compliance** for transparent agent reasoning
-5. **Automatic memory integration** for continuous learning from past executions
+1. **Deterministic preprocessing** (Layer 0 Scrubber) with prepended **Situated Context**
+2. **Local-first architecture** (ONNX vector embeddings & Cross-Encoder reranking) for privacy and cost efficiency
+3. **Dense-Sparse Hybrid Search** (IVF-PQ vector distance + native Tantivy FTS BM25 scoring)
+4. **Graph-RAG Graph Neighborhoods** (2-Hop traversal boosting) for relational recall
+5. **YAMO protocol compliance** and **Merkle Anchoring** for transparent agent reasoning and provenance tracking
 
 The system learns from every workflow execution, storing comprehensive patterns that inform future decisions. This creates a **positive feedback loop** where each successful execution improves the system's ability to handle similar tasks efficiently.
 
 **Key Metrics:**
-- 13 agents in yamo-super workflow
-- 5 automatic memory integration points
-- 4 memories stored (2 workflows, 1 debug, 1 test)
-- 384-dimensional semantic search
+- Dual-tier Graph-RAG boosting (1.15x / 1.07x)
+- Native LanceDB Tantivy FTS with TF-IDF fallback
+- Local ONNX embedding and Cross-Encoder reranking
 - 100% local operation (no cloud required)
 - YAMO protocol compliant
 
