@@ -60,15 +60,21 @@ declare class EmbeddingFactory {
      */
     clearCache(): void;
     /**
-     * Get tokenizer and sequence classification model for reranking
+     * Get tokenizer and sequence classification model for reranking.
+     * Model is configurable via RERANKER_MODEL env (default: bge-reranker-base,
+     * multilingual XLM-RoBERTa cross-encoder — outperforms the legacy
+     * ms-marco-MiniLM-L-6-v2 on BEIR by several nDCG@10 points).
      */
     getReranker(): Promise<{
         tokenizer: any;
         model: any;
     }>;
     /**
-     * Compute cross-encoder relevance scores for a query and a set of candidate documents
+     * Compute cross-encoder relevance scores for a query against a set of
+     * candidate documents. Tokenization and model inference are batched in a
+     * single forward pass per chunk (RERANKER_BATCH_SIZE, default 32) — for
+     * typical rerank candidate sets of 20-40, this is one forward pass.
      */
-    rerank(query: any, documents: any): Promise<any[]>;
+    rerank(query: any, documents: any): Promise<number[]>;
 }
 export default EmbeddingFactory;
