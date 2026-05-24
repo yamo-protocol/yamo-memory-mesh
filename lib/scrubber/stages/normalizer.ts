@@ -1,10 +1,10 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber - Stage 3: Normalization
  * @module smora/scrubber/stages/normalizer
  */
 
 export class Normalizer {
+  config;
   constructor(config) {
     this.config = config;
   }

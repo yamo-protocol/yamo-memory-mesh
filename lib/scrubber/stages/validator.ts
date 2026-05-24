@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber - Stage 6: Validation
  * @module smora/scrubber/stages/validator
@@ -8,6 +7,8 @@ import { TokenCounter } from '../utils/token-counter.js';
 import { ValidationError } from '../errors/scrubber-error.js';
 
 export class Validator {
+  config;
+  tokenCounter;
   constructor(config) {
     this.config = config;
     this.tokenCounter = new TokenCounter();

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Structured Logger using Pino
  * Provides centralized logging with metadata support, PII redaction, and environment-based formatting

@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber Telemetry Collection
  * @module smora/scrubber/telemetry
  */
 export class ScrubberTelemetry {
-    stats;
+    stats: Record<string, { count: number; totalTime: number; errors: number }>;
     constructor() {
         this.stats = {
             structural: { count: 0, totalTime: 0, errors: 0 },
@@ -44,7 +43,7 @@ export class ScrubberTelemetry {
                 chunking: this.stats.chunking.totalTime,
                 metadata: this.stats.metadata.totalTime,
                 validation: this.stats.validation.totalTime,
-                total: Object.values(this.stats).reduce((sum, s) => sum + s.totalTime, 0),
+                total: Object.values(this.stats).reduce((sum: number, s: any) => sum + s.totalTime, 0),
             },
         };
     }

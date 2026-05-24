@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Token counting — character-class-aware heuristic.
  *

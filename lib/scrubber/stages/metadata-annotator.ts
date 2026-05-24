@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber - Stage 5: Metadata Annotation
  * @module smora/scrubber/stages/metadata-annotator
@@ -7,6 +6,8 @@
 import { HashUtil } from '../utils/hash.js';
 
 export class MetadataAnnotator {
+  config;
+  hashUtil;
   constructor(config) {
     this.config = config;
     this.hashUtil = new HashUtil();

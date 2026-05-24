@@ -14,7 +14,15 @@ export declare class LLMClient {
     /**
      * Create a new LLMClient instance
      */
-    constructor(config?: {});
+    constructor(config?: {
+        provider?: string;
+        apiKey?: string;
+        model?: string;
+        baseUrl?: string;
+        maxTokens?: number;
+        timeout?: number;
+        maxRetries?: number;
+    });
     /**
      * Get default model for provider
      * @private

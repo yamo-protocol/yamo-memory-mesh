@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber - Stage 4: Chunking
  * @module smora/scrubber/stages/chunker
@@ -8,6 +7,8 @@ import { TokenCounter } from '../utils/token-counter.js';
 import { ChunkingError, ScrubberError } from '../errors/scrubber-error.js';
 
 export class Chunker {
+  config;
+  tokenCounter;
   constructor(config) {
     this.config = config;
     this.tokenCounter = new TokenCounter();
@@ -18,7 +19,7 @@ export class Chunker {
    * @param {string} content - Normalized content
    * @returns {Promise<Array>} - Array of chunks with metadata
    */
-  async chunk(content, options = {}) {
+  async chunk(content, options: { documentContext?: string } = {}) {
     const { documentContext } = options;
     try {
       let rawChunks;

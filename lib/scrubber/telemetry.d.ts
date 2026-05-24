@@ -3,25 +3,33 @@
  * @module smora/scrubber/telemetry
  */
 export declare class ScrubberTelemetry {
-    stats: any;
+    stats: Record<string, {
+        count: number;
+        totalTime: number;
+        errors: number;
+    }>;
     constructor();
     recordStage(stage: any, duration: any, success?: boolean): void;
     getStageStats(stage: any): {
-        count: any;
+        count: number;
         avgTime: number;
-        totalTime: any;
-        errors: any;
+        totalTime: number;
+        errors: number;
     };
     getSummary(): {
-        stages: any;
+        stages: Record<string, {
+            count: number;
+            totalTime: number;
+            errors: number;
+        }>;
         performance: {
-            structural: any;
-            semantic: any;
-            normalization: any;
-            chunking: any;
-            metadata: any;
-            validation: any;
-            total: unknown;
+            structural: number;
+            semantic: number;
+            normalization: number;
+            chunking: number;
+            metadata: number;
+            validation: number;
+            total: any;
         };
     };
     reset(): void;

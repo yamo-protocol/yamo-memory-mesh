@@ -3,6 +3,8 @@
  * @module smora/scrubber/stages/validator
  */
 export declare class Validator {
+    config: any;
+    tokenCounter: any;
     constructor(config: any);
     /**
      * Validate chunks

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * YAMO Emitter - Constructs structured YAMO ABNF blocks for auditability
  *

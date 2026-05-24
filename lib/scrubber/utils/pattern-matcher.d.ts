@@ -3,6 +3,7 @@
  * @module smora/scrubber/utils/pattern-matcher
  */
 export declare class PatternMatcher {
+    boilerplatePatterns: any;
     constructor();
     _loadDefaultPatterns(): (string | RegExp)[];
     getBoilerplatePatterns(): any;

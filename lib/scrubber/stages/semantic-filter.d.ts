@@ -3,6 +3,9 @@
  * @module smora/scrubber/stages/semantic-filter
  */
 export declare class SemanticFilter {
+    config: any;
+    patternMatcher: any;
+    hashUtil: any;
     constructor(config: any);
     /**
      * Filter semantically empty content

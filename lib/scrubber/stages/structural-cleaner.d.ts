@@ -3,6 +3,8 @@
  * @module smora/scrubber/stages/structural-cleaner
  */
 export declare class StructuralCleaner {
+    config: any;
+    htmlParser: any;
     constructor(config: any);
     /**
      * Clean document structure

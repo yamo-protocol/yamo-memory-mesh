@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber - Main Orchestrator
  * @module smora/scrubber/scrubber
@@ -28,7 +27,13 @@ export class Scrubber {
      */
     async process(document) {
         const startTime = Date.now();
-        const result = {
+        const result: {
+            chunks: any[];
+            metadata: { source: any; type: any; processingTimestamp: string };
+            telemetry: Record<string, any>;
+            success?: boolean;
+            error?: string;
+        } = {
             chunks: [],
             metadata: {
                 source: document.source,

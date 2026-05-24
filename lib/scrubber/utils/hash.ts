@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Content Hashing Utilities
  * @module smora/scrubber/utils/hash

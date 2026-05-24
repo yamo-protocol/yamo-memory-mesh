@@ -3,13 +3,17 @@
  * @module smora/scrubber/stages/chunker
  */
 export declare class Chunker {
+    config: any;
+    tokenCounter: any;
     constructor(config: any);
     /**
      * Split content into chunks
      * @param {string} content - Normalized content
      * @returns {Promise<Array>} - Array of chunks with metadata
      */
-    chunk(content: any, options?: {}): Promise<any>;
+    chunk(content: any, options?: {
+        documentContext?: string;
+    }): Promise<any>;
     _semanticChunk(content: any): Promise<any[]>;
     _paragraphChunk(content: any): any[];
     _cosineSimilarity(u: any, v: any): number;

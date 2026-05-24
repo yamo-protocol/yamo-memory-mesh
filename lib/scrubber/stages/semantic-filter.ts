@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber - Stage 2: Semantic Filtering
  * @module smora/scrubber/stages/semantic-filter
@@ -8,6 +7,9 @@ import { PatternMatcher } from '../utils/pattern-matcher.js';
 import { HashUtil } from '../utils/hash.js';
 
 export class SemanticFilter {
+  config;
+  patternMatcher;
+  hashUtil;
   constructor(config) {
     this.config = config;
     this.patternMatcher = new PatternMatcher();

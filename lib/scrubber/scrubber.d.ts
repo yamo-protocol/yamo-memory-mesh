@@ -25,7 +25,9 @@ export declare class Scrubber {
             type: any;
             processingTimestamp: string;
         };
-        telemetry: {};
+        telemetry: Record<string, any>;
+        success?: boolean;
+        error?: string;
     }>;
     _executeStage(stageName: any, stageFn: any): Promise<any>;
     _initializeStages(): {

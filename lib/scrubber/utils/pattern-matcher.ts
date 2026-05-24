@@ -1,10 +1,10 @@
-// @ts-nocheck
 /**
  * Boilerplate Pattern Matching Utilities
  * @module smora/scrubber/utils/pattern-matcher
  */
 
 export class PatternMatcher {
+  boilerplatePatterns;
   constructor() {
     this.boilerplatePatterns = this._loadDefaultPatterns();
   }

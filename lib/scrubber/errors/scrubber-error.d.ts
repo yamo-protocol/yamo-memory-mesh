@@ -3,6 +3,8 @@
  * @module smora/scrubber/errors/scrubber-error
  */
 export declare class ScrubberError extends Error {
+    details: any;
+    timestamp: any;
     constructor(message: any, details?: {});
     toJSON(): {
         name: string;

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * LLM Client - Multi-provider LLM API client for reflection generation
  *
@@ -26,7 +25,7 @@ export class LLMClient {
     /**
      * Create a new LLMClient instance
      */
-    constructor(config = {}) {
+    constructor(config: { provider?: string; apiKey?: string; model?: string; baseUrl?: string; maxTokens?: number; timeout?: number; maxRetries?: number } = {}) {
         this.provider = config.provider || process.env.LLM_PROVIDER || "openai";
         this.apiKey = config.apiKey || process.env.LLM_API_KEY || "";
         this.model =

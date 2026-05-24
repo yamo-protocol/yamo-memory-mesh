@@ -3,6 +3,7 @@
  * @module smora/scrubber/stages/normalizer
  */
 export declare class Normalizer {
+    config: any;
     constructor(config: any);
     /**
      * Normalize content structure

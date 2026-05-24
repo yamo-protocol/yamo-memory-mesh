@@ -1,10 +1,11 @@
-// @ts-nocheck
 /**
  * S-MORA Layer 0 Scrubber Error Classes
  * @module smora/scrubber/errors/scrubber-error
  */
 
 export class ScrubberError extends Error {
+  details;
+  timestamp;
   constructor(message, details = {}) {
     super(message);
     this.name = 'ScrubberError';

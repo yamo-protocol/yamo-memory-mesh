@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Structured skill-identity extraction.
  *
@@ -66,7 +65,7 @@ export function extractSkillIdentity(content) {
     if (content.startsWith("---")) {
         const endIdx = content.indexOf("---", 3);
         if (endIdx !== -1) {
-            const fields = parseFlatBlock(content.substring(3, endIdx));
+            const fields: Record<string, any> = parseFlatBlock(content.substring(3, endIdx));
             if (fields.name) {
                 return {
                     name: fields.name,
@@ -78,7 +77,7 @@ export function extractSkillIdentity(content) {
     }
     // 2. Legacy v0.4 root-level identity declarations.
     // Safe: name/intent/description do not appear as body section headers.
-    const legacyFields = {};
+    const legacyFields: Record<string, any> = {};
     for (const field of IDENTITY_FIELDS) {
         const match = content.match(LEGACY_REGEXES[field]);
         if (match) {

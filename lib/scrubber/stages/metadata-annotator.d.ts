@@ -3,6 +3,8 @@
  * @module smora/scrubber/stages/metadata-annotator
  */
 export declare class MetadataAnnotator {
+    config: any;
+    hashUtil: any;
     constructor(config: any);
     /**
      * Add metadata to chunks
