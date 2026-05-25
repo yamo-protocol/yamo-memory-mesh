@@ -4,7 +4,6 @@
  */
 
 import { TokenCounter } from '../utils/token-counter.js';
-import { ValidationError } from '../errors/scrubber-error.js';
 import { ValidationConfig } from '../config/defaults.js';
 
 export class Validator {

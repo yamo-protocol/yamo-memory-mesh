@@ -4,7 +4,7 @@
  */
 
 import { TokenCounter } from '../utils/token-counter.js';
-import { ChunkingError, ScrubberError } from '../errors/scrubber-error.js';
+import { ScrubberError } from '../errors/scrubber-error.js';
 import { ChunkingConfig } from '../config/defaults.js';
 
 export class Chunker {
@@ -229,7 +229,7 @@ export class Chunker {
     return /^#{1,6}\s/.test(line);
   }
 
-  _shouldStartNewChunk(currentChunk: any, para: string, paraTokens: number, isHeading: boolean) {
+  _shouldStartNewChunk(currentChunk: any, _para: string, paraTokens: number, isHeading: boolean) {
     if (this.config.splitOnHeadings && isHeading && currentChunk.tokens > 0) {
       return true;
     }

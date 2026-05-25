@@ -8,7 +8,6 @@
  * - text-embedding-3-small: 1536 dimensions
  */
 import * as arrow from "apache-arrow";
-import * as lancedb from "@lancedb/lancedb";
 import { Index } from "@lancedb/lancedb";
 /**
  * Default vector dimension (all-MiniLM-L6-v2)

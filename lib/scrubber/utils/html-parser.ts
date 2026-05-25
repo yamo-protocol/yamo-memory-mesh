@@ -21,7 +21,7 @@ export class HTMLParser {
     text = text.replace(/<!--[\s\S]*?-->/g, '');
 
     // Convert headings to markdown
-    text = text.replace(/<h([1-6])([^>]*)>(.*?)<\/h\1>/gi, (match: string, level: string, attrs: string, content: string) => {
+    text = text.replace(/<h([1-6])([^>]*)>(.*?)<\/h\1>/gi, (_match: string, level: string, _attrs: string, content: string) => {
       const headingLevel = parseInt(level);
       const hashes = '#'.repeat(headingLevel);
       return `${hashes} ${this._stripTags(content)}\n\n`;

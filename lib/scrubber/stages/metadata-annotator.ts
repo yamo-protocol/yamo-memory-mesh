@@ -23,7 +23,7 @@ export class MetadataAnnotator {
   async annotate(chunks: any[], document: any) {
     const headingPath: string[] = [];
 
-    return chunks.map((chunk, index) => {
+    return chunks.map((chunk, _index) => {
       const metadata = {
         ...chunk.metadata,
         source: this.config.addSource ? document.source : undefined,

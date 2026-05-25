@@ -40,7 +40,7 @@ export declare class Chunker {
     }[];
     _cosineSimilarity(u: number[], v: number[]): number;
     _isHeading(line: string): boolean;
-    _shouldStartNewChunk(currentChunk: any, para: string, paraTokens: number, isHeading: boolean): boolean;
+    _shouldStartNewChunk(currentChunk: any, _para: string, paraTokens: number, isHeading: boolean): boolean;
     _extractInitialHeading(content: string): string | null;
     _extractHeadingText(headingLine: string): string | null;
 }
