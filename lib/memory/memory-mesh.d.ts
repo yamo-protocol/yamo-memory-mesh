@@ -68,6 +68,15 @@ interface MemoryMeshOptions {
     dbDir?: string;
 }
 /**
+ * A skill ingest whose LanceDB write has been deferred (AGP Phase 3b staging).
+ * Holds the fully-built `synthesized_skills` row so a caller (e.g. the kernel's
+ * CommitOperator) can flush it via {@link MemoryMesh.commitPendingIngest} after κ
+ * approval, or simply discard it on rejection.
+ */
+export interface PendingSkillIngest {
+    record: Record<string, any>;
+}
+/**
  * MemoryMesh class for managing vector memory storage
  */
 export declare class MemoryMesh {
@@ -100,6 +109,7 @@ export declare class MemoryMesh {
     hydeCache: Map<any, any>;
     intentEmbedCache: Map<any, any>;
     skillDirectories: string[];
+    _stagingLock: Promise<unknown>;
     dbDir: string | undefined;
     semanticInjection: boolean;
     /**
@@ -337,11 +347,48 @@ export declare class MemoryMesh {
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    ingestSkill(yamoText: string, metadata?: Record<string, any>, sourceFilePath?: string): Promise<{
+    ingestSkill(yamoText: string, metadata?: Record<string, any>, sourceFilePath?: string, opts?: {
+        stage?: boolean;
+    }): Promise<{
         id: string;
         name: any;
         intent: any;
+        pendingIngest: {
+            record: {
+                id: string;
+                name: any;
+                intent: any;
+                yamo_text: string;
+                vector: any;
+                metadata: string;
+                created_at: Date;
+            };
+        };
+    } | {
+        id: string;
+        name: any;
+        intent: any;
+        pendingIngest?: undefined;
     }>;
+    /**
+     * Flush a {@link PendingSkillIngest} produced by `synthesize({ ingest: "stage" })`
+     * into the `synthesized_skills` table (AGP Phase 3b κ-commit). Pass `finalSourceFile`
+     * when the staged skill file has been moved to its live location so the indexed
+     * row's `source_file` points at the committed path rather than the staging path.
+     */
+    commitPendingIngest(pending: PendingSkillIngest, opts?: {
+        finalSourceFile?: string;
+    }): Promise<{
+        id: any;
+        name: any;
+        intent: any;
+    }>;
+    /**
+     * Serialize the skillDirectories[0] hot-swap window for staged synthesis so two
+     * concurrent staged synthesize() calls can't read each other's redirected path.
+     * Returns a release function the caller MUST invoke in a `finally`.
+     */
+    _acquireStagingLock(): Promise<() => void>;
     /**
      * Recursive Skill Synthesis
      */
@@ -351,12 +398,35 @@ export declare class MemoryMesh {
         mode?: string;
         targetSkillId?: string;
         lookback?: number;
+        stagingSkillDir?: string;
+        ingest?: "commit" | "stage";
     }): Promise<{
         status: string;
         analysis: string;
         skill_id: string;
         skill_name: any;
         yamo_text: string;
+        stagingPath: never;
+        pendingIngest: {
+            record: {
+                id: string;
+                name: any;
+                intent: any;
+                yamo_text: string;
+                vector: any;
+                metadata: string;
+                created_at: Date;
+            };
+        } | undefined;
+        error?: undefined;
+    } | {
+        status: string;
+        analysis: string;
+        skill_id: string;
+        skill_name: any;
+        yamo_text: string;
+        stagingPath?: undefined;
+        pendingIngest?: undefined;
         error?: undefined;
     } | {
         status: string;
@@ -364,6 +434,8 @@ export declare class MemoryMesh {
         skill_name: string;
         skill_id?: undefined;
         yamo_text?: undefined;
+        stagingPath?: undefined;
+        pendingIngest?: undefined;
         error?: undefined;
     } | {
         status: string;
@@ -372,12 +444,16 @@ export declare class MemoryMesh {
         skill_id?: undefined;
         skill_name?: undefined;
         yamo_text?: undefined;
+        stagingPath?: undefined;
+        pendingIngest?: undefined;
     } | {
         status: string;
         analysis: string;
         skill_id?: undefined;
         skill_name?: undefined;
         yamo_text?: undefined;
+        stagingPath?: undefined;
+        pendingIngest?: undefined;
         error?: undefined;
     }>;
     /**

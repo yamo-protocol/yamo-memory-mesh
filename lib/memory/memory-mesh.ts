@@ -143,6 +143,16 @@ interface MemoryMeshOptions {
 }
 
 /**
+ * A skill ingest whose LanceDB write has been deferred (AGP Phase 3b staging).
+ * Holds the fully-built `synthesized_skills` row so a caller (e.g. the kernel's
+ * CommitOperator) can flush it via {@link MemoryMesh.commitPendingIngest} after κ
+ * approval, or simply discard it on rejection.
+ */
+export interface PendingSkillIngest {
+    record: Record<string, any>;
+}
+
+/**
  * MemoryMesh class for managing vector memory storage
  */
 export class MemoryMesh {
@@ -169,6 +179,9 @@ export class MemoryMesh {
     hydeCache; // query → { text, timestamp } for LLM-generated HyDE expansions
     intentEmbedCache; // canonical intent → embedding vector (heritage rerank)
     skillDirectories; // Store skill directories for synthesis
+    // Serializes the skillDirectories[0] hot-swap during staged synthesis (Phase 3b)
+    // so concurrent synthesize() calls can't clobber each other's redirect.
+    _stagingLock: Promise<unknown> = Promise.resolve();
     dbDir; // Store custom dbDir for in-memory databases
     semanticInjection; // Prepend V5 topics/entities before embedding (Phase 5 Step 1)
     /**
@@ -1209,7 +1222,7 @@ export class MemoryMesh {
      * Ingest synthesized skill
      * @param sourceFilePath - If provided, skip file write (file already exists)
      */
-    async ingestSkill(yamoText: string, metadata: Record<string, any> = {}, sourceFilePath?: string) {
+    async ingestSkill(yamoText: string, metadata: Record<string, any> = {}, sourceFilePath?: string, opts: { stage?: boolean } = {}) {
         await this.init();
         if (!this.skillTable) {
             throw new Error("Skill table not initialized");
@@ -1253,6 +1266,12 @@ export class MemoryMesh {
                 metadata: JSON.stringify(skillMetadata),
                 created_at: new Date(),
             };
+            // Phase 3b staging: defer the LanceDB write so an uncommitted (κ-pending)
+            // skill is never indexed and therefore can't be intercepted before approval.
+            // Return the fully-built row for the caller to flush via commitPendingIngest().
+            if (opts.stage) {
+                return { id, name, intent, pendingIngest: { record } };
+            }
             await this.skillTable.add([record]);
             // NEW: Persist to filesystem for longevity and visibility
             // Skip if sourceFilePath provided (file already exists from SkillCreator)
@@ -1290,9 +1309,50 @@ export class MemoryMesh {
         }
     }
     /**
+     * Flush a {@link PendingSkillIngest} produced by `synthesize({ ingest: "stage" })`
+     * into the `synthesized_skills` table (AGP Phase 3b κ-commit). Pass `finalSourceFile`
+     * when the staged skill file has been moved to its live location so the indexed
+     * row's `source_file` points at the committed path rather than the staging path.
+     */
+    async commitPendingIngest(pending: PendingSkillIngest, opts: { finalSourceFile?: string } = {}) {
+        await this.init();
+        if (!this.skillTable) {
+            throw new Error("Skill table not initialized");
+        }
+        const record = { ...pending.record };
+        if (opts.finalSourceFile) {
+            let meta: Record<string, any> = {};
+            try {
+                meta = typeof record.metadata === "string" ? JSON.parse(record.metadata) : { ...record.metadata };
+            }
+            catch {
+                meta = {};
+            }
+            meta.source_file = opts.finalSourceFile;
+            record.metadata = JSON.stringify(meta);
+        }
+        await this.skillTable.add([record]);
+        return { id: record.id, name: record.name, intent: record.intent };
+    }
+    /**
+     * Serialize the skillDirectories[0] hot-swap window for staged synthesis so two
+     * concurrent staged synthesize() calls can't read each other's redirected path.
+     * Returns a release function the caller MUST invoke in a `finally`.
+     */
+    async _acquireStagingLock(): Promise<() => void> {
+        let release!: () => void;
+        const next = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const prev = this._stagingLock;
+        this._stagingLock = prev.then(() => next);
+        await prev;
+        return release;
+    }
+    /**
      * Recursive Skill Synthesis
      */
-    async synthesize(options: { topic?: string; enrichedPrompt?: string; mode?: string; targetSkillId?: string; lookback?: number } = {}) {
+    async synthesize(options: { topic?: string; enrichedPrompt?: string; mode?: string; targetSkillId?: string; lookback?: number; stagingSkillDir?: string; ingest?: "commit" | "stage" } = {}) {
         await this.init();
         const topic = options.topic || "general_improvement";
         const enrichedPrompt = options.enrichedPrompt || topic; // PHASE 4: Use enriched prompt
@@ -1305,7 +1365,23 @@ export class MemoryMesh {
         // OPTIMIZATION: If we have an execution engine (kernel), use SkillCreator!
         if (this._kernel_execute) {
             logger.info("Dispatching to SkillCreator agent...");
+            // AGP Phase 3b — staged synthesis. When stagingSkillDir is set, redirect the
+            // SkillCreator's writes to the staging dir and defer the LanceDB ingest so an
+            // uncommitted skill is neither on the live skill path nor index-discoverable
+            // until the kernel's κ operator approves it.
+            const stagingSkillDir = options.stagingSkillDir;
+            const ingestMode = options.ingest ?? "commit";
+            let releaseLock: (() => void) | undefined;
+            let originalSkillDir0: string | undefined;
             try {
+                if (stagingSkillDir) {
+                    releaseLock = await this._acquireStagingLock();
+                    if (!fs.existsSync(stagingSkillDir)) {
+                        fs.mkdirSync(stagingSkillDir, { recursive: true });
+                    }
+                    originalSkillDir0 = this.skillDirectories[0];
+                    this.skillDirectories[0] = stagingSkillDir;
+                }
                 // Fetch target skill content if refactoring
                 let targetContent = "";
                 let targetPath = "";
@@ -1445,6 +1521,21 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                             logger.info({ skillFile: newSkillFile, skillName }, "Added metadata block to synthesized skill");
                         }
                     }
+                    if (ingestMode === "stage") {
+                        const staged = await this.ingestSkill(skillContent, {
+                            source: "synthesized",
+                            trigger_topic: topic,
+                        }, newSkillFile, { stage: true });
+                        return {
+                            status: "success",
+                            analysis: "SkillCreator orchestrated evolution (staged, pending κ commit)",
+                            skill_id: staged.id,
+                            skill_name: staged.name,
+                            yamo_text: skillContent,
+                            stagingPath: newSkillFile,
+                            pendingIngest: staged.pendingIngest,
+                        };
+                    }
                     const skill = await this.ingestSkill(skillContent, {
                         source: "synthesized",
                         trigger_topic: topic,
@@ -1471,6 +1562,15 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                     error: e instanceof Error ? e.message : String(e),
                     analysis: "SkillCreator agent failed",
                 };
+            }
+            finally {
+                // Restore the live skill path and release the lock even on error/return.
+                if (originalSkillDir0 !== undefined) {
+                    this.skillDirectories[0] = originalSkillDir0;
+                }
+                if (releaseLock) {
+                    releaseLock();
+                }
             }
         }
         // SkillCreator is required for synthesis
