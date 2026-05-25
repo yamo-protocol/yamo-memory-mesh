@@ -17,6 +17,7 @@ Built on the [YAMO Protocol](https://github.com/yamo-protocol) for transparent a
 - **Persistent Vector Storage & Native FTS**: Powered by LanceDB for semantic vector search and native Tantivy-based Full-Text Search (FTS) with BM25 scoring and in-memory TF-IDF fallback.
 - **Situated Context / Contextual Retrieval**: Automatically extracts and prepends document global context (from metadata or document structure/headings) to segments during chunking to maintain query attention on fragmented chunks.
 - **Graph-RAG 2-Hop Traversal**: Unified neighborhood search boosting that traverses 1-hop (1.15x boost) and 2-hop (1.07x boost) relation networks, capped at a 1.0 maximum score.
+- **Decision Context Graph**: Records decisions as a traversable lineage in a dedicated `decision_edges` table — typed `supersedes`/`depends-on`/`justified-by`/`contradicts` links between memories — so you can ask *why* a decision was made and *what still depends on a reversed one*. Outcomes feed back into retrieval ranking. Kept separate from the Graph-RAG boost graph.
 - **LanceDB V2 Schema (Active)**: Top-level columns `memory_type`, `importance_score`, `access_count`, `last_accessed`, `session_id`, `agent_id` — populated on every write, queried server-side (WHERE clause) instead of full-table scans.
 - **Layer 0 Scrubber**: Automatically sanitizes, deduplicates, and cleans content before embedding.
 - **Local Embeddings**: Runs 100% locally using ONNX (no API keys required).
@@ -166,6 +167,58 @@ await mesh.reflect({ topic: 'test' });                      // emits 'reflect' b
 const yamoLog = await mesh.getYamoLog({ operationType: 'reflect', limit: 10 });
 console.log(yamoLog);
 // [{ id, agentId, operationType, yamoText, timestamp, ... }]
+```
+
+### Decision Context Graph
+
+Decisions can be wired into a traversable lineage graph, distinct from the
+Graph-RAG boost graph. Edges live in their own `decision_edges` table and use a
+controlled vocabulary; `source_id` is always the newer memory, `target_id`
+always pre-exists.
+
+| Relation | Meaning | Source |
+|----------|---------|--------|
+| `supersedes` | the new decision replaces the target | emitted automatically from belief revision (`replaces_memory_id` / `key`) |
+| `depends-on` | the new decision rests on a still-active target | `metadata.depends_on` |
+| `justified-by` | the new decision is grounded in the target evidence | `metadata.justified_by` |
+| `contradicts` | the new decision conflicts with a retained target | `metadata.contradicts` |
+
+```javascript
+const mesh = new MemoryMesh();
+
+const base = await mesh.add('Use Postgres as the primary store', { type: 'decision' });
+
+// A decision that depends on / is justified by other memories.
+const wal = await mesh.add('Enable WAL journal mode', {
+  type: 'decision',
+  reasoning: 'concurrent reads during writes',
+  depends_on: [base.id],          // string | string[]
+});
+
+// Lineage traversal (BFS over decision_edges, not the RAG boost graph):
+await mesh.decisionLineage(wal.id, { direction: 'ancestors' });
+//   what this decision supersedes / depends on / is justified by
+
+await mesh.decisionLineage(base.id, { direction: 'dependents' });
+//   "base was reversed — what still-active decisions rested on it?"
+
+await mesh.decisionLineage(base.id, { direction: 'dependents', relations: ['supersedes'], maxHops: 3 });
+
+// Close the feedback loop — resets importance_score by outcome
+// (validated 0.9 / mixed 0.5 / refuted 0.2) so ranking reflects whether it worked.
+await mesh.recordOutcome(base.id, { status: 'refuted', note: 'switched to local-first' });
+```
+
+Edges are written fire-and-forget and only for decision writes (gated), so
+non-decision `add()` calls pay nothing. Duplicate `(target, relation)` pairs
+within a single write are collapsed.
+
+**CLI Usage:**
+
+```bash
+# Create decision edges at store time (comma-separated memory IDs)
+memory-mesh store -c "Enable WAL journal mode" -t decision \
+  --depends-on "mem_abc,mem_def" --justified-by "mem_ghi"
 ```
 
 ## Using in a Project

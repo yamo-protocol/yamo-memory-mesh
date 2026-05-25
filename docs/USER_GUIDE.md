@@ -48,6 +48,15 @@ memory-mesh store \
   --type "insight" \
   --rationale "Prevents latency regression on add()" \
   --document-context "LanceDB schema and integration guidelines"
+
+# As a decision with Decision Context Graph edges (comma-separated memory IDs).
+# See section 6 for the relation vocabulary.
+memory-mesh store \
+  --content "Enable WAL journal mode" \
+  --type "decision" \
+  --rationale "concurrent reads during writes" \
+  --depends-on "mem_abc,mem_def" \
+  --justified-by "mem_ghi"
 ```
 
 ### Search by meaning
@@ -269,7 +278,73 @@ Filtering on nested metadata fields (e.g., `metadata.source = 'kernel'`) require
 
 ---
 
-## 6. Backfilling Existing Records
+## 6. Decision Context Graph
+
+Decisions can be recorded as a traversable lineage in a dedicated `decision_edges`
+table — separate from the Graph-RAG boost graph so the retrieval signal stays
+clean. Nodes are memory IDs; `relation` is a controlled vocabulary. Edge direction
+is invariant: `source_id` is always the newer memory, `target_id` always pre-exists.
+
+| Relation | Meaning | Written from |
+|---|---|---|
+| `supersedes` | the new decision replaces the target | belief revision (`metadata.replaces_memory_id` or `metadata.key`) — automatic |
+| `depends-on` | the new decision rests on a still-active target | `metadata.depends_on` |
+| `justified-by` | the new decision is grounded in the target evidence | `metadata.justified_by` |
+| `contradicts` | the new decision conflicts with a retained target | `metadata.contradicts` |
+
+The three metadata fields accept a string or a string array. Edges are written
+fire-and-forget and only for *decision* writes (a memory of `type: 'decision'`,
+or any write that supersedes something or carries an edge field), so ordinary
+`add()` calls do no edge work. Duplicate `(target, relation)` pairs within a
+single write are collapsed, and self-edges are skipped.
+
+### Creating edges
+
+```javascript
+const base = await mesh.add('Use Postgres as the primary store', { type: 'decision' });
+
+const wal = await mesh.add('Enable WAL journal mode', {
+  type: 'decision',
+  reasoning: 'concurrent reads during writes',  // stored as the edge rationale
+  hypothesis_confidence: 0.8,                    // stored as the edge weight (default 1.0)
+  depends_on: [base.id],
+});
+```
+
+### Traversing lineage
+
+`decisionLineage()` is a BFS over `decision_edges` (not the RAG boost traversal):
+
+```javascript
+// ancestors: what this decision supersedes / depends on / is justified by
+await mesh.decisionLineage(wal.id, { direction: 'ancestors' });
+
+// dependents: "base was reversed — what still-active decisions rested on it?"
+await mesh.decisionLineage(base.id, { direction: 'dependents' });
+
+// filter by relation and cap depth
+await mesh.decisionLineage(base.id, {
+  direction: 'dependents',
+  relations: ['supersedes', 'depends-on'],
+  maxHops: 3,   // default 3
+});
+// → [{ from, to, relation, rationale, weight, hop }, ...]
+```
+
+### Closing the outcome loop
+
+`recordOutcome()` stores the observed result on the decision's metadata and
+resets `importance_score` by status, so retrieval ranking reflects whether the
+decision actually worked — not merely how often it was read:
+
+```javascript
+await mesh.recordOutcome(base.id, { status: 'refuted', note: 'switched to local-first' });
+// status → importance_score:  validated 0.9 | mixed 0.5 | refuted 0.2
+```
+
+---
+
+## 7. Backfilling Existing Records
 
 Records stored before V2 column activation have `memory_type IS NULL`. They are backfilled gradually:
 
@@ -286,7 +361,7 @@ memory-mesh stats
 
 ---
 
-## 7. YAMO Audit Trail
+## 8. YAMO Audit Trail
 
 When `enableYamo: true` (default), every operation emits a structured YAMO block to the `yamo_blocks` table:
 
@@ -305,7 +380,7 @@ const log = await mesh.getYamoLog({ operationType: 'reflect', limit: 10 });
 
 ---
 
-## 8. Configuration
+## 9. Configuration
 
 ### Environment Variables
 
@@ -354,7 +429,7 @@ const mesh = new MemoryMesh({
 
 ---
 
-## 9. Maintenance
+## 10. Maintenance
 
 ### Compact the database
 
@@ -390,7 +465,7 @@ await mesh.pruneSkills(0.4);  // remove skills below 40% reliability
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 **`search()` returns no results**
 

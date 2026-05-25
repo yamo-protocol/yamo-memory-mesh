@@ -252,6 +252,63 @@ User/Agent Query
 Return: [{id, content, metadata, score, created_at}, ...]
 ```
 
+## Decision Context Graph
+
+A reasoning-audit layer that records decisions as a traversable lineage,
+deliberately kept **separate from the Graph-RAG boost graph**. The two graphs
+answer different questions and must not be conflated:
+
+| | `graph_edges` (Graph-RAG) | `decision_edges` (Decision Context Graph) |
+|---|---|---|
+| Nodes | free-text entities | memory IDs |
+| `relation` | open/extracted | controlled vocabulary |
+| Purpose | boost retrieval scores | traverse decision lineage |
+| Read by | `search()` neighborhood boost | `decisionLineage()` |
+
+Mixing decision edges into `graph_edges` would pollute the retrieval signal the
+boost step depends on, so they live in their own table.
+
+### Schema (`decision_edges`)
+
+`id, source_id, target_id, relation, rationale, weight, created_at` — created
+with `stable` storage version like the other auxiliary tables.
+
+**Direction invariant:** `source_id` is *always* the newer memory and
+`target_id` *always* pre-exists at write time. This is what keeps the write path
+free of dangling targets and lets traversal walk either direction from a node.
+Relations: `supersedes`, `depends-on`, `justified-by`, `contradicts`.
+
+### Write path
+
+Edges are written at the end of `add()`, gated and fire-and-forget:
+
+1. **Gating** — `_isDecisionWrite()` returns true only for `type: 'decision'`,
+   any write that supersedes something, or any write carrying an edge field. So
+   ordinary memory writes do zero edge work.
+2. **`supersedes` for free** — the belief-revision step already supersedes prior
+   memories (by `replaces_memory_id` and by `key`); their IDs are collected and
+   become `supersedes` edges. The pairwise `superseded_at` flag thus also becomes
+   a *walkable* lineage edge at no extra cost.
+3. **Metadata edges** — `depends_on` / `justified_by` / `contradicts` (string or
+   string[]) become the remaining relations. `rationale` is taken from
+   `metadata.reasoning`, `weight` from `metadata.hypothesis_confidence` (default 1.0).
+4. **Intra-call dedup** — duplicate `(target, relation)` pairs are collapsed and
+   self-edges skipped. Because `source_id` is unique per `add()`, duplicates can
+   *only* arise within a single write (e.g. `depends_on: ['X','X']`), so a
+   write-side `Set` is sufficient — no read-side existence query is needed. All
+   edges in one write share rationale/weight, so the collapse is lossless.
+
+### Traversal and outcomes
+
+- `decisionLineage(id, { direction, relations?, maxHops? })` — BFS over
+  `decision_edges` with a `visited` set. `ancestors` follows `source_id == node`
+  (the *why* chain); `dependents` follows `target_id == node` ("what still rests
+  on this reversed decision?"). Distinct from the RAG boost traversal.
+- `recordOutcome(id, { status, note? })` — closes the feedback loop by writing
+  `metadata.outcome` and resetting `importance_score` by status (validated 0.9 /
+  mixed 0.5 / refuted 0.2), so ranking reflects whether a decision worked rather
+  than only how often it was read.
+
 ## YAMO Skills Integration (v2.1.0)
 
 ### Agent-Based Workflow with Automatic Memory Learning
