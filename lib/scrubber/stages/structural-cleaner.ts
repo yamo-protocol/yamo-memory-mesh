@@ -5,11 +5,12 @@
 
 import { HTMLParser } from '../utils/html-parser.js';
 import { StructuralCleaningError, ScrubberError } from '../errors/scrubber-error.js';
+import { StructuralConfig } from '../config/defaults.js';
 
 export class StructuralCleaner {
-  config;
+  config: StructuralConfig;
   htmlParser;
-  constructor(config: any) {
+  constructor(config: StructuralConfig = {}) {
     this.config = config;
     this.htmlParser = new HTMLParser();
   }

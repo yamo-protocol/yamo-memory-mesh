@@ -5,12 +5,22 @@
 
 import { TokenCounter } from '../utils/token-counter.js';
 import { ChunkingError, ScrubberError } from '../errors/scrubber-error.js';
+import { ChunkingConfig } from '../config/defaults.js';
 
 export class Chunker {
-  config;
+  config: ChunkingConfig;
+  // Token limits are always populated by Scrubber's default-config merge before a
+  // Chunker is constructed, so they're asserted non-null here to satisfy strict
+  // null checks at the comparison sites below.
+  maxTokens: number;
+  minTokens: number;
+  hardMaxTokens: number;
   tokenCounter;
-  constructor(config: any) {
+  constructor(config: ChunkingConfig = {}) {
     this.config = config;
+    this.maxTokens = config.maxTokens!;
+    this.minTokens = config.minTokens!;
+    this.hardMaxTokens = config.hardMaxTokens!;
     this.tokenCounter = new TokenCounter();
   }
 
@@ -56,7 +66,10 @@ export class Chunker {
 
   async _semanticChunk(content: string) {
     const embedFn = this.config.embedFn;
-    
+    if (!embedFn) {
+      return this._paragraphChunk(content);
+    }
+
     // 1. Split into sentences/logical lines
     // Headings starting with '#' are kept intact as single elements.
     // Non-headings are split into sentences by standard punctuation boundaries.
@@ -121,9 +134,9 @@ export class Chunker {
         const isBelowThreshold = similarities[simIndex] < threshold;
         const isSemanticSplit = isValley && isBelowThreshold;
 
-        const wouldExceedHardMax = (currentChunk.tokens + sentenceTokens) > this.config.hardMaxTokens;
-        const wouldExceedMax = (currentChunk.tokens + sentenceTokens) > this.config.maxTokens;
-        const hasMinTokens = currentChunk.tokens >= this.config.minTokens;
+        const wouldExceedHardMax = (currentChunk.tokens + sentenceTokens) > this.hardMaxTokens;
+        const wouldExceedMax = (currentChunk.tokens + sentenceTokens) > this.maxTokens;
+        const hasMinTokens = currentChunk.tokens >= this.minTokens;
 
         let shouldSplit = false;
         if (wouldExceedHardMax) {
@@ -137,7 +150,7 @@ export class Chunker {
         }
 
         if (shouldSplit) {
-          if (currentChunk.tokens >= this.config.minTokens) {
+          if (currentChunk.tokens >= this.minTokens) {
             chunks.push({ ...currentChunk });
           }
           currentChunk = {
@@ -152,7 +165,7 @@ export class Chunker {
       currentChunk.tokens += sentenceTokens;
     }
 
-    if (currentChunk.tokens >= this.config.minTokens) {
+    if (currentChunk.tokens >= this.minTokens) {
       chunks.push(currentChunk);
     }
 
@@ -174,7 +187,7 @@ export class Chunker {
       const paraTokens = this.tokenCounter.count(para);
 
       if (this._shouldStartNewChunk(currentChunk, para, paraTokens, isHeading)) {
-        if (currentChunk.tokens >= this.config.minTokens) {
+        if (currentChunk.tokens >= this.minTokens) {
           chunks.push({ ...currentChunk });
         }
         currentChunk = {
@@ -187,13 +200,13 @@ export class Chunker {
       currentChunk.text += (currentChunk.text ? '\n\n' : '') + para;
       currentChunk.tokens += paraTokens;
 
-      if (currentChunk.tokens > this.config.hardMaxTokens) {
+      if (currentChunk.tokens > this.hardMaxTokens) {
         chunks.push({ ...currentChunk });
         currentChunk = { text: '', tokens: 0, heading: null };
       }
     }
 
-    if (currentChunk.tokens >= this.config.minTokens) {
+    if (currentChunk.tokens >= this.minTokens) {
       chunks.push(currentChunk);
     }
 
@@ -221,7 +234,7 @@ export class Chunker {
       return true;
     }
 
-    const wouldExceed = (currentChunk.tokens + paraTokens) > this.config.maxTokens;
+    const wouldExceed = (currentChunk.tokens + paraTokens) > this.maxTokens;
     if (wouldExceed && currentChunk.tokens > 0) {
       return true;
     }

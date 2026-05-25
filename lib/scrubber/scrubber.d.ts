@@ -9,49 +9,9 @@ import { Chunker } from "./stages/chunker.js";
 import { MetadataAnnotator } from "./stages/metadata-annotator.js";
 import { Validator } from "./stages/validator.js";
 import { ScrubberTelemetry } from "./telemetry.js";
+import { ScrubberConfig } from "./config/defaults.js";
 export declare class Scrubber {
-    config: {
-        enabled: boolean;
-        structural: {
-            stripHTML: boolean;
-            normalizeMarkdown: boolean;
-            collapseWhitespace: boolean;
-            removeScripts: boolean;
-            removeStyles: boolean;
-        };
-        semantic: {
-            removeDuplicates: boolean;
-            removeBoilerplate: boolean;
-            minSignalRatio: number;
-            boilerplatePatterns: string;
-        };
-        normalization: {
-            normalizeHeadings: boolean;
-            normalizeLists: boolean;
-            normalizePunctuation: boolean;
-        };
-        chunking: {
-            maxTokens: number;
-            minTokens: number;
-            hardMaxTokens: number;
-            splitOnHeadings: boolean;
-            preserveContext: boolean;
-        };
-        metadata: {
-            addSource: boolean;
-            addSection: boolean;
-            addHeadingPath: boolean;
-            addTimestamp: boolean;
-            addHash: boolean;
-        };
-        validation: {
-            enforceMinLength: boolean;
-            enforceMaxLength: boolean;
-            rejectEmptyChunks: boolean;
-        };
-        logTransformations: boolean;
-        cachePatterns: boolean;
-    };
+    config: ScrubberConfig;
     stages: {
         structural: StructuralCleaner;
         semantic: SemanticFilter;
@@ -61,7 +21,7 @@ export declare class Scrubber {
         validator: Validator;
     };
     telemetry: ScrubberTelemetry;
-    constructor(config?: {});
+    constructor(config?: ScrubberConfig);
     /**
      * Main entry point - process a raw document
      * @param {Object} document - { content: string, source: string, type: 'html'|'md'|'txt' }

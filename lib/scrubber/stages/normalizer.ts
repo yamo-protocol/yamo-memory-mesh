@@ -3,9 +3,11 @@
  * @module smora/scrubber/stages/normalizer
  */
 
+import { NormalizationConfig } from '../config/defaults.js';
+
 export class Normalizer {
-  config;
-  constructor(config: any) {
+  config: NormalizationConfig;
+  constructor(config: NormalizationConfig = {}) {
     this.config = config;
   }
 

@@ -3,10 +3,14 @@
  * @module smora/scrubber/stages/chunker
  */
 import { TokenCounter } from '../utils/token-counter.js';
+import { ChunkingConfig } from '../config/defaults.js';
 export declare class Chunker {
-    config: any;
+    config: ChunkingConfig;
+    maxTokens: number;
+    minTokens: number;
+    hardMaxTokens: number;
     tokenCounter: TokenCounter;
-    constructor(config: any);
+    constructor(config?: ChunkingConfig);
     /**
      * Split content into chunks
      * @param {string} content - Normalized content

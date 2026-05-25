@@ -3,10 +3,11 @@
  * @module smora/scrubber/stages/structural-cleaner
  */
 import { HTMLParser } from '../utils/html-parser.js';
+import { StructuralConfig } from '../config/defaults.js';
 export declare class StructuralCleaner {
-    config: any;
+    config: StructuralConfig;
     htmlParser: HTMLParser;
-    constructor(config: any);
+    constructor(config?: StructuralConfig);
     /**
      * Clean document structure
      * @param {string} content - Raw document content

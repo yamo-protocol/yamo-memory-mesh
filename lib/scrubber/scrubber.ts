@@ -10,12 +10,12 @@ import { MetadataAnnotator } from "./stages/metadata-annotator.js";
 import { Validator } from "./stages/validator.js";
 import { ScrubberTelemetry, } from "./telemetry.js";
 // import { ScrubberError } from './errors/scrubber-error'; // Assuming this exists or I should check
-import { defaultScrubberConfig } from "./config/defaults.js";
+import { defaultScrubberConfig, ScrubberConfig } from "./config/defaults.js";
 export class Scrubber {
-    config;
+    config: ScrubberConfig;
     stages; // Using any for stages as they are not yet converted
     telemetry;
-    constructor(config = {}) {
+    constructor(config: ScrubberConfig = {}) {
         this.config = { ...defaultScrubberConfig, ...config };
         this.stages = this._initializeStages();
         this.telemetry = new ScrubberTelemetry();
@@ -99,7 +99,7 @@ export class Scrubber {
             structural: new StructuralCleaner(this.config.structural),
             semantic: new SemanticFilter(this.config.semantic),
             normalizer: new Normalizer(this.config.normalization),
-            chunker: new Chunker({ ...this.config.chunking, embedFn: (this.config as any).embedFn }),
+            chunker: new Chunker({ ...this.config.chunking, embedFn: this.config.embedFn }),
             metadata: new MetadataAnnotator(this.config.metadata),
             validator: new Validator(this.config.validation),
         };

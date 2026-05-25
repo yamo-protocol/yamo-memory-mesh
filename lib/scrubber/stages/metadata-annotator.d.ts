@@ -3,10 +3,11 @@
  * @module smora/scrubber/stages/metadata-annotator
  */
 import { HashUtil } from '../utils/hash.js';
+import { MetadataConfig } from '../config/defaults.js';
 export declare class MetadataAnnotator {
-    config: any;
+    config: MetadataConfig;
     hashUtil: HashUtil;
-    constructor(config: any);
+    constructor(config?: MetadataConfig);
     /**
      * Add metadata to chunks
      * @param {Array} chunks - Array of chunks

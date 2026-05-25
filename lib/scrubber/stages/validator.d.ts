@@ -3,10 +3,11 @@
  * @module smora/scrubber/stages/validator
  */
 import { TokenCounter } from '../utils/token-counter.js';
+import { ValidationConfig } from '../config/defaults.js';
 export declare class Validator {
-    config: any;
+    config: ValidationConfig;
     tokenCounter: TokenCounter;
-    constructor(config: any);
+    constructor(config?: ValidationConfig);
     /**
      * Validate chunks
      * @param {Array} chunks - Array of chunks

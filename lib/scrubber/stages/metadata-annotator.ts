@@ -4,11 +4,12 @@
  */
 
 import { HashUtil } from '../utils/hash.js';
+import { MetadataConfig } from '../config/defaults.js';
 
 export class MetadataAnnotator {
-  config;
+  config: MetadataConfig;
   hashUtil;
-  constructor(config: any) {
+  constructor(config: MetadataConfig = {}) {
     this.config = config;
     this.hashUtil = new HashUtil();
   }

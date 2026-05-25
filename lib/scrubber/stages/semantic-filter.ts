@@ -5,12 +5,13 @@
 
 import { PatternMatcher } from '../utils/pattern-matcher.js';
 import { HashUtil } from '../utils/hash.js';
+import { SemanticConfig } from '../config/defaults.js';
 
 export class SemanticFilter {
-  config;
+  config: SemanticConfig;
   patternMatcher;
   hashUtil;
-  constructor(config: any) {
+  constructor(config: SemanticConfig = {}) {
     this.config = config;
     this.patternMatcher = new PatternMatcher();
     this.hashUtil = new HashUtil();

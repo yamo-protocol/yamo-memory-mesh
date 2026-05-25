@@ -2,9 +2,10 @@
  * S-MORA Layer 0 Scrubber - Stage 3: Normalization
  * @module smora/scrubber/stages/normalizer
  */
+import { NormalizationConfig } from '../config/defaults.js';
 export declare class Normalizer {
-    config: any;
-    constructor(config: any);
+    config: NormalizationConfig;
+    constructor(config?: NormalizationConfig);
     /**
      * Normalize content structure
      * @param {string} content - Filtered content

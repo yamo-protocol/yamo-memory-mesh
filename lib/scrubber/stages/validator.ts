@@ -5,11 +5,12 @@
 
 import { TokenCounter } from '../utils/token-counter.js';
 import { ValidationError } from '../errors/scrubber-error.js';
+import { ValidationConfig } from '../config/defaults.js';
 
 export class Validator {
-  config;
+  config: ValidationConfig;
   tokenCounter;
-  constructor(config: any) {
+  constructor(config: ValidationConfig = {}) {
     this.config = config;
     this.tokenCounter = new TokenCounter();
   }
@@ -46,16 +47,20 @@ export class Validator {
       errors.push('empty_chunk');
     }
 
+    // NOTE: minTokens/hardMaxTokens live under `chunking`, not `validation`, so
+    // Scrubber never passes them here — these checks are currently dead (tracked
+    // separately). The `!= null` guards preserve that behavior while satisfying
+    // strict null checks: when the limit is absent (always, today) the check is skipped.
     if (this.config.enforceMinLength) {
       const tokens = this.tokenCounter.count(chunk.text);
-      if (tokens < this.config.minTokens) {
+      if (this.config.minTokens != null && tokens < this.config.minTokens) {
         errors.push(`chunk_too_short: ${tokens} < ${this.config.minTokens}`);
       }
     }
 
     if (this.config.enforceMaxLength) {
       const tokens = this.tokenCounter.count(chunk.text);
-      if (tokens > this.config.hardMaxTokens) {
+      if (this.config.hardMaxTokens != null && tokens > this.config.hardMaxTokens) {
         errors.push(`chunk_too_long: ${tokens} > ${this.config.hardMaxTokens}`);
       }
     }

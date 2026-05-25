@@ -4,11 +4,12 @@
  */
 import { PatternMatcher } from '../utils/pattern-matcher.js';
 import { HashUtil } from '../utils/hash.js';
+import { SemanticConfig } from '../config/defaults.js';
 export declare class SemanticFilter {
-    config: any;
+    config: SemanticConfig;
     patternMatcher: PatternMatcher;
     hashUtil: HashUtil;
-    constructor(config: any);
+    constructor(config?: SemanticConfig);
     /**
      * Filter semantically empty content
      * @param {string} content - Cleaned content
