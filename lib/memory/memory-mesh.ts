@@ -2546,20 +2546,33 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         if (!this.decisionEdgeTable) return;
         const rationale = typeof metadata?.reasoning === "string" ? metadata.reasoning : null;
         const weight = typeof metadata?.hypothesis_confidence === "number" ? metadata.hypothesis_confidence : 1.0;
-        const mk = (targetId: string, relation: string) => ({
-            id: `dedge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            source_id: sourceId,
-            target_id: targetId,
-            relation,
-            rationale,
-            weight,
-            created_at: new Date(),
-        });
+        // Collapse duplicate (target, relation) pairs within this write — a caller
+        // passing depends_on: ['X','X'], or replaces_memory_id colliding with a
+        // key-matched supersession, would otherwise emit identical rows. They
+        // carry the same rationale/weight by construction, so dedup loses nothing.
+        // Distinct relations to the same target are kept (different key). source_id
+        // is unique per add(), so this is the only place duplicates can arise.
+        const seen = new Set<string>();
         const edges: any[] = [];
-        for (const t of supersededIds) edges.push(mk(t, "supersedes"));
-        for (const t of this._coerceIdList(metadata?.depends_on)) edges.push(mk(t, "depends-on"));
-        for (const t of this._coerceIdList(metadata?.justified_by)) edges.push(mk(t, "justified-by"));
-        for (const t of this._coerceIdList(metadata?.contradicts)) edges.push(mk(t, "contradicts"));
+        const addEdge = (targetId: string, relation: string) => {
+            if (!targetId || targetId === sourceId) return;
+            const key = `${targetId} ${relation}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            edges.push({
+                id: `dedge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                source_id: sourceId,
+                target_id: targetId,
+                relation,
+                rationale,
+                weight,
+                created_at: new Date(),
+            });
+        };
+        for (const t of supersededIds) addEdge(t, "supersedes");
+        for (const t of this._coerceIdList(metadata?.depends_on)) addEdge(t, "depends-on");
+        for (const t of this._coerceIdList(metadata?.justified_by)) addEdge(t, "justified-by");
+        for (const t of this._coerceIdList(metadata?.contradicts)) addEdge(t, "contradicts");
         if (edges.length > 0) {
             await this.decisionEdgeTable.add(edges);
         }
