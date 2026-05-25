@@ -140,6 +140,35 @@ export declare function createGraphSchema(): arrow.Schema<any>;
  * Creates/opens a graph_edges table in LanceDB
  */
 export declare function createGraphTable(db: any, tableName?: string): Promise<any>;
+/**
+ * Controlled vocabulary for decision_edges.relation.
+ *
+ * Edge direction is invariant: source_id is ALWAYS the newer memory and
+ * target_id ALWAYS pre-exists at write time. This keeps the write path free
+ * of dangling targets and lets traversal walk either direction.
+ *
+ *   supersedes   — the new decision replaces the (now superseded) target
+ *   depends-on   — the new decision rests on a still-active target decision
+ *   justified-by — the new decision is grounded in the target evidence/memory
+ *   contradicts  — the new decision conflicts with the (retained) target
+ */
+export declare const DECISION_RELATIONS: readonly ["supersedes", "depends-on", "justified-by", "contradicts"];
+export type DecisionRelation = (typeof DECISION_RELATIONS)[number];
+/**
+ * Create Decision Context Graph edge table schema.
+ *
+ * Distinct from graph_edges (free-text entity triples used only to boost
+ * Graph-RAG retrieval). Here nodes are memory IDs and `relation` is a
+ * controlled decision vocabulary — this table is for reasoning-audit
+ * traversal, not retrieval scoring.
+ *
+ * Columns: id, source_id, target_id, relation, rationale, weight, created_at
+ */
+export declare function createDecisionEdgeSchema(): arrow.Schema<any>;
+/**
+ * Creates/opens a decision_edges table in LanceDB
+ */
+export declare function createDecisionEdgeTable(db: any, tableName?: string): Promise<any>;
 declare const _default: {
     MEMORY_SCHEMA: arrow.Schema<any>;
     INDEX_CONFIG: {

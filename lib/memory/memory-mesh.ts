@@ -172,6 +172,7 @@ export class MemoryMesh {
     yamoTable: any;
     skillTable: any;
     graphTable: any;
+    decisionEdgeTable: any;
     llmClient;
     scrubber;
     queryCache: Map<string, { result: RankedMemory[]; timestamp: number }>;
@@ -476,6 +477,16 @@ export class MemoryMesh {
                     logger.warn({ err: error }, "Failed to initialize graph_edges table");
                 }
             }
+            // Initialize Decision Context Graph edge table
+            if (this.client && this.client.db) {
+                try {
+                    const { createDecisionEdgeTable } = await import("./schema.js");
+                    this.decisionEdgeTable = await createDecisionEdgeTable(this.client.db, "decision_edges");
+                }
+                catch (error) {
+                    logger.warn({ err: error }, "Failed to initialize decision_edges table");
+                }
+            }
             this.isInitialized = true;
         }
         catch (error) {
@@ -710,7 +721,11 @@ export class MemoryMesh {
                     }
                 }
             }
-            // Epistemic Belief Revision
+            // Epistemic Belief Revision. Collect every memory this write
+            // supersedes so the Decision Context Graph can record `supersedes`
+            // edges below — turning the pairwise superseded_at flag into a
+            // walkable lineage edge at no extra reasoning cost.
+            const supersededIds: string[] = [];
             if (this.client) {
                 // 1. Direct replacement by replaces_memory_id
                 if (sanitizedMetadata.replaces_memory_id) {
@@ -720,6 +735,7 @@ export class MemoryMesh {
                             superseded_at: new Date(),
                         });
                         this.keywordSearch.remove(targetId);
+                        supersededIds.push(targetId);
                     }
                     catch (e) {
                         if (process.env.YAMO_DEBUG === "true") {
@@ -740,6 +756,7 @@ export class MemoryMesh {
                                     superseded_at: new Date(),
                                 });
                                 this.keywordSearch.remove(r.id);
+                                supersededIds.push(r.id);
                             }
                         }
                     }
@@ -749,6 +766,15 @@ export class MemoryMesh {
                         }
                     }
                 }
+            }
+            // Decision Context Graph: gated to decision writes, fire-and-forget
+            // so non-decision writes pay zero cost on the hot path.
+            if (this.decisionEdgeTable && this._isDecisionWrite(sanitizedMetadata, supersededIds)) {
+                this._writeDecisionEdges(result.id, sanitizedMetadata, supersededIds).catch((e) => {
+                    if (process.env.YAMO_DEBUG === "true") {
+                        logger.warn({ err: e, id: result.id }, "Failed to write decision edges");
+                    }
+                });
             }
             if (this.enableYamo) {
                 this._emitYamoBlock("retain", result.id, YamoEmitter.buildRetainBlock({
@@ -2479,6 +2505,151 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
             if (error instanceof Error && error.message.includes("not found")) return;
             throw error;
         }
+    }
+    /**
+     * Coerce a metadata edge field (string | string[] | undefined) into a
+     * clean array of target memory IDs.
+     */
+    _coerceIdList(value: unknown): string[] {
+        if (Array.isArray(value)) {
+            return value.filter((v): v is string => typeof v === "string" && v.length > 0);
+        }
+        if (typeof value === "string" && value.length > 0) {
+            return [value];
+        }
+        return [];
+    }
+    /**
+     * Decide whether a write should emit Decision Context Graph edges. Gated so
+     * the common (non-decision) write path does no edge work at all.
+     */
+    _isDecisionWrite(metadata: any, supersededIds: string[]): boolean {
+        if (!metadata) return supersededIds.length > 0;
+        return (
+            metadata.type === "decision" ||
+            supersededIds.length > 0 ||
+            this._coerceIdList(metadata.depends_on).length > 0 ||
+            this._coerceIdList(metadata.justified_by).length > 0 ||
+            this._coerceIdList(metadata.contradicts).length > 0
+        );
+    }
+    /**
+     * Write Decision Context Graph edges for a freshly stored memory.
+     *
+     * source_id is always the new memory; target_id always pre-exists. Edges:
+     *   - supersedes   from the belief-revision step (supersededIds)
+     *   - depends-on   from metadata.depends_on
+     *   - justified-by from metadata.justified_by
+     *   - contradicts  from metadata.contradicts
+     */
+    async _writeDecisionEdges(sourceId: string, metadata: any, supersededIds: string[]): Promise<void> {
+        if (!this.decisionEdgeTable) return;
+        const rationale = typeof metadata?.reasoning === "string" ? metadata.reasoning : null;
+        const weight = typeof metadata?.hypothesis_confidence === "number" ? metadata.hypothesis_confidence : 1.0;
+        const mk = (targetId: string, relation: string) => ({
+            id: `dedge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            source_id: sourceId,
+            target_id: targetId,
+            relation,
+            rationale,
+            weight,
+            created_at: new Date(),
+        });
+        const edges: any[] = [];
+        for (const t of supersededIds) edges.push(mk(t, "supersedes"));
+        for (const t of this._coerceIdList(metadata?.depends_on)) edges.push(mk(t, "depends-on"));
+        for (const t of this._coerceIdList(metadata?.justified_by)) edges.push(mk(t, "justified-by"));
+        for (const t of this._coerceIdList(metadata?.contradicts)) edges.push(mk(t, "contradicts"));
+        if (edges.length > 0) {
+            await this.decisionEdgeTable.add(edges);
+        }
+    }
+    /**
+     * Traverse the Decision Context Graph from a memory.
+     *
+     * Distinct from the Graph-RAG boost traversal — this answers reasoning-audit
+     * questions over decision_edges, not retrieval scoring.
+     *
+     *   direction 'ancestors'  (default): follow outgoing edges (source_id ==
+     *     node) — "what this decision supersedes / depends on / is justified by".
+     *   direction 'dependents': follow incoming edges (target_id == node) —
+     *     "this decision was reversed; what still-active decisions rested on it?"
+     */
+    async decisionLineage(
+        memoryId: string,
+        opts: { direction?: "ancestors" | "dependents"; relations?: string[]; maxHops?: number } = {}
+    ): Promise<Array<{ from: string; to: string; relation: string; rationale: string | null; weight: number; hop: number }>> {
+        await this.init();
+        if (!this.decisionEdgeTable) return [];
+        const direction = opts.direction ?? "ancestors";
+        const maxHops = opts.maxHops ?? 3;
+        const relationFilter =
+            opts.relations && opts.relations.length > 0
+                ? ` AND relation IN (${opts.relations.map((r) => `'${r.replace(/'/g, "''")}'`).join(", ")})`
+                : "";
+        const out: Array<{ from: string; to: string; relation: string; rationale: string | null; weight: number; hop: number }> = [];
+        const visited = new Set<string>([memoryId]);
+        let frontier: string[] = [memoryId];
+        for (let hop = 1; hop <= maxHops && frontier.length > 0; hop++) {
+            const next: string[] = [];
+            for (const node of frontier) {
+                const col = direction === "ancestors" ? "source_id" : "target_id";
+                const rows = await this.decisionEdgeTable
+                    .query()
+                    .where(`${col} == '${node.replace(/'/g, "''")}'${relationFilter}`)
+                    .toArray();
+                for (const row of rows) {
+                    out.push({
+                        from: row.source_id,
+                        to: row.target_id,
+                        relation: row.relation,
+                        rationale: row.rationale ?? null,
+                        weight: typeof row.weight === "number" ? row.weight : 1.0,
+                        hop,
+                    });
+                    const other = direction === "ancestors" ? row.target_id : row.source_id;
+                    if (!visited.has(other)) {
+                        visited.add(other);
+                        next.push(other);
+                    }
+                }
+            }
+            frontier = next;
+        }
+        return out;
+    }
+    /**
+     * Record the observed outcome of a decision, closing the feedback loop.
+     *
+     * Stores `outcome` in the decision's metadata and resets importance_score by
+     * status so retrieval ranking reflects whether the decision actually worked
+     * (not merely how often it was read): validated 0.9, mixed 0.5, refuted 0.2.
+     */
+    async recordOutcome(
+        decisionId: string,
+        outcome: { status: "validated" | "refuted" | "mixed"; note?: string }
+    ): Promise<void> {
+        await this.init();
+        if (!this.client) {
+            throw new Error("Database client not initialized");
+        }
+        const record = await this.client.getById(decisionId);
+        if (!record) {
+            throw new Error(`recordOutcome: memory ${decisionId} not found`);
+        }
+        const metadata = record.metadata && typeof record.metadata === "object" ? record.metadata : {};
+        metadata.outcome = {
+            status: outcome.status,
+            note: outcome.note ?? null,
+            observed_at: new Date().toISOString(),
+        };
+        const importanceByStatus: Record<string, number> = { validated: 0.9, mixed: 0.5, refuted: 0.2 };
+        await this.client.update(decisionId, {
+            metadata: JSON.stringify(metadata),
+            importance_score: importanceByStatus[outcome.status],
+        });
+        // Ranking changed — drop cached search results that predate it.
+        this.queryCache.clear();
     }
     /**
      * Distill a LessonLearned block (RFC-0011 §3.5).

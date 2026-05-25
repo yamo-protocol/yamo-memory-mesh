@@ -96,6 +96,7 @@ export declare class MemoryMesh {
     yamoTable: any;
     skillTable: any;
     graphTable: any;
+    decisionEdgeTable: any;
     llmClient: LLMClient | null;
     scrubber: Scrubber;
     queryCache: Map<string, {
@@ -581,6 +582,60 @@ export declare class MemoryMesh {
      * Delete a memory entry by ID.
      */
     delete(id: string): Promise<void>;
+    /**
+     * Coerce a metadata edge field (string | string[] | undefined) into a
+     * clean array of target memory IDs.
+     */
+    _coerceIdList(value: unknown): string[];
+    /**
+     * Decide whether a write should emit Decision Context Graph edges. Gated so
+     * the common (non-decision) write path does no edge work at all.
+     */
+    _isDecisionWrite(metadata: any, supersededIds: string[]): boolean;
+    /**
+     * Write Decision Context Graph edges for a freshly stored memory.
+     *
+     * source_id is always the new memory; target_id always pre-exists. Edges:
+     *   - supersedes   from the belief-revision step (supersededIds)
+     *   - depends-on   from metadata.depends_on
+     *   - justified-by from metadata.justified_by
+     *   - contradicts  from metadata.contradicts
+     */
+    _writeDecisionEdges(sourceId: string, metadata: any, supersededIds: string[]): Promise<void>;
+    /**
+     * Traverse the Decision Context Graph from a memory.
+     *
+     * Distinct from the Graph-RAG boost traversal — this answers reasoning-audit
+     * questions over decision_edges, not retrieval scoring.
+     *
+     *   direction 'ancestors'  (default): follow outgoing edges (source_id ==
+     *     node) — "what this decision supersedes / depends on / is justified by".
+     *   direction 'dependents': follow incoming edges (target_id == node) —
+     *     "this decision was reversed; what still-active decisions rested on it?"
+     */
+    decisionLineage(memoryId: string, opts?: {
+        direction?: "ancestors" | "dependents";
+        relations?: string[];
+        maxHops?: number;
+    }): Promise<Array<{
+        from: string;
+        to: string;
+        relation: string;
+        rationale: string | null;
+        weight: number;
+        hop: number;
+    }>>;
+    /**
+     * Record the observed outcome of a decision, closing the feedback loop.
+     *
+     * Stores `outcome` in the decision's metadata and resets importance_score by
+     * status so retrieval ranking reflects whether the decision actually worked
+     * (not merely how often it was read): validated 0.9, mixed 0.5, refuted 0.2.
+     */
+    recordOutcome(decisionId: string, outcome: {
+        status: "validated" | "refuted" | "mixed";
+        note?: string;
+    }): Promise<void>;
     /**
      * Distill a LessonLearned block (RFC-0011 §3.5).
      * Idempotent: same patternId + equal/higher confidence returns existing.
