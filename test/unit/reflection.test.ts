@@ -11,26 +11,29 @@ describe('MemoryMesh Reflection', () => {
   });
 
   it('should return prompt-only when LLM disabled', async () => {
+    // Isolated in-memory DB so count is self-contained and unpolluted by other tests.
     const mesh = new MemoryMesh({
       enableLLM: false,
       enableYamo: false,
-      agentId: `test_${testId}`
+      agentId: `test_${testId}`,
+      dbDir: ':memory:'
     });
 
     await mesh.init();
 
-    // Add unique test memories
-    await mesh.add(`Test memory 1 ${testId}`, { type: 'event' });
-    await mesh.add(`Test memory 2 ${testId}`, { type: 'event' });
+    // Semantically distinct content so neither add is deduped (>=0.95 sim).
+    await mesh.add(`Latency dropped after the caching change ${testId}`, { type: 'event' });
+    await mesh.add(`Error rate increased during the migration ${testId}`, { type: 'event' });
 
-    // Query the inserted content directly. A bare "test" sits near
-    // DEFAULT_SIMILARITY_THRESHOLD (0.7), so retrieval count was env-sensitive
-    // and flaked in CI; matching the stored text keeps it deterministic.
-    const result = await mesh.reflect({ topic: `Test memory ${testId}`, generate: false });
+    // No topic -> reflect() uses the deterministic getAll() path rather than
+    // threshold-based vector search. The prior topic search hovered near
+    // DEFAULT_SIMILARITY_THRESHOLD (0.7) and the count flaked in CI (passed
+    // Node22 / failed Node20 on the same commit).
+    const result = await mesh.reflect({ generate: false });
 
     assert.ok(result.prompt);
     assert.ok(!result.reflection);  // No reflection when LLM disabled
-    assert.ok(result.count >= 2);  // At least our 2 memories
+    assert.ok(result.count >= 2);  // Both memories, via getAll
   });
 
   it('should use fallback when LLM fails', async () => {
