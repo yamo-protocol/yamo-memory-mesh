@@ -23,7 +23,10 @@ describe('MemoryMesh Reflection', () => {
     await mesh.add(`Test memory 1 ${testId}`, { type: 'event' });
     await mesh.add(`Test memory 2 ${testId}`, { type: 'event' });
 
-    const result = await mesh.reflect({ topic: 'test', generate: false });
+    // Query the inserted content directly. A bare "test" sits near
+    // DEFAULT_SIMILARITY_THRESHOLD (0.7), so retrieval count was env-sensitive
+    // and flaked in CI; matching the stored text keeps it deterministic.
+    const result = await mesh.reflect({ topic: `Test memory ${testId}`, generate: false });
 
     assert.ok(result.prompt);
     assert.ok(!result.reflection);  // No reflection when LLM disabled
