@@ -42,8 +42,12 @@ program
   .option('-r, --rationale <text>', 'The constitutional rationale for this memory')
   .option('-h, --hypothesis <text>', 'The associated hypothesis')
   .option('-d, --document-context <text>', 'Explicit global document/source context for situated chunking')
+  .option('--depends-on <ids>', 'Decision edge: comma-separated memory IDs this decision depends on')
+  .option('--justified-by <ids>', 'Decision edge: comma-separated memory IDs that justify this decision')
+  .option('--contradicts <ids>', 'Decision edge: comma-separated memory IDs this decision contradicts')
   .action(async (options) => {
     const mesh = new MemoryMesh();
+    const idList = (v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined);
     try {
       ui.info(`Ingesting into subconscious...`);
       const metadata = {
@@ -51,6 +55,9 @@ program
         rationale: options.rationale,
         hypothesis: options.hypothesis,
         documentContext: options.documentContext,
+        depends_on: idList(options.dependsOn),
+        justified_by: idList(options.justifiedBy),
+        contradicts: idList(options.contradicts),
         source: 'cli-manual'
       };
       
