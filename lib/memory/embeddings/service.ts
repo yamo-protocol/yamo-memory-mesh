@@ -560,8 +560,13 @@ export class EmbeddingService {
             throw new ConfigurationError("Cohere API key is required. Set EMBEDDING_API_KEY environment variable or pass apiKey in config.", { modelType: "cohere" });
         }
         try {
-            // Dynamic import to allow optional dependency (cohere-ai may not be installed)
-            const cohere = await import("cohere-ai");
+            // Computed specifier: cohere-ai is intentionally NOT in
+            // devDependencies — its AWS SDK chain carried convict
+            // prototype-pollution criticals (workspace-dr1). A literal
+            // specifier would fail type-check with the package absent;
+            // installing cohere-ai manually re-enables this provider.
+            const cohereModuleName = "cohere-ai";
+            const cohere = await import(cohereModuleName);
             this.model = new cohere.CohereClient({ token: this.apiKey });
             // Update dimension for Cohere models
             if (this.modelName.includes("embed-english-v3.0")) {
