@@ -29,6 +29,16 @@ export interface MemoryRecord {
     created_at?: any;
     updated_at?: any;
     superseded_at?: any;
+    // Lifecycle / recall columns (nullable on legacy rows)
+    state?: string | null;
+    pinned?: boolean | null;
+    defer_until?: any;
+    importance_score?: number | null;
+    memory_type?: string | null;
+    access_count?: number | null;
+    last_accessed?: any;
+    session_id?: string | null;
+    agent_id?: string | null;
 }
 
 /** A {@link MemoryRecord} plus the similarity/relevance score from a search. */
@@ -270,6 +280,10 @@ export class LanceDBClient {
                 created_at: row.created_at,
                 vector: row.vector, // Include vector if returned
                 superseded_at: row.superseded_at,
+                state: row.state ?? null,
+                pinned: row.pinned ?? null,
+                defer_until: row.defer_until ?? null,
+                importance_score: row.importance_score ?? null,
             }));
         });
     }
@@ -341,6 +355,15 @@ export class LanceDBClient {
                 created_at: record.created_at,
                 updated_at: record.updated_at,
                 superseded_at: record.superseded_at,
+                state: record.state ?? null,
+                pinned: record.pinned ?? null,
+                defer_until: record.defer_until ?? null,
+                importance_score: record.importance_score ?? null,
+                memory_type: record.memory_type ?? null,
+                access_count: record.access_count ?? null,
+                last_accessed: record.last_accessed ?? null,
+                session_id: record.session_id ?? null,
+                agent_id: record.agent_id ?? null,
             };
         });
     }
@@ -370,6 +393,10 @@ export class LanceDBClient {
                 created_at: row.created_at,
                 updated_at: row.updated_at,
                 superseded_at: row.superseded_at,
+                state: row.state ?? null,
+                pinned: row.pinned ?? null,
+                defer_until: row.defer_until ?? null,
+                importance_score: row.importance_score ?? null,
             }));
         });
     }
@@ -400,6 +427,10 @@ export class LanceDBClient {
                 created_at: row.created_at,
                 updated_at: row.updated_at,
                 superseded_at: row.superseded_at,
+                state: row.state ?? null,
+                pinned: row.pinned ?? null,
+                defer_until: row.defer_until ?? null,
+                importance_score: row.importance_score ?? null,
             }));
         });
     }

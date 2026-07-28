@@ -63,6 +63,13 @@ export declare function createMemorySchema(vectorDim?: number): arrow.Schema<any
  */
 export declare function createMemorySchemaV2(vectorDim?: number): arrow.Schema<any>;
 /**
+ * Controlled vocabulary for the memory lifecycle `state` column.
+ * `null` on legacy rows is read as 'active'. `superseded` is kept consistent
+ * with the `superseded_at` timestamp by the belief-revision write path.
+ */
+export declare const MEMORY_STATES: readonly ["active", "superseded", "deprecated", "archived"];
+export type MemoryState = (typeof MEMORY_STATES)[number];
+/**
  * Create schema for synthesized skills (Recursive Skill Synthesis)
  * @param {number} vectorDim - Vector dimension for intent embedding
  * @returns {arrow.Schema} Arrow schema
@@ -169,6 +176,23 @@ export declare function createDecisionEdgeSchema(): arrow.Schema<any>;
  * Creates/opens a decision_edges table in LanceDB
  */
 export declare function createDecisionEdgeTable(db: any, tableName?: string): Promise<any>;
+/**
+ * Create memory_revisions table schema (workspace-g9p.3).
+ *
+ * Append-only mutation history — the Dolt principle without Dolt. Every
+ * in-place mutation (outcome recording, state change, pin/unpin, belief
+ * revision, skill reliability walk, delete) appends one row per changed
+ * field. Rows are never updated or deleted; `history()` reads them back
+ * ordered by created_at.
+ *
+ * Columns: id, memory_id, field, old_value, new_value, actor, created_at.
+ * old_value/new_value are JSON-encoded strings (null for absent).
+ */
+export declare function createRevisionSchema(): arrow.Schema<any>;
+/**
+ * Creates/opens a memory_revisions table in LanceDB
+ */
+export declare function createRevisionTable(db: any, tableName?: string): Promise<any>;
 declare const _default: {
     MEMORY_SCHEMA: arrow.Schema<any>;
     INDEX_CONFIG: {
@@ -219,5 +243,8 @@ declare const _default: {
     };
     createGraphSchema: typeof createGraphSchema;
     createGraphTable: typeof createGraphTable;
+    MEMORY_STATES: readonly ["active", "superseded", "deprecated", "archived"];
+    createRevisionSchema: typeof createRevisionSchema;
+    createRevisionTable: typeof createRevisionTable;
 };
 export default _default;

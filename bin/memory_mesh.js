@@ -45,6 +45,9 @@ program
   .option('--depends-on <ids>', 'Decision edge: comma-separated memory IDs this decision depends on')
   .option('--justified-by <ids>', 'Decision edge: comma-separated memory IDs that justify this decision')
   .option('--contradicts <ids>', 'Decision edge: comma-separated memory IDs this decision contradicts')
+  .option('-k, --key <key>', 'Stable key: supersedes prior memories with the same key (belief revision)')
+  .option('--pin', 'Pin this memory so prime always surfaces it verbatim')
+  .option('--defer-until <date>', 'Suppress from recall until this ISO date, then resurface')
   .action(async (options) => {
     const mesh = new MemoryMesh();
     const idList = (v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined);
@@ -58,6 +61,9 @@ program
         depends_on: idList(options.dependsOn),
         justified_by: idList(options.justifiedBy),
         contradicts: idList(options.contradicts),
+        key: options.key,
+        pinned: options.pin === true ? true : undefined,
+        defer_until: options.deferUntil,
         source: 'cli-manual'
       };
       
@@ -284,6 +290,305 @@ program
       }
     } catch (err) {
       ui.error(`Reflect failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 8. Prime Command (push-based curated recall — the bd prime analog)
+program
+  .command('prime')
+  .description('Emit pinned memories verbatim, newly-due deferred memories, and contextual matches')
+  .argument('[query]', 'Optional query for the contextual section')
+  .option('-l, --limit <number>', 'Contextual results', '5')
+  .action(async (query, options) => {
+    const mesh = new MemoryMesh();
+    try {
+      const out = await mesh.prime(query, { limit: parseInt(options.limit) });
+      ui.header(`Pinned (${out.pinned.length})`);
+      out.pinned.forEach((p) => {
+        console.log(`${pc.bold(pc.cyan(p.metadata?.key || p.id))}`);
+        console.log(`${pc.white(p.content)}`);
+        console.log(pc.dim('─'.repeat(40)));
+      });
+      if (out.due.length > 0) {
+        ui.header(`Due (${out.due.length})`);
+        out.due.forEach((d) => {
+          console.log(`${pc.bold(pc.yellow(d.id))} ${pc.dim('(deferred until ' + d.defer_until + ')')}`);
+          console.log(`${pc.white(d.content)}`);
+          console.log(pc.dim('─'.repeat(40)));
+        });
+      }
+      ui.header(`Contextual (${out.contextual.length})`);
+      out.contextual.forEach((c) => {
+        console.log(`${pc.dim(c.id)} [${c.score.toFixed(2)}] ${pc.white(c.content.substring(0, 200))}${c.content.length > 200 ? '...' : ''}`);
+      });
+    } catch (err) {
+      ui.error(`Prime failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 9. Pin / Unpin
+program
+  .command('pin')
+  .description('Pin a memory (by id or stable key) so prime always surfaces it')
+  .argument('<idOrKey>', 'Memory id or metadata.key')
+  .action(async (idOrKey) => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.pin(idOrKey);
+      ui.success(`Pinned ${pc.bold(res.id)}`);
+    } catch (err) {
+      ui.error(`Pin failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+program
+  .command('unpin')
+  .description('Unpin a memory (by id or stable key)')
+  .argument('<idOrKey>', 'Memory id or metadata.key')
+  .action(async (idOrKey) => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.unpin(idOrKey);
+      ui.success(`Unpinned ${pc.bold(res.id)}`);
+    } catch (err) {
+      ui.error(`Unpin failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 10. Lifecycle: set-state / defer
+program
+  .command('set-state')
+  .description('Set a memory lifecycle state: active | superseded | deprecated | archived')
+  .argument('<id>', 'Memory id')
+  .argument('<state>', 'Target state')
+  .action(async (id, state) => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.setState(id, state);
+      ui.success(`${pc.bold(id)}: ${res.previous ?? 'active'} → ${res.state}`);
+    } catch (err) {
+      ui.error(`set-state failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+program
+  .command('defer')
+  .description('Suppress a memory from recall until a date, then resurface it (bd defer analog)')
+  .argument('<id>', 'Memory id')
+  .argument('[until]', 'ISO date; omit with --clear to remove the deferral')
+  .option('--clear', 'Clear an existing deferral')
+  .action(async (id, until, options) => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.deferMemory(id, options.clear ? null : until);
+      ui.success(res.defer_until ? `Deferred ${pc.bold(id)} until ${res.defer_until}` : `Cleared deferral on ${pc.bold(id)}`);
+    } catch (err) {
+      ui.error(`Defer failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 11. History / Restore (bd history / bd restore analogs)
+program
+  .command('history')
+  .description('Show the append-only revision history for a memory or skill id')
+  .argument('<id>', 'Memory or skill id')
+  .action(async (id) => {
+    const mesh = new MemoryMesh();
+    try {
+      const rows = await mesh.history(id);
+      if (rows.length === 0) {
+        ui.warn('No revisions recorded.');
+        return;
+      }
+      ui.header(`History for ${id} (${rows.length})`);
+      rows.forEach((r) => {
+        console.log(`${pc.dim(r.created_at)} ${pc.bold(pc.cyan(r.field))} ${pc.red(JSON.stringify(r.old_value))} → ${pc.green(JSON.stringify(r.new_value))}${r.actor ? pc.dim(' by ' + r.actor) : ''}`);
+      });
+    } catch (err) {
+      ui.error(`History failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+program
+  .command('restore')
+  .description('Restore a deleted memory from its revision snapshot')
+  .argument('<id>', 'Deleted memory id')
+  .action(async (id) => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.restoreDeleted(id);
+      if (!res) {
+        ui.warn(`No deletion snapshot found for ${id}.`);
+        process.exit(1);
+      }
+      ui.success(`Restored ${pc.bold(res.id)}`);
+    } catch (err) {
+      ui.error(`Restore failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 12. Stale beliefs (bd blocked pointed backward at beliefs)
+program
+  .command('stale-beliefs')
+  .description('List memories still resting on refuted decisions')
+  .argument('[id]', 'Optional: check dependents of this memory only')
+  .action(async (id) => {
+    const mesh = new MemoryMesh();
+    try {
+      const report = await mesh.staleBeliefs(id ? { memoryId: id } : {});
+      const withDeps = report.filter((r) => r.dependents.length > 0);
+      if (withDeps.length === 0) {
+        ui.success('No stale beliefs: nothing rests on a refuted decision.');
+        return;
+      }
+      withDeps.forEach((entry) => {
+        ui.header(`Refuted: ${entry.refuted.id}`);
+        if (entry.refuted.content) console.log(pc.white(entry.refuted.content.substring(0, 200)));
+        if (entry.refuted.note) console.log(pc.dim(`note: ${entry.refuted.note}`));
+        entry.dependents.forEach((d) => {
+          console.log(`  ${pc.yellow('↳')} [hop ${d.hop}, ${d.relation}] ${pc.bold(d.id)} ${pc.dim(d.content ? d.content.substring(0, 120) : '')}`);
+        });
+      });
+      process.exit(1);
+    } catch (err) {
+      ui.error(`stale-beliefs failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 13. Export / Import (the issues.jsonl principle)
+program
+  .command('export')
+  .description('Write a deterministic, vector-free JSONL export (git-committable)')
+  .argument('<path>', 'Output file path')
+  .action(async (outPath) => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.exportJsonl(outPath);
+      ui.success(`Exported ${pc.bold(res.lines - 1)} rows to ${res.path}`);
+    } catch (err) {
+      ui.error(`Export failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+program
+  .command('import')
+  .description('Import a JSONL export, re-embedding content locally (idempotent)')
+  .argument('<path>', 'Export file path')
+  .action(async (inPath) => {
+    const mesh = new MemoryMesh();
+    try {
+      const counts = await mesh.importJsonl(inPath);
+      ui.header('Import complete');
+      Object.entries(counts).forEach(([table, c]) => {
+        console.log(`${pc.bold(table)}: ${pc.green(c.imported + ' imported')}, ${pc.dim(c.skipped + ' skipped')}`);
+      });
+    } catch (err) {
+      ui.error(`Import failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+// 14. Doctor / Stale / Orphans (hygiene tooling)
+program
+  .command('doctor')
+  .description('Run mechanical health checks; exits nonzero on failure')
+  .action(async () => {
+    const mesh = new MemoryMesh();
+    try {
+      const res = await mesh.doctor();
+      ui.header('Mesh Doctor');
+      res.checks.forEach((c) => {
+        const mark = c.ok ? pc.green('✔') : pc.red('✖');
+        console.log(`${mark} ${pc.bold(c.name)} ${pc.dim(c.detail)}`);
+      });
+      if (!res.ok) {
+        ui.error('Doctor found problems.');
+        process.exit(1);
+      }
+      ui.success('All checks passed.');
+    } catch (err) {
+      ui.error(`Doctor failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+program
+  .command('stale')
+  .description('List active memories untouched for N days (bd stale analog)')
+  .option('-d, --days <number>', 'Staleness threshold in days', '90')
+  .option('-l, --limit <number>', 'Max rows', '50')
+  .action(async (options) => {
+    const mesh = new MemoryMesh();
+    try {
+      const rows = await mesh.staleMemoriesReport({ days: parseInt(options.days), limit: parseInt(options.limit) });
+      if (rows.length === 0) {
+        ui.success('No stale memories.');
+        return;
+      }
+      ui.header(`Stale memories (${rows.length})`);
+      rows.forEach((r) => {
+        console.log(`${pc.dim(r.last_touch || 'never')} ${pc.bold(r.id)} ${pc.white(r.content)}`);
+      });
+    } catch (err) {
+      ui.error(`Stale failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      await mesh.close();
+    }
+  });
+
+program
+  .command('orphans')
+  .description('List decision edges whose endpoints no longer resolve')
+  .action(async () => {
+    const mesh = new MemoryMesh();
+    try {
+      const rows = await mesh.orphanEdges();
+      if (rows.length === 0) {
+        ui.success('No orphaned decision edges.');
+        return;
+      }
+      ui.header(`Orphaned edges (${rows.length})`);
+      rows.forEach((r) => {
+        console.log(`${pc.bold(r.id)} ${r.source_id} ${pc.dim('-[' + r.relation + ']->')} ${r.target_id} ${pc.red('missing: ' + r.missing.join(', '))}`);
+      });
+      process.exit(1);
+    } catch (err) {
+      ui.error(`Orphans failed: ${err.message}`);
       process.exit(1);
     } finally {
       await mesh.close();

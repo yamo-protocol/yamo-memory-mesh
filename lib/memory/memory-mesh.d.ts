@@ -1,4 +1,5 @@
 import { MemoryRecord } from "./adapters/client.js";
+import { MemoryState } from "./schema.js";
 import EmbeddingFactory from "./embeddings/factory.js";
 import { Scrubber } from "../scrubber/scrubber.js";
 import { KeywordSearch } from "./search/keyword-search.js";
@@ -51,6 +52,8 @@ interface RankedMemory {
     updated_at?: any;
     superseded_at?: any;
     _distance?: number;
+    /** Set by _applyContradictionPenalty: ids of newer validated memories that contradict this one. */
+    contradicted_by?: string[];
 }
 interface MemoryMeshOptions {
     enableYamo?: boolean;
@@ -97,6 +100,7 @@ export declare class MemoryMesh {
     skillTable: any;
     graphTable: any;
     decisionEdgeTable: any;
+    revisionTable: any;
     llmClient: LLMClient | null;
     scrubber: Scrubber;
     queryCache: Map<string, {
@@ -126,6 +130,7 @@ export declare class MemoryMesh {
         limit?: number;
         filter?: any;
         mode?: string;
+        includeArchived?: boolean;
     }): string;
     /**
      * Get cached result if valid
@@ -566,9 +571,12 @@ export declare class MemoryMesh {
         filter?: any;
         mode?: string;
         useCache?: boolean;
+        includeArchived?: boolean;
     }): Promise<RankedMemory[]>;
     _applyGraphRagBoosting(results: RankedMemory[], query: string): Promise<RankedMemory[]>;
-    _keywordSearch(query: string, limit: number, filter?: any): Promise<RankedMemory[]>;
+    _keywordSearch(query: string, limit: number, filter?: any, opts?: {
+        includeArchived?: boolean;
+    }): Promise<RankedMemory[]>;
     _normalizeScores(results: RankedMemory[]): RankedMemory[];
     /**
      * Tokenize query for keyword matching (private helper for searchSkills)
@@ -582,6 +590,206 @@ export declare class MemoryMesh {
      * Delete a memory entry by ID.
      */
     delete(id: string): Promise<void>;
+    /**
+     * SQL clause selecting rows visible to default recall (workspace-g9p.5):
+     * not superseded, not archived (unless opted in), and not deferred to a
+     * future date. Legacy rows with NULL state read as 'active'.
+     */
+    _activeStateClause(opts?: {
+        includeArchived?: boolean;
+    }): string;
+    /**
+     * Coerce a caller-supplied defer_until (Date | ISO string | epoch ms) to a
+     * Date, or null when absent/invalid.
+     */
+    _coerceDeferUntil(value: unknown): Date | null;
+    /**
+     * Set a memory's lifecycle state (workspace-g9p.5). Vocabulary is
+     * MEMORY_STATES: active | superseded | deprecated | archived.
+     *
+     * Archiving removes the row from the in-memory keyword index (it stays in
+     * the DB and remains reachable via search({ includeArchived: true }));
+     * re-activating restores it. Returns { id, state, previous }.
+     */
+    setState(id: string, state: MemoryState): Promise<{
+        id: string;
+        state: MemoryState;
+        previous: string | null;
+    }>;
+    /**
+     * Defer a memory until a future date (workspace-g9p.5) — the bd defer
+     * analog. The row is suppressed from default recall until `until`, then
+     * resurfaces automatically (prime() lists newly-due rows under `due`).
+     * Pass null to clear an existing deferral.
+     */
+    deferMemory(id: string, until: Date | string | number | null): Promise<{
+        id: string;
+        defer_until: string | null;
+    }>;
+    /**
+     * Append revision rows for an in-place mutation (workspace-g9p.3).
+     *
+     * Fire-and-forget by design — history must never add latency or failure
+     * modes to the mutation hot path (same contract as _writeDecisionEdges).
+     * Values are JSON-encoded; null means "absent".
+     */
+    _recordRevision(memoryId: string, changes: Array<{
+        field: string;
+        oldValue: unknown;
+        newValue: unknown;
+    }>, actor?: string): void;
+    /**
+     * Ordered mutation history for a memory or skill id (workspace-g9p.3) —
+     * the bd history analog. Returns oldest-first revision rows with decoded
+     * old/new values.
+     */
+    history(memoryId: string): Promise<Array<{
+        id: string;
+        memory_id: string;
+        field: string;
+        old_value: unknown;
+        new_value: unknown;
+        actor: string | null;
+        created_at: string;
+    }>>;
+    /**
+     * Restore a deleted memory from its 'deleted' revision (workspace-g9p.3) —
+     * the bd restore analog. Re-embeds the captured content and re-inserts the
+     * row under its original id.
+     */
+    restoreDeleted(id: string): Promise<{
+        id: string;
+        content: string;
+    } | null>;
+    /**
+     * Resolve a memory by id, falling back to newest active row carrying
+     * metadata.key == idOrKey. Used by pin()/unpin() so curated memories can
+     * be addressed by their stable key (the bd remember --key analog).
+     */
+    _resolveIdOrKey(idOrKey: string): Promise<MemoryRecord | null>;
+    /**
+     * Pin a memory so prime() always surfaces it verbatim (workspace-g9p.1).
+     * Accepts a memory id or a stable metadata.key.
+     */
+    pin(idOrKey: string): Promise<{
+        id: string;
+        pinned: boolean;
+    }>;
+    /**
+     * Unpin a memory (workspace-g9p.1). Accepts a memory id or metadata.key.
+     */
+    unpin(idOrKey: string): Promise<{
+        id: string;
+        pinned: boolean;
+    }>;
+    _setPinned(idOrKey: string, pinned: boolean): Promise<{
+        id: string;
+        pinned: boolean;
+    }>;
+    /**
+     * Push-based curated recall (workspace-g9p.1) — the bd prime analog.
+     *
+     * Returns three sections:
+     *   pinned     — ALL pinned, non-superseded, non-archived memories,
+     *                verbatim, regardless of any query similarity. Guaranteed
+     *                surfacing is the whole point: probabilistic recall is the
+     *                wrong tool for "never do X again" facts.
+     *   due        — deferred memories whose defer_until has passed (bd defer
+     *                resurfacing). Excludes rows already in pinned.
+     *   contextual — top-N relevant unpinned memories for `query` via the
+     *                normal search ranking; recent-important actives when no
+     *                query is given.
+     */
+    prime(query?: string, opts?: {
+        limit?: number;
+    }): Promise<{
+        pinned: Array<{
+            id: string;
+            content: string;
+            metadata: Record<string, any> | null;
+            created_at: string | null;
+        }>;
+        due: Array<{
+            id: string;
+            content: string;
+            metadata: Record<string, any> | null;
+            defer_until: string | null;
+        }>;
+        contextual: Array<{
+            id: string;
+            content: string;
+            metadata: Record<string, any> | null;
+            score: number;
+        }>;
+    }>;
+    /**
+     * Passive human-readable JSONL export (workspace-g9p.2) — the issues.jsonl
+     * principle. Vectors are derived data (re-embeddable from content), so the
+     * export carries content + metadata only: git-committable, PR-diffable,
+     * and sufficient for a full rebuild via importJsonl().
+     *
+     * Determinism contract: rows are sorted by (table, id), field order is
+     * fixed, and no volatile values (export timestamps, floats re-derived at
+     * export time) are included — consecutive exports of an unchanged DB are
+     * byte-identical.
+     */
+    exportJsonl(filePath?: string): Promise<{
+        path: string | null;
+        lines: number;
+        text?: string;
+    }>;
+    /**
+     * Import a JSONL export (workspace-g9p.2), re-embedding content locally.
+     * Idempotent: rows whose id already exists in the target table are
+     * skipped, so import-into-nonempty is safe.
+     */
+    importJsonl(source: string | {
+        text: string;
+    }): Promise<Record<string, {
+        imported: number;
+        skipped: number;
+    }>>;
+    /**
+     * Decision edges whose endpoints resolve to no known memory or skill row
+     * (workspace-g9p.6). The DCG direction invariant says targets pre-exist at
+     * write time — a dangling endpoint means a deletion broke lineage.
+     */
+    orphanEdges(opts?: {
+        limit?: number;
+    }): Promise<Array<{
+        id: string;
+        source_id: string;
+        target_id: string;
+        relation: string;
+        missing: string[];
+    }>>;
+    /**
+     * Non-mutating stale-memory report (workspace-g9p.6) — the bd stale
+     * analog: active rows untouched (no access, no update) for `days`.
+     */
+    staleMemoriesReport(opts?: {
+        days?: number;
+        limit?: number;
+    }): Promise<Array<{
+        id: string;
+        content: string;
+        last_touch: string | null;
+    }>>;
+    /**
+     * Hygiene self-diagnosis (workspace-g9p.6) — the bd doctor analog. Runs
+     * mechanical checks for every known mesh footgun; never mutates. Overall
+     * ok is the AND of all non-informational checks.
+     */
+    doctor(opts?: {
+        indexThreshold?: number;
+    }): Promise<{
+        ok: boolean;
+        checks: Array<{
+            name: string;
+            ok: boolean;
+            detail: string;
+        }>;
+    }>;
     /**
      * Coerce a metadata edge field (string | string[] | undefined) into a
      * clean array of target memory IDs.
@@ -624,6 +832,38 @@ export declare class MemoryMesh {
         rationale: string | null;
         weight: number;
         hop: number;
+    }>>;
+    /**
+     * Contradiction-aware ranking (workspace-g9p.4) — the retrieval-time
+     * analog of bd's "blocked". A result with a `contradicts` edge from a
+     * NEWER memory whose outcome is `validated` is down-ranked (score × 0.5)
+     * and flagged via `contradicted_by`, so stale beliefs lose ranking
+     * contests against what actually replaced them. No-op when the Decision
+     * Context Graph is empty; failures never break search.
+     */
+    _applyContradictionPenalty(results: RankedMemory[]): Promise<RankedMemory[]>;
+    /**
+     * Stale-beliefs report (workspace-g9p.4) — bd blocked pointed backward at
+     * beliefs. For each refuted decision (or the given memoryId), walks
+     * decisionLineage(dependents) and surfaces every memory still resting on
+     * it, with hop counts.
+     */
+    staleBeliefs(opts?: {
+        memoryId?: string;
+        maxHops?: number;
+    }): Promise<Array<{
+        refuted: {
+            id: string;
+            content: string | null;
+            note: string | null;
+        };
+        dependents: Array<{
+            id: string;
+            relation: string;
+            hop: number;
+            content: string | null;
+            state: string | null;
+        }>;
     }>>;
     /**
      * Record the observed outcome of a decision, closing the feedback loop.

@@ -10,6 +10,15 @@ export interface MemoryRecord {
     created_at?: any;
     updated_at?: any;
     superseded_at?: any;
+    state?: string | null;
+    pinned?: boolean | null;
+    defer_until?: any;
+    importance_score?: number | null;
+    memory_type?: string | null;
+    access_count?: number | null;
+    last_accessed?: any;
+    session_id?: string | null;
+    agent_id?: string | null;
 }
 /** A {@link MemoryRecord} plus the similarity/relevance score from a search. */
 export interface SearchResult extends MemoryRecord {

@@ -110,8 +110,19 @@ export function createMemorySchemaV2(vectorDim = DEFAULT_VECTOR_DIMENSION) {
         new arrow.Field("access_count", new arrow.Int32(), true), // Popularity tracking
         new arrow.Field("last_accessed", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), true),
         new arrow.Field("superseded_at", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), true),
+        // ========== Lifecycle Fields (workspace-g9p.5 / g9p.1) ==========
+        new arrow.Field("state", new arrow.Utf8(), true), // MEMORY_STATES vocab; null == 'active' (legacy rows)
+        new arrow.Field("pinned", new arrow.Bool(), true), // push-based recall: always surfaced by prime()
+        new arrow.Field("defer_until", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), true), // suppressed from recall until this date
     ]);
 }
+/**
+ * Controlled vocabulary for the memory lifecycle `state` column.
+ * `null` on legacy rows is read as 'active'. `superseded` is kept consistent
+ * with the `superseded_at` timestamp by the belief-revision write path.
+ */
+export const MEMORY_STATES = ["active", "superseded", "deprecated", "archived"] as const;
+export type MemoryState = (typeof MEMORY_STATES)[number];
 /**
  * Create schema for synthesized skills (Recursive Skill Synthesis)
  * @param {number} vectorDim - Vector dimension for intent embedding
@@ -186,6 +197,15 @@ export async function migrateTableV2(table: any) {
     }
     if (!fieldNames.includes("superseded_at")) {
         missingColumns.push({ name: "superseded_at", valueSql: "cast(null as timestamp)" });
+    }
+    if (!fieldNames.includes("state")) {
+        missingColumns.push({ name: "state", valueSql: "cast(null as string)" });
+    }
+    if (!fieldNames.includes("pinned")) {
+        missingColumns.push({ name: "pinned", valueSql: "cast(null as boolean)" });
+    }
+    if (!fieldNames.includes("defer_until")) {
+        missingColumns.push({ name: "defer_until", valueSql: "cast(null as timestamp)" });
     }
 
     if (missingColumns.length > 0) {
@@ -395,6 +415,51 @@ export async function createDecisionEdgeTable(db: any, tableName = "decision_edg
     }
 }
 
+/**
+ * Create memory_revisions table schema (workspace-g9p.3).
+ *
+ * Append-only mutation history — the Dolt principle without Dolt. Every
+ * in-place mutation (outcome recording, state change, pin/unpin, belief
+ * revision, skill reliability walk, delete) appends one row per changed
+ * field. Rows are never updated or deleted; `history()` reads them back
+ * ordered by created_at.
+ *
+ * Columns: id, memory_id, field, old_value, new_value, actor, created_at.
+ * old_value/new_value are JSON-encoded strings (null for absent).
+ */
+export function createRevisionSchema() {
+    return new arrow.Schema([
+        new arrow.Field("id", new arrow.Utf8(), false),
+        new arrow.Field("memory_id", new arrow.Utf8(), false),
+        new arrow.Field("field", new arrow.Utf8(), false),
+        new arrow.Field("old_value", new arrow.Utf8(), true),
+        new arrow.Field("new_value", new arrow.Utf8(), true),
+        new arrow.Field("actor", new arrow.Utf8(), true),
+        new arrow.Field("created_at", new arrow.Timestamp(arrow.TimeUnit.MILLISECOND), false),
+    ]);
+}
+
+/**
+ * Creates/opens a memory_revisions table in LanceDB
+ */
+export async function createRevisionTable(db: any, tableName = "memory_revisions") {
+    try {
+        const existingTables = await db.tableNames();
+        if (existingTables.includes(tableName)) {
+            return await db.openTable(tableName);
+        } else {
+            const schema = createRevisionSchema();
+            return await db.createTable(tableName, [], {
+                schema,
+                storageOptions: { new_table_data_storage_version: "stable" },
+            });
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to create revision table ${tableName}: ${message}`);
+    }
+}
+
 export default {
     MEMORY_SCHEMA,
     INDEX_CONFIG,
@@ -411,4 +476,7 @@ export default {
     EMBEDDING_DIMENSIONS,
     createGraphSchema,
     createGraphTable,
+    MEMORY_STATES,
+    createRevisionSchema,
+    createRevisionTable,
 };
