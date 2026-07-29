@@ -264,10 +264,10 @@ class EmbeddingFactory {
      */
     async getReranker() {
         if (!this.rerankerModel) {
-            const { AutoTokenizer, AutoModelForSequenceClassification } = await import("@xenova/transformers");
+            const { AutoTokenizer, AutoModelForSequenceClassification } = await import("@huggingface/transformers");
             const model_id = process.env.RERANKER_MODEL || 'Xenova/bge-reranker-base';
             this.rerankerTokenizer = await AutoTokenizer.from_pretrained(model_id);
-            this.rerankerModel = await AutoModelForSequenceClassification.from_pretrained(model_id);
+            this.rerankerModel = await AutoModelForSequenceClassification.from_pretrained(model_id, { dtype: "q8" });
         }
         return { tokenizer: this.rerankerTokenizer, model: this.rerankerModel };
     }

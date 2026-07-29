@@ -479,16 +479,16 @@ export class EmbeddingService {
         }
     }
     /**
-     * Initialize local ONNX model using Xenova/Transformers.js
+     * Initialize local ONNX model using Transformers.js (@huggingface/transformers)
      * @private
      */
     async _initLocalModel() {
         try {
             // Dynamic import to allow optional dependency
-            const { pipeline } = (await import("@xenova/transformers"));
-            // Load feature extraction pipeline
+            const { pipeline } = (await import("@huggingface/transformers"));
+            // Load feature extraction pipeline (q8 quantized weights, matching the v2 default)
             this.model = await pipeline("feature-extraction", this.modelName, {
-                quantized: true,
+                dtype: "q8",
                 progress_callback: (progress: any) => {
                     // Optional: Log model download progress
                     if (progress.status === "downloading") {
@@ -503,7 +503,7 @@ export class EmbeddingService {
         }
         catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            throw new ConfigurationError(`Failed to load local model: ${message}. Make sure @xenova/transformers is installed.`, { modelName: this.modelName, error: message });
+            throw new ConfigurationError(`Failed to load local model: ${message}. Make sure @huggingface/transformers is installed.`, { modelName: this.modelName, error: message });
         }
     }
     /**

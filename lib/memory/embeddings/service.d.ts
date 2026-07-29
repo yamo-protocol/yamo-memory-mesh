@@ -122,7 +122,7 @@ export declare class EmbeddingService {
         dim: any;
     } | null>;
     /**
-     * Initialize local ONNX model using Xenova/Transformers.js
+     * Initialize local ONNX model using Transformers.js (@huggingface/transformers)
      * @private
      */
     _initLocalModel(): Promise<void>;

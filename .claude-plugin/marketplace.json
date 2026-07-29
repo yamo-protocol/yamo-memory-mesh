@@ -102,7 +102,7 @@
     ],
     "dependencies": [
       "@lancedb/lancedb",
-      "@xenova/transformers",
+      "@huggingface/transformers",
       "apache-arrow",
       "onnxruntime-node"
     ]
