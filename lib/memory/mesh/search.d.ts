@@ -56,3 +56,9 @@ export declare function _normalizeScores(_mesh: MemoryMesh, results: RankedMemor
  */
 export declare function _tokenizeQuery(_mesh: MemoryMesh, text: string): string[];
 export declare function formatResults(_mesh: MemoryMesh, results: any[]): string;
+/**
+ * Parse an RRF channel-weight env value (workspace-2cx). Weights must be
+ * finite and strictly positive — anything else (unset, empty, NaN, zero,
+ * negative) falls back to the default so a typo can never silence a channel.
+ */
+export declare function _parseChannelWeight(value: string | undefined, dflt: number): number;

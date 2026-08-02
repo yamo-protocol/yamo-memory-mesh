@@ -147,9 +147,20 @@ export async function search(mesh: MemoryMesh, query: string, options: { limit?:
             created_at: new Date().toISOString(),
         }));
         const rerankLimit = mesh.enableReranker ? Math.max(20, limit * 2) : limit;
+        // Channel weights for the hybrid RRF merge (workspace-2cx). Defaults
+        // chosen by paired replicate eval (5 runs/config, hybrid−vector within
+        // the same seeded mesh): equal weights cost −0.155 MRR vs pure vector
+        // on paraphrase-heavy queries and hurt more vector-imperfect queries
+        // than they helped (2/5); keyword 0.4 halves the penalty (−0.072
+        // ±0.034), flips the rescue record to 6 helped / 1 hurt, and keeps
+        // R@5 at 1.0 — the keyword channel stays as the exact-identifier
+        // rescue without drowning the semantic signal. Read per call so
+        // operators (and the eval harness) can tune without a rebuild.
+        const vectorWeight = _parseChannelWeight(process.env.HYBRID_VECTOR_WEIGHT, 1.0);
+        const keywordWeight = _parseChannelWeight(process.env.HYBRID_KEYWORD_WEIGHT, 0.4);
         let mergedResults: RankedMemory[] = rrfMerge<RankedMemory>([
-            { items: vectorResults },
-            { items: keywordDocs },
+            { items: vectorResults, weight: vectorWeight },
+            { items: keywordDocs, weight: keywordWeight },
         ])
             .slice(0, rerankLimit)
             .map(({ doc, rrfScore }) => ({ ...doc, score: rrfScore }));
@@ -300,4 +311,14 @@ export function formatResults(_mesh: MemoryMesh, results: any[]) {
         output += `\n\n--- MEMORY ${i + 1}: ${res.id} [IMPORTANCE: ${res.score}] ---\nType: ${metadata.type || "event"} | Source: ${metadata.source || "unknown"}\n${body}`;
     });
     return output;
+}
+
+/**
+ * Parse an RRF channel-weight env value (workspace-2cx). Weights must be
+ * finite and strictly positive — anything else (unset, empty, NaN, zero,
+ * negative) falls back to the default so a typo can never silence a channel.
+ */
+export function _parseChannelWeight(value: string | undefined, dflt: number): number {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : dflt;
 }

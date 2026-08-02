@@ -448,9 +448,15 @@ EMBEDDING_MODEL_NAME=Xenova/all-MiniLM-L6-v2
 EMBEDDING_DIMENSION=384
 
 # LLM (for reflect() only)
-LLM_PROVIDER=openai                  # openai | anthropic | ollama
+LLM_PROVIDER=openai                  # openai | anthropic | ollama | zai
 LLM_API_KEY=sk-...
 LLM_MODEL=gpt-4o-mini
+
+# Retrieval tuning — hybrid RRF channel weights. Keyword is down-weighted by
+# default (paired eval: equal weights cost MRR on paraphrase queries; 0.4
+# keeps the exact-identifier rescue). Finite and > 0, else the default wins.
+HYBRID_VECTOR_WEIGHT=1.0
+HYBRID_KEYWORD_WEIGHT=0.4
 
 # YAMO
 ENABLE_YAMO=true
