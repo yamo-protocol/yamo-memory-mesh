@@ -16,6 +16,7 @@ describe('MemoryMesh E2E (CLI)', () => {
     // Set environment variable for the test database
     process.env.LANCEDB_URI = TEMP_DB_DIR;
     process.env.LLM_PROVIDER = 'none'; // Disable LLM for basic CLI tests
+    process.env.NO_COLOR = '1'; // Deterministic plain output under CI's color heuristic
   });
 
   after(() => {
@@ -75,14 +76,18 @@ describe('MemoryMesh E2E (CLI) — lifecycle, portability, health', () => {
   const PULL_SRC = path.join(os.tmpdir(), `yamo-e2e-pull-${Date.now()}`);
   const EXPORT_FILE = path.join(os.tmpdir(), `yamo-e2e-export-${Date.now()}.jsonl`);
 
+  // NO_COLOR: on CI picocolors emits ANSI codes even into a pipe (the CI env
+  // var triggers its color heuristic), which mangled ids extracted from
+  // styled output — locally colorless, CI-only failures (debug/e2e-getbyid-ci).
   const run = (args: string, db = DB) =>
     execSync(`node ${BIN_PATH} ${args}`, {
       encoding: 'utf8',
-      env: { ...process.env, LANCEDB_URI: db, LLM_PROVIDER: 'none' },
+      env: { ...process.env, LANCEDB_URI: db, LLM_PROVIDER: 'none', NO_COLOR: '1' },
     });
 
   const storeAndGetId = (args: string): string => {
-    const out = run(`store ${args}`);
+    // Strip any ANSI escapes before matching (belt and braces with NO_COLOR).
+    const out = run(`store ${args}`).replace(/\x1b\[[0-9;]*m/g, '');
     const m = out.match(/Ingested record (\S+)/);
     assert.ok(m, `store output should contain a record id, got: ${out}`);
     return m![1];
