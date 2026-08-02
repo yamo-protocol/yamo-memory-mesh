@@ -8,7 +8,6 @@
  * Functions take the mesh facade as their first argument; MemoryMesh
  * delegates 1:1 — behavior and the public API are unchanged.
  */
-import crypto from "crypto";
 import { createLogger } from "../../utils/logger.js";
 import { METADATA_SCAN_CAP } from "./shared.js";
 import type { MemoryMesh, RankedMemory } from "../memory-mesh.js";
@@ -55,7 +54,7 @@ export async function orphanEdges(mesh: MemoryMesh, opts: { limit?: number } = {
  * Coerce a metadata edge field (string | string[] | undefined) into a
  * clean array of target memory IDs.
  */
-export function _coerceIdList(mesh: MemoryMesh, value: unknown): string[] {
+export function _coerceIdList(_mesh: MemoryMesh, value: unknown): string[] {
     if (Array.isArray(value)) {
         return value.filter((v): v is string => typeof v === "string" && v.length > 0);
     }

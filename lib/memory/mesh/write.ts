@@ -18,7 +18,7 @@ const logger = createLogger("brain");
  * Validate and sanitize metadata to prevent prototype pollution
  * @private
  */
-export function _validateMetadata(mesh: MemoryMesh, metadata: any): Record<string, any> {
+export function _validateMetadata(_mesh: MemoryMesh, metadata: any): Record<string, any> {
     if (typeof metadata !== "object" || metadata === null) {
         throw new Error("Metadata must be a non-null object");
     }
@@ -42,7 +42,7 @@ export function _validateMetadata(mesh: MemoryMesh, metadata: any): Record<strin
  * Sanitize and validate content before storage
  * @private
  */
-export function _sanitizeContent(mesh: MemoryMesh, content: string) {
+export function _sanitizeContent(_mesh: MemoryMesh, content: string) {
     if (typeof content !== "string") {
         throw new Error("Content must be a string");
     }
@@ -477,7 +477,7 @@ export async function addDocument(mesh: MemoryMesh,
  * the full content.
  * @private
  */
-export function _splitParagraphSpans(mesh: MemoryMesh, content: string, minChars: number, maxChars: number): Array<{ start: number; end: number }> {
+export function _splitParagraphSpans(_mesh: MemoryMesh, content: string, minChars: number, maxChars: number): Array<{ start: number; end: number }> {
     const spans: Array<{ start: number; end: number }> = [];
     const paraRegex = /\n\n+/g;
     const paraStarts: number[] = [0];

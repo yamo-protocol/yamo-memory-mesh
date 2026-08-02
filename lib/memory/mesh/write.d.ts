@@ -3,12 +3,12 @@ import type { MemoryMesh } from "../memory-mesh.js";
  * Validate and sanitize metadata to prevent prototype pollution
  * @private
  */
-export declare function _validateMetadata(mesh: MemoryMesh, metadata: any): Record<string, any>;
+export declare function _validateMetadata(_mesh: MemoryMesh, metadata: any): Record<string, any>;
 /**
  * Sanitize and validate content before storage
  * @private
  */
-export declare function _sanitizeContent(mesh: MemoryMesh, content: string): string;
+export declare function _sanitizeContent(_mesh: MemoryMesh, content: string): string;
 /**
  * Add content to memory with auto-generated embedding and scrubbing.
  *
@@ -80,7 +80,7 @@ export declare function addDocument(mesh: MemoryMesh, content: string, metadata?
  * the full content.
  * @private
  */
-export declare function _splitParagraphSpans(mesh: MemoryMesh, content: string, minChars: number, maxChars: number): Array<{
+export declare function _splitParagraphSpans(_mesh: MemoryMesh, content: string, minChars: number, maxChars: number): Array<{
     start: number;
     end: number;
 }>;

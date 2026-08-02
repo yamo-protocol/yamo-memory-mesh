@@ -36,7 +36,7 @@ export declare function smora(mesh: MemoryMesh, query: string, options?: {
  * legitimately different verbs/states in intent chains).
  * @private
  */
-export declare function _canonicalizeIntent(mesh: MemoryMesh, intent: string): string;
+export declare function _canonicalizeIntent(_mesh: MemoryMesh, intent: string): string;
 /**
  * Embed a single intent string with persistent caching. Intents are
  * low-cardinality (handfuls per project) and stable across queries, so
@@ -53,7 +53,7 @@ export declare function _embedIntent(mesh: MemoryMesh, intent: string): Promise<
  * dot product. Returns 0 on empty/invalid input.
  * @private
  */
-export declare function _heritageBonusFromVectors(mesh: MemoryMesh, sessionVecs: any, chainVecs: any, denom: number): number;
+export declare function _heritageBonusFromVectors(_mesh: MemoryMesh, sessionVecs: any, chainVecs: any, denom: number): number;
 /**
  * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
  *

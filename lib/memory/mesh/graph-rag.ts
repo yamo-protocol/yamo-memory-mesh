@@ -6,7 +6,6 @@
  * Decision Context Graph (mesh/decision-graph.ts) by design. Functions take
  * the mesh facade as their first argument; MemoryMesh delegates 1:1.
  */
-import crypto from "crypto";
 import { createLogger } from "../../utils/logger.js";
 import type { MemoryMesh, RankedMemory } from "../memory-mesh.js";
 
@@ -104,7 +103,7 @@ export async function _applyGraphRagBoosting(mesh: MemoryMesh, results: RankedMe
  * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
  * @private
  */
-export function _canonicalizeEntity(mesh: MemoryMesh, entity: string) {
+export function _canonicalizeEntity(_mesh: MemoryMesh, entity: string) {
     if (!entity || typeof entity !== 'string') return '';
     return entity
         .toLowerCase()

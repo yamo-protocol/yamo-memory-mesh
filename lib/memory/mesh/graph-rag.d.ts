@@ -7,7 +7,7 @@ export declare function _applyGraphRagBoosting(mesh: MemoryMesh, results: Ranked
  * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
  * @private
  */
-export declare function _canonicalizeEntity(mesh: MemoryMesh, entity: string): string;
+export declare function _canonicalizeEntity(_mesh: MemoryMesh, entity: string): string;
 /**
  * Check if a content string mentions an entity using a case-insensitive
  * word-boundary regex with simple plural tolerance. Fixes the substring

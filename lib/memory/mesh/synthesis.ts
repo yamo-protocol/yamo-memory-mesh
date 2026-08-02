@@ -192,7 +192,7 @@ export async function raptor(mesh: MemoryMesh, options: {
  * better for stability but is overkill for this use case.
  * @private
  */
-export function _kmeansClusters<T extends { vector: number[] }>(mesh: MemoryMesh, items: T[], k: number, maxIters = 50): T[][] {
+export function _kmeansClusters<T extends { vector: number[] }>(_mesh: MemoryMesh, items: T[], k: number, maxIters = 50): T[][] {
     if (items.length === 0) return [];
     if (k >= items.length) return items.map((it) => [it]);
     const dim = items[0].vector.length;

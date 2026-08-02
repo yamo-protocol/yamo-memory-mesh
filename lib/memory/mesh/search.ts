@@ -228,7 +228,7 @@ export async function _keywordSearch(mesh: MemoryMesh, query: string, limit: num
     return mesh.keywordSearch.search(query, { limit });
 }
 
-export function _normalizeScores(mesh: MemoryMesh, results: RankedMemory[]): RankedMemory[] {
+export function _normalizeScores(_mesh: MemoryMesh, results: RankedMemory[]): RankedMemory[] {
     if (results.length === 0) {
         return [];
     }
@@ -258,7 +258,7 @@ export function _normalizeScores(mesh: MemoryMesh, results: RankedMemory[]): Ran
  * Handles camelCase/PascalCase by splitting on uppercase letters.
  */
 
-export function _tokenizeQuery(mesh: MemoryMesh, text: string) {
+export function _tokenizeQuery(_mesh: MemoryMesh, text: string) {
     return text
         .replace(/([a-z])([A-Z])/g, "$1 $2") // Split camelCase: "targetSkill" → "target Skill"
         .toLowerCase()
@@ -267,7 +267,7 @@ export function _tokenizeQuery(mesh: MemoryMesh, text: string) {
         .filter((t) => t.length > 2); // Filter out very short tokens
 }
 
-export function formatResults(mesh: MemoryMesh, results: any[]) {
+export function formatResults(_mesh: MemoryMesh, results: any[]) {
     if (results.length === 0) {
         return "No relevant memories found.";
     }

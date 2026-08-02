@@ -6,14 +6,14 @@ import type { MemoryMesh } from "../memory-mesh.js";
  * not superseded, not archived (unless opted in), and not deferred to a
  * future date. Legacy rows with NULL state read as 'active'.
  */
-export declare function _activeStateClause(mesh: MemoryMesh, opts?: {
+export declare function _activeStateClause(_mesh: MemoryMesh, opts?: {
     includeArchived?: boolean;
 }): string;
 /**
  * Coerce a caller-supplied defer_until (Date | ISO string | epoch ms) to a
  * Date, or null when absent/invalid.
  */
-export declare function _coerceDeferUntil(mesh: MemoryMesh, value: unknown): Date | null;
+export declare function _coerceDeferUntil(_mesh: MemoryMesh, value: unknown): Date | null;
 /**
  * Set a memory's lifecycle state (workspace-g9p.5). Vocabulary is
  * MEMORY_STATES: active | superseded | deprecated | archived.

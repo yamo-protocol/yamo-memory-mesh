@@ -17,7 +17,7 @@ export declare function orphanEdges(mesh: MemoryMesh, opts?: {
  * Coerce a metadata edge field (string | string[] | undefined) into a
  * clean array of target memory IDs.
  */
-export declare function _coerceIdList(mesh: MemoryMesh, value: unknown): string[];
+export declare function _coerceIdList(_mesh: MemoryMesh, value: unknown): string[];
 /**
  * Decide whether a write should emit Decision Context Graph edges. Gated so
  * the common (non-decision) write path does no edge work at all.

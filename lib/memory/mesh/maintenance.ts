@@ -6,13 +6,11 @@
  */
 import fs from "fs";
 import path from "path";
-import { createLogger } from "../../utils/logger.js";
 import { toEpochMs } from "./shared.js";
 import { INDEX_CONFIG } from "../schema.js";
 import { extractSkillTags } from "../../utils/skill-metadata.js";
 import type { MemoryMesh } from "../memory-mesh.js";
 
-const logger = createLogger("brain");
 
 /**
  * Passive human-readable JSONL export (workspace-g9p.2) — the issues.jsonl

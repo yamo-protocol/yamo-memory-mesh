@@ -6,7 +6,7 @@
  * as their first argument; MemoryMesh delegates 1:1.
  */
 import { createLogger } from "../../utils/logger.js";
-import { DECAY_BY_TYPE, DEFAULT_DECAY, toEpochMs } from "./shared.js";
+import { DECAY_BY_TYPE, DEFAULT_DECAY } from "./shared.js";
 import { rrfMerge } from "./rrf.js";
 import type { MemoryMesh } from "../memory-mesh.js";
 
@@ -297,7 +297,7 @@ export async function smora(mesh: MemoryMesh, query: string, options: {
  * legitimately different verbs/states in intent chains).
  * @private
  */
-export function _canonicalizeIntent(mesh: MemoryMesh, intent: string) {
+export function _canonicalizeIntent(_mesh: MemoryMesh, intent: string) {
     if (!intent || typeof intent !== 'string') return '';
     return intent.toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -338,7 +338,7 @@ export async function _embedIntent(mesh: MemoryMesh, intent: string) {
  * @private
  */
 
-export function _heritageBonusFromVectors(mesh: MemoryMesh, sessionVecs: any, chainVecs: any, denom: number) {
+export function _heritageBonusFromVectors(_mesh: MemoryMesh, sessionVecs: any, chainVecs: any, denom: number) {
     if (!sessionVecs?.length || !chainVecs?.length || !denom) return 0;
     let total = 0;
     for (const sv of sessionVecs) {

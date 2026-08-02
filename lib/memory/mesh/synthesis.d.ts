@@ -76,7 +76,7 @@ export declare function raptor(mesh: MemoryMesh, options?: {
  */
 export declare function _kmeansClusters<T extends {
     vector: number[];
-}>(mesh: MemoryMesh, items: T[], k: number, maxIters?: number): T[][];
+}>(_mesh: MemoryMesh, items: T[], k: number, maxIters?: number): T[][];
 /**
  * LLM-summarize a cluster of memories and store the summary as a memory
  * with type=summary_l{level} and source_memory_ids linking back to leaves.

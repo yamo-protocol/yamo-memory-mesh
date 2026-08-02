@@ -5,7 +5,6 @@
  * push-based recall. Functions take the mesh facade as their first argument;
  * MemoryMesh delegates 1:1.
  */
-import crypto from "crypto";
 import { createLogger } from "../../utils/logger.js";
 import { MEMORY_STATES, MemoryState } from "../schema.js";
 import { toEpochMs } from "./shared.js";
@@ -19,7 +18,7 @@ const logger = createLogger("brain");
  * not superseded, not archived (unless opted in), and not deferred to a
  * future date. Legacy rows with NULL state read as 'active'.
  */
-export function _activeStateClause(mesh: MemoryMesh, opts: { includeArchived?: boolean } = {}): string {
+export function _activeStateClause(_mesh: MemoryMesh, opts: { includeArchived?: boolean } = {}): string {
     const clauses = ["superseded_at IS NULL"];
     if (opts.includeArchived !== true) {
         clauses.push("(state IS NULL OR state != 'archived')");
@@ -33,7 +32,7 @@ export function _activeStateClause(mesh: MemoryMesh, opts: { includeArchived?: b
  * Date, or null when absent/invalid.
  */
 
-export function _coerceDeferUntil(mesh: MemoryMesh, value: unknown): Date | null {
+export function _coerceDeferUntil(_mesh: MemoryMesh, value: unknown): Date | null {
     if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
     if (typeof value === "string" || typeof value === "number") {
         const d = new Date(value);

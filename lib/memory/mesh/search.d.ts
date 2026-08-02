@@ -48,11 +48,11 @@ export declare function search(mesh: MemoryMesh, query: string, options?: {
 export declare function _keywordSearch(mesh: MemoryMesh, query: string, limit: number, filter?: any, opts?: {
     includeArchived?: boolean;
 }): Promise<RankedMemory[]>;
-export declare function _normalizeScores(mesh: MemoryMesh, results: RankedMemory[]): RankedMemory[];
+export declare function _normalizeScores(_mesh: MemoryMesh, results: RankedMemory[]): RankedMemory[];
 /**
  * Tokenize query for keyword matching (private helper for searchSkills)
  * Converts text to lowercase tokens, filtering out short tokens and punctuation.
  * Handles camelCase/PascalCase by splitting on uppercase letters.
  */
-export declare function _tokenizeQuery(mesh: MemoryMesh, text: string): string[];
-export declare function formatResults(mesh: MemoryMesh, results: any[]): string;
+export declare function _tokenizeQuery(_mesh: MemoryMesh, text: string): string[];
+export declare function formatResults(_mesh: MemoryMesh, results: any[]): string;
