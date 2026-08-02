@@ -127,6 +127,11 @@ describe('MemoryMesh E2E (CLI) — lifecycle, portability, health', () => {
         console.error(`DIAG get --id ALSO failed: ${ge.stdout} ${ge.stderr}`);
       }
       console.error(`DIAG stats: ${run('stats').replace(/\n/g, ' | ').slice(0, 400)}`);
+      try {
+        console.error(`DIAG where-probe: ${execSync(`node ${path.resolve('test/e2e/diag-where.mjs')} ${DB} ${id}`, { encoding: 'utf8' })}`);
+      } catch (we: any) {
+        console.error(`DIAG where-probe failed: ${we.stdout} ${we.stderr}`);
+      }
       execSync('sleep 3');
       try {
         out = run(`set-state ${id} deprecated`);
