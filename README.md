@@ -51,7 +51,7 @@ The installer will:
 
 ### CLI
 
-The `memory-mesh` CLI provides seven commands for full subconscious CRUD and recall:
+The `memory-mesh` CLI provides twenty commands covering CRUD/recall, curated priming, lifecycle states, belief revision, history, portability, and health:
 
 ```bash
 # Store a memory (automatically scrubbed & embedded)
@@ -77,19 +77,68 @@ memory-mesh reflect --topic "bugs" --lookback 10
 
 # Database health and statistics
 memory-mesh stats
+
+# Curated recall: pinned memories verbatim + newly-due deferrals + contextual matches
+memory-mesh prime "current task context"
+
+# Lifecycle: pin, defer, supersede
+memory-mesh pin mem_abc123
+memory-mesh defer mem_abc123 2026-09-01
+memory-mesh set-state mem_abc123 deprecated
+
+# Portability: deterministic vector-free JSONL (git-committable), idempotent re-import
+memory-mesh export backup.jsonl
+memory-mesh import backup.jsonl
+
+# Health: mechanical checks (exits nonzero on failure)
+memory-mesh doctor
 ```
 
 **Command Reference:**
 
+*Core CRUD & recall*
+
 | Command | Key Options | Description |
 |---------|-------------|-------------|
-| `store` | `-c/--content` (required), `-t/--type`, `-r/--rationale`, `-h/--hypothesis` | Persist a semantic memory |
+| `store` (alias `ingest`) | `-c/--content` (required), `-t/--type`, `-r/--rationale`, `-h/--hypothesis`, `-d/--document-context`, `-k/--key`, `--pin`, `--defer-until <date>`, `--depends-on/--justified-by/--contradicts <ids>` | Persist a semantic memory (with optional belief-revision key and decision edges) |
 | `pull` | `<path>` (required), `-e/--extension`, `-t/--type` | Bulk-ingest a directory |
-| `search` | `<query>` (required), `-l/--limit` | Semantic recall |
+| `search` | `<query>` (required), `-l/--limit`, `-m/--mode` (`hybrid`\|`vector`\|`keyword`), `-f/--filter <sql>` | Semantic recall with optional SQL filter on V2 columns |
 | `get` | `-i/--id` (required) | Fetch a record by ID |
-| `delete` | `-i/--id` (required) | Remove a record by ID |
+| `delete` | `-i/--id` (required) | Remove a record by ID (snapshot kept for `restore`) |
 | `reflect` | `-t/--topic`, `-l/--lookback` | Synthesize insights from memories |
 | `stats` | — | DB health, count, embedding model |
+
+*Curated recall & lifecycle*
+
+| Command | Key Options | Description |
+|---------|-------------|-------------|
+| `prime` | `[query]`, `-l/--limit` | Emit pinned memories verbatim, newly-due deferred memories, and contextual matches (the `bd prime` analog) |
+| `pin` / `unpin` | `<idOrKey>` | Pin/unpin a memory (by id or stable `metadata.key`) so `prime` always surfaces it |
+| `set-state` | `<id> <state>` | Set lifecycle state: `active` \| `superseded` \| `deprecated` \| `archived` |
+| `defer` | `<id> [until]`, `--clear` | Suppress from recall until an ISO date, then resurface (`bd defer` analog) |
+
+*Belief revision & decision graph*
+
+| Command | Key Options | Description |
+|---------|-------------|-------------|
+| `stale-beliefs` | `[id]` | List memories still resting on refuted decisions (exits nonzero if any) |
+| `orphans` | — | List decision edges whose endpoints no longer resolve (exits nonzero if any) |
+
+*History & portability*
+
+| Command | Key Options | Description |
+|---------|-------------|-------------|
+| `history` | `<id>` | Append-only revision history for a memory or skill id |
+| `restore` | `<id>` | Restore a deleted memory from its revision snapshot |
+| `export` | `<path>` | Deterministic, vector-free JSONL export (git-committable) |
+| `import` | `<path>` | Import a JSONL export, re-embedding content locally (idempotent) |
+
+*Health*
+
+| Command | Key Options | Description |
+|---------|-------------|-------------|
+| `doctor` | — | Mechanical health checks (dangling edges, vector index, superseded-state drift, skill metadata); exits nonzero on failure |
+| `stale` | `-d/--days` (default 90), `-l/--limit` | List active memories untouched for N days (`bd stale` analog) |
 
 ### Node.js API
 

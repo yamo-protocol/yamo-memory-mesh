@@ -116,6 +116,59 @@ MemoryMesh Stats
   Null memory_type : 47 (backfill pending)
 ```
 
+### Curated recall & lifecycle
+
+```bash
+# Pinned memories verbatim + newly-due deferrals + contextual matches (bd prime analog)
+memory-mesh prime "current task context" --limit 5
+
+# Pin / unpin (by id or stable metadata.key) so prime always surfaces it
+memory-mesh pin mem_abc123
+memory-mesh unpin mem_abc123
+
+# Lifecycle state: active | superseded | deprecated | archived
+memory-mesh set-state mem_abc123 deprecated
+
+# Suppress from recall until a date, then resurface (bd defer analog)
+memory-mesh defer mem_abc123 2026-09-01
+memory-mesh defer mem_abc123 --clear
+```
+
+### Belief hygiene
+
+```bash
+# Memories still resting on refuted decisions (exits nonzero if any)
+memory-mesh stale-beliefs
+
+# Decision edges whose endpoints no longer resolve (exits nonzero if any)
+memory-mesh orphans
+
+# Active memories untouched for N days (bd stale analog)
+memory-mesh stale --days 90
+```
+
+### History & portability
+
+```bash
+# Append-only revision history for a memory or skill id
+memory-mesh history mem_abc123
+
+# Restore a deleted memory from its revision snapshot
+memory-mesh restore mem_abc123
+
+# Deterministic, vector-free JSONL export (git-committable) and idempotent re-import
+memory-mesh export backup.jsonl
+memory-mesh import backup.jsonl
+```
+
+### Health checks
+
+```bash
+# Mechanical checks: dangling edges, vector index, superseded-state drift,
+# skill metadata. Exits nonzero on failure — safe for CI/cron.
+memory-mesh doctor
+```
+
 ---
 
 ## 4. Node.js API

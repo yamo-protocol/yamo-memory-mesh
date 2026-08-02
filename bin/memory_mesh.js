@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * YAMO MemoryMesh CLI - Singularity Edition (v3.2.0)
- * 
+ * YAMO MemoryMesh CLI - Singularity Edition
+ *
  * State-of-the-art interface for semantic memory orchestration.
  * Features: Interactive progress, beautiful formatting, and bulk ingestion.
  */
 
+import { createRequire } from 'module';
 import { Command } from 'commander';
 import { MemoryMesh } from '../lib/memory/index.js';
 import { createLogger } from '../lib/utils/logger.js';
@@ -18,10 +19,13 @@ import { glob } from 'glob';
 
 const program = new Command();
 
+// Version always tracks package.json — a hardcoded string here drifted before.
+const { version } = createRequire(import.meta.url)('../package.json');
+
 program
   .name('memory-mesh')
   .description('YAMO Semantic Subconscious - Protocol-Native CLI')
-  .version('3.2.3');
+  .version(version);
 
 // Helper for beautiful logging
 const ui = {
