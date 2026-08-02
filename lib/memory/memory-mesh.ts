@@ -30,58 +30,11 @@ import { scanForInjection, fenceUntrusted, UNTRUSTED_PREAMBLE } from "../utils/p
 import * as lancedb from "@lancedb/lancedb";
 import * as yamoAudit from "./mesh/yamo-audit.js";
 import { rrfMerge } from "./mesh/rrf.js";
+import { DECAY_BY_TYPE, DEFAULT_DECAY, toEpochMs, METADATA_SCAN_CAP } from "./mesh/shared.js";
+import * as decisionGraph from "./mesh/decision-graph.js";
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("brain");
 
-/**
- * Per-memory-type recency decay rates (λ) for smora()'s recency_decay
- * factor (recency = exp(-λ × age_days)). Calibrated so half-life roughly
- * matches the expected useful lifespan of each type:
- *
- *   lesson          λ=0.005  ≈ 140d  — preventative wisdom (RFC-0011)
- *   decision        λ=0.01   ≈  70d  — architectural decisions
- *   consolidation   λ=0.01   ≈  70d  — converged beliefs (kernel brain)
- *   summary_l3      λ=0.01   ≈  70d  — RAPTOR upper layers (more abstract)
- *   summary_l2      λ=0.015  ≈  46d
- *   summary_l1      λ=0.02   ≈  35d  — RAPTOR base summaries
- *   reflection      λ=0.02   ≈  35d  — meta-observations
- *   pattern         λ=0.02   ≈  35d
- *   insight         λ=0.02   ≈  35d
- *   debug           λ=0.03   ≈  23d  — fixes age moderately
- *   event           λ=0.05   ≈  14d  — episodic interactions
- *   recall          λ=0.05   ≈  14d
- *
- * Unknown types fall back to DEFAULT_DECAY (current behavior preserved).
- */
-const DECAY_BY_TYPE: Record<string, number> = {
-    lesson: 0.005,
-    decision: 0.01,
-    consolidation: 0.01,
-    summary_l3: 0.01,
-    summary_l2: 0.015,
-    summary_l1: 0.02,
-    reflection: 0.02,
-    pattern: 0.02,
-    insight: 0.02,
-    debug: 0.03,
-    event: 0.05,
-    recall: 0.05,
-};
-const DEFAULT_DECAY = 0.05;
-
-/** Coerce a LanceDB timestamp value (Date | number | bigint | string) to epoch ms. */
-function toEpochMs(v: unknown): number {
-    if (v instanceof Date) return v.getTime();
-    if (typeof v === "bigint") return Number(v);
-    if (typeof v === "number") return v;
-    if (typeof v === "string") return new Date(v).getTime();
-    return Number.NaN;
-}
-
-// Safety ceiling for unbounded metadata scans (queryLessons / getMemoriesByPattern).
-// Far above any realistic lesson count, but bounds memory if a store grows pathologically.
-// Hitting it is logged (not silent) so it never recreates the old getAll(1000) truncation bug quietly.
-const METADATA_SCAN_CAP = 50000;
 
 /** RFC-0012 S-MORA types */
 export interface SMORAOptions {
@@ -124,7 +77,7 @@ type StoredMemory = Pick<MemoryRecord, "id" | "content" | "metadata" | "created_
  * `vector`/`superseded_at`, keyword results carry `matches` and spread doc fields — so
  * only `id` and `score` are guaranteed; the rest are optional.
  */
-interface RankedMemory {
+export interface RankedMemory {
     id: string;
     score: number;
     content?: string;
@@ -2959,40 +2912,9 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         this.queryCache.clear();
         return counts;
     }
-    /**
-     * Decision edges whose endpoints resolve to no known memory or skill row
-     * (workspace-g9p.6). The DCG direction invariant says targets pre-exist at
-     * write time — a dangling endpoint means a deletion broke lineage.
-     */
+    /** List decision edges whose endpoints no longer resolve — see mesh/decision-graph.ts. */
     async orphanEdges(opts: { limit?: number } = {}): Promise<Array<{ id: string; source_id: string; target_id: string; relation: string; missing: string[] }>> {
-        await this.init();
-        if (!this.decisionEdgeTable) return [];
-        const edges = await this.decisionEdgeTable.query().limit(opts.limit ?? 5000).toArray();
-        if (edges.length === 0) return [];
-        const known = new Set<string>();
-        const collect = async (table: any) => {
-            if (!table) return;
-            try {
-                const rows = await table.query().select(["id"]).toArray();
-                for (const r of rows) known.add(r.id);
-            }
-            catch {
-                const rows = await table.query().toArray();
-                for (const r of rows) known.add(r.id);
-            }
-        };
-        await collect(this.client?.table);
-        await collect(this.skillTable);
-        const orphans: Array<{ id: string; source_id: string; target_id: string; relation: string; missing: string[] }> = [];
-        for (const e of edges) {
-            const missing: string[] = [];
-            if (!known.has(e.source_id)) missing.push(e.source_id);
-            if (!known.has(e.target_id)) missing.push(e.target_id);
-            if (missing.length > 0) {
-                orphans.push({ id: e.id, source_id: e.source_id, target_id: e.target_id, relation: e.relation, missing });
-            }
-        }
-        return orphans;
+        return decisionGraph.orphanEdges(this, opts);
     }
     /**
      * Non-mutating stale-memory report (workspace-g9p.6) — the bd stale
@@ -3125,294 +3047,42 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
         return { ok: checks.every((c) => c.ok), checks };
     }
-    /**
-     * Coerce a metadata edge field (string | string[] | undefined) into a
-     * clean array of target memory IDs.
-     */
+    /** @private Coerce a decision-edge id list — see mesh/decision-graph.ts. */
     _coerceIdList(value: unknown): string[] {
-        if (Array.isArray(value)) {
-            return value.filter((v): v is string => typeof v === "string" && v.length > 0);
-        }
-        if (typeof value === "string" && value.length > 0) {
-            return [value];
-        }
-        return [];
+        return decisionGraph._coerceIdList(this, value);
     }
-    /**
-     * Decide whether a write should emit Decision Context Graph edges. Gated so
-     * the common (non-decision) write path does no edge work at all.
-     */
+    /** @private Gate: does this add() carry decision semantics — see mesh/decision-graph.ts. */
     _isDecisionWrite(metadata: any, supersededIds: string[]): boolean {
-        if (!metadata) return supersededIds.length > 0;
-        return (
-            metadata.type === "decision" ||
-            supersededIds.length > 0 ||
-            this._coerceIdList(metadata.depends_on).length > 0 ||
-            this._coerceIdList(metadata.justified_by).length > 0 ||
-            this._coerceIdList(metadata.contradicts).length > 0
-        );
+        return decisionGraph._isDecisionWrite(this, metadata, supersededIds);
     }
-    /**
-     * Write Decision Context Graph edges for a freshly stored memory.
-     *
-     * source_id is always the new memory; target_id always pre-exists. Edges:
-     *   - supersedes   from the belief-revision step (supersededIds)
-     *   - depends-on   from metadata.depends_on
-     *   - justified-by from metadata.justified_by
-     *   - contradicts  from metadata.contradicts
-     */
+    /** @private Fire-and-forget decision-edge write at end of add() — see mesh/decision-graph.ts. */
     async _writeDecisionEdges(sourceId: string, metadata: any, supersededIds: string[]): Promise<void> {
-        if (!this.decisionEdgeTable) return;
-        const rationale = typeof metadata?.reasoning === "string" ? metadata.reasoning : null;
-        const weight = typeof metadata?.hypothesis_confidence === "number" ? metadata.hypothesis_confidence : 1.0;
-        // Collapse duplicate (target, relation) pairs within this write — a caller
-        // passing depends_on: ['X','X'], or replaces_memory_id colliding with a
-        // key-matched supersession, would otherwise emit identical rows. They
-        // carry the same rationale/weight by construction, so dedup loses nothing.
-        // Distinct relations to the same target are kept (different key). source_id
-        // is unique per add(), so this is the only place duplicates can arise.
-        const seen = new Set<string>();
-        const edges: any[] = [];
-        const addEdge = (targetId: string, relation: string) => {
-            if (!targetId || targetId === sourceId) return;
-            const key = `${targetId}\0${relation}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            edges.push({
-                id: `dedge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                source_id: sourceId,
-                target_id: targetId,
-                relation,
-                rationale,
-                weight,
-                created_at: new Date(),
-            });
-        };
-        for (const t of supersededIds) addEdge(t, "supersedes");
-        for (const t of this._coerceIdList(metadata?.depends_on)) addEdge(t, "depends-on");
-        for (const t of this._coerceIdList(metadata?.justified_by)) addEdge(t, "justified-by");
-        for (const t of this._coerceIdList(metadata?.contradicts)) addEdge(t, "contradicts");
-        if (edges.length > 0) {
-            await this.decisionEdgeTable.add(edges);
-        }
+        return decisionGraph._writeDecisionEdges(this, sourceId, metadata, supersededIds);
     }
-    /**
-     * Traverse the Decision Context Graph from a memory.
-     *
-     * Distinct from the Graph-RAG boost traversal — this answers reasoning-audit
-     * questions over decision_edges, not retrieval scoring.
-     *
-     *   direction 'ancestors'  (default): follow outgoing edges (source_id ==
-     *     node) — "what this decision supersedes / depends on / is justified by".
-     *   direction 'dependents': follow incoming edges (target_id == node) —
-     *     "this decision was reversed; what still-active decisions rested on it?"
-     */
+    /** Traverse decision lineage (ancestors or dependents) — see mesh/decision-graph.ts. */
     async decisionLineage(
         memoryId: string,
         opts: { direction?: "ancestors" | "dependents"; relations?: string[]; maxHops?: number } = {}
     ): Promise<Array<{ from: string; to: string; relation: string; rationale: string | null; weight: number; hop: number }>> {
-        await this.init();
-        if (!this.decisionEdgeTable) return [];
-        const direction = opts.direction ?? "ancestors";
-        const maxHops = opts.maxHops ?? 3;
-        const relationFilter =
-            opts.relations && opts.relations.length > 0
-                ? ` AND relation IN (${opts.relations.map((r) => `'${r.replace(/'/g, "''")}'`).join(", ")})`
-                : "";
-        const out: Array<{ from: string; to: string; relation: string; rationale: string | null; weight: number; hop: number }> = [];
-        const visited = new Set<string>([memoryId]);
-        let frontier: string[] = [memoryId];
-        for (let hop = 1; hop <= maxHops && frontier.length > 0; hop++) {
-            const next: string[] = [];
-            for (const node of frontier) {
-                const col = direction === "ancestors" ? "source_id" : "target_id";
-                const rows = await this.decisionEdgeTable
-                    .query()
-                    .where(`${col} == '${node.replace(/'/g, "''")}'${relationFilter}`)
-                    .toArray();
-                for (const row of rows) {
-                    out.push({
-                        from: row.source_id,
-                        to: row.target_id,
-                        relation: row.relation,
-                        rationale: row.rationale ?? null,
-                        weight: typeof row.weight === "number" ? row.weight : 1.0,
-                        hop,
-                    });
-                    const other = direction === "ancestors" ? row.target_id : row.source_id;
-                    if (!visited.has(other)) {
-                        visited.add(other);
-                        next.push(other);
-                    }
-                }
-            }
-            frontier = next;
-        }
-        return out;
+        return decisionGraph.decisionLineage(this, memoryId, opts);
     }
-    /**
-     * Contradiction-aware ranking (workspace-g9p.4) — the retrieval-time
-     * analog of bd's "blocked". A result with a `contradicts` edge from a
-     * NEWER memory whose outcome is `validated` is down-ranked (score × 0.5)
-     * and flagged via `contradicted_by`, so stale beliefs lose ranking
-     * contests against what actually replaced them. No-op when the Decision
-     * Context Graph is empty; failures never break search.
-     */
+    /** @private Contradiction-aware ranking penalty — see mesh/decision-graph.ts. */
     async _applyContradictionPenalty(results: RankedMemory[]): Promise<RankedMemory[]> {
-        if (!this.decisionEdgeTable || results.length === 0) {
-            return results;
-        }
-        try {
-            const inList = results.map((r) => `'${r.id.replace(/'/g, "''")}'`).join(", ");
-            const edges = await this.decisionEdgeTable
-                .query()
-                .where(`relation == 'contradicts' AND target_id IN (${inList})`)
-                .toArray();
-            if (edges.length === 0) {
-                return results;
-            }
-            const byTarget = new Map<string, any[]>();
-            for (const e of edges) {
-                const arr = byTarget.get(e.target_id) ?? [];
-                arr.push(e);
-                byTarget.set(e.target_id, arr);
-            }
-            // A contradiction only penalizes when the contradicting (newer)
-            // memory has a validated outcome — an unproven contradiction is
-            // just a disagreement, not evidence.
-            const sourceIds: string[] = [...new Set<string>(edges.map((e: any) => e.source_id as string))];
-            const validatedSources = new Set<string>();
-            for (const sid of sourceIds) {
-                const rec = await this.client?.getById(sid);
-                if (rec?.metadata?.outcome?.status === "validated") {
-                    validatedSources.add(sid);
-                }
-            }
-            if (validatedSources.size === 0) {
-                return results;
-            }
-            let changed = false;
-            const out = results.map((r) => {
-                const contradictors = (byTarget.get(r.id) ?? [])
-                    .filter((e: any) => validatedSources.has(e.source_id))
-                    .map((e: any) => e.source_id as string);
-                if (contradictors.length === 0) return r;
-                changed = true;
-                return { ...r, score: (r.score ?? 0) * 0.5, contradicted_by: [...new Set(contradictors)] };
-            });
-            if (changed) {
-                out.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-            }
-            return out;
-        }
-        catch (error) {
-            if (process.env.YAMO_DEBUG === "true") {
-                logger.warn({ err: error }, "Contradiction penalty failed — returning unpenalized results");
-            }
-            return results;
-        }
+        return decisionGraph._applyContradictionPenalty(this, results);
     }
-    /**
-     * Stale-beliefs report (workspace-g9p.4) — bd blocked pointed backward at
-     * beliefs. For each refuted decision (or the given memoryId), walks
-     * decisionLineage(dependents) and surfaces every memory still resting on
-     * it, with hop counts.
-     */
+    /** Memories still resting on refuted decisions — see mesh/decision-graph.ts. */
     async staleBeliefs(opts: { memoryId?: string; maxHops?: number } = {}): Promise<Array<{
         refuted: { id: string; content: string | null; note: string | null };
         dependents: Array<{ id: string; relation: string; hop: number; content: string | null; state: string | null }>;
     }>> {
-        await this.init();
-        if (!this.client) {
-            throw new Error("Database client not initialized");
-        }
-        let refutedIds: string[];
-        if (opts.memoryId) {
-            refutedIds = [opts.memoryId];
-        }
-        else {
-            const candidates = await this.client.getWhere(
-                `metadata LIKE '%"status":"refuted"%'`,
-                { limit: METADATA_SCAN_CAP },
-            );
-            refutedIds = candidates
-                .filter((r: any) => r.metadata?.outcome?.status === "refuted")
-                .map((r: any) => r.id as string);
-        }
-        const report: Array<{
-            refuted: { id: string; content: string | null; note: string | null };
-            dependents: Array<{ id: string; relation: string; hop: number; content: string | null; state: string | null }>;
-        }> = [];
-        for (const refutedId of refutedIds) {
-            const record = await this.client.getById(refutedId);
-            const lineage = await this.decisionLineage(refutedId, {
-                direction: "dependents",
-                maxHops: opts.maxHops ?? 3,
-            });
-            const seen = new Set<string>();
-            const dependents: Array<{ id: string; relation: string; hop: number; content: string | null; state: string | null }> = [];
-            for (const edge of lineage) {
-                // dependents direction: `from` is the newer memory resting on the node.
-                if (seen.has(edge.from)) continue;
-                seen.add(edge.from);
-                const dep = await this.client.getById(edge.from);
-                dependents.push({
-                    id: edge.from,
-                    relation: edge.relation,
-                    hop: edge.hop,
-                    content: dep?.content ?? null,
-                    state: dep?.state ?? null,
-                });
-            }
-            report.push({
-                refuted: {
-                    id: refutedId,
-                    content: record?.content ?? null,
-                    note: record?.metadata?.outcome?.note ?? null,
-                },
-                dependents,
-            });
-        }
-        return report;
+        return decisionGraph.staleBeliefs(this, opts);
     }
-    /**
-     * Record the observed outcome of a decision, closing the feedback loop.
-     *
-     * Stores `outcome` in the decision's metadata and resets importance_score by
-     * status so retrieval ranking reflects whether the decision actually worked
-     * (not merely how often it was read): validated 0.9, mixed 0.5, refuted 0.2.
-     */
+    /** Record a decision outcome (validated/refuted/mixed) — see mesh/decision-graph.ts. */
     async recordOutcome(
         decisionId: string,
         outcome: { status: "validated" | "refuted" | "mixed"; note?: string }
     ): Promise<void> {
-        await this.init();
-        if (!this.client) {
-            throw new Error("Database client not initialized");
-        }
-        const record = await this.client.getById(decisionId);
-        if (!record) {
-            throw new Error(`recordOutcome: memory ${decisionId} not found`);
-        }
-        const metadata = record.metadata && typeof record.metadata === "object" ? record.metadata : {};
-        const previousOutcome = metadata.outcome ?? null;
-        metadata.outcome = {
-            status: outcome.status,
-            note: outcome.note ?? null,
-            observed_at: new Date().toISOString(),
-        };
-        const importanceByStatus: Record<string, number> = { validated: 0.9, mixed: 0.5, refuted: 0.2 };
-        const previousImportance = typeof record.importance_score === "number" ? record.importance_score : null;
-        await this.client.update(decisionId, {
-            metadata: JSON.stringify(metadata),
-            importance_score: importanceByStatus[outcome.status],
-        });
-        this._recordRevision(decisionId, [
-            { field: "importance_score", oldValue: previousImportance, newValue: importanceByStatus[outcome.status] },
-            { field: "metadata.outcome", oldValue: previousOutcome, newValue: metadata.outcome },
-        ]);
-        // Ranking changed — drop cached search results that predate it.
-        this.queryCache.clear();
+        return decisionGraph.recordOutcome(this, decisionId, outcome);
     }
     /**
      * Distill a LessonLearned block (RFC-0011 §3.5).

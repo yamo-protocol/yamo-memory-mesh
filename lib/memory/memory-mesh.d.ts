@@ -41,7 +41,7 @@ type StoredMemory = Pick<MemoryRecord, "id" | "content" | "metadata" | "created_
  * `vector`/`superseded_at`, keyword results carry `matches` and spread doc fields — so
  * only `id` and `score` are guaranteed; the rest are optional.
  */
-interface RankedMemory {
+export interface RankedMemory {
     id: string;
     score: number;
     content?: string;
@@ -737,11 +737,7 @@ export declare class MemoryMesh {
         imported: number;
         skipped: number;
     }>>;
-    /**
-     * Decision edges whose endpoints resolve to no known memory or skill row
-     * (workspace-g9p.6). The DCG direction invariant says targets pre-exist at
-     * write time — a dangling endpoint means a deletion broke lineage.
-     */
+    /** List decision edges whose endpoints no longer resolve — see mesh/decision-graph.ts. */
     orphanEdges(opts?: {
         limit?: number;
     }): Promise<Array<{
@@ -778,37 +774,13 @@ export declare class MemoryMesh {
             detail: string;
         }>;
     }>;
-    /**
-     * Coerce a metadata edge field (string | string[] | undefined) into a
-     * clean array of target memory IDs.
-     */
+    /** @private Coerce a decision-edge id list — see mesh/decision-graph.ts. */
     _coerceIdList(value: unknown): string[];
-    /**
-     * Decide whether a write should emit Decision Context Graph edges. Gated so
-     * the common (non-decision) write path does no edge work at all.
-     */
+    /** @private Gate: does this add() carry decision semantics — see mesh/decision-graph.ts. */
     _isDecisionWrite(metadata: any, supersededIds: string[]): boolean;
-    /**
-     * Write Decision Context Graph edges for a freshly stored memory.
-     *
-     * source_id is always the new memory; target_id always pre-exists. Edges:
-     *   - supersedes   from the belief-revision step (supersededIds)
-     *   - depends-on   from metadata.depends_on
-     *   - justified-by from metadata.justified_by
-     *   - contradicts  from metadata.contradicts
-     */
+    /** @private Fire-and-forget decision-edge write at end of add() — see mesh/decision-graph.ts. */
     _writeDecisionEdges(sourceId: string, metadata: any, supersededIds: string[]): Promise<void>;
-    /**
-     * Traverse the Decision Context Graph from a memory.
-     *
-     * Distinct from the Graph-RAG boost traversal — this answers reasoning-audit
-     * questions over decision_edges, not retrieval scoring.
-     *
-     *   direction 'ancestors'  (default): follow outgoing edges (source_id ==
-     *     node) — "what this decision supersedes / depends on / is justified by".
-     *   direction 'dependents': follow incoming edges (target_id == node) —
-     *     "this decision was reversed; what still-active decisions rested on it?"
-     */
+    /** Traverse decision lineage (ancestors or dependents) — see mesh/decision-graph.ts. */
     decisionLineage(memoryId: string, opts?: {
         direction?: "ancestors" | "dependents";
         relations?: string[];
@@ -821,21 +793,9 @@ export declare class MemoryMesh {
         weight: number;
         hop: number;
     }>>;
-    /**
-     * Contradiction-aware ranking (workspace-g9p.4) — the retrieval-time
-     * analog of bd's "blocked". A result with a `contradicts` edge from a
-     * NEWER memory whose outcome is `validated` is down-ranked (score × 0.5)
-     * and flagged via `contradicted_by`, so stale beliefs lose ranking
-     * contests against what actually replaced them. No-op when the Decision
-     * Context Graph is empty; failures never break search.
-     */
+    /** @private Contradiction-aware ranking penalty — see mesh/decision-graph.ts. */
     _applyContradictionPenalty(results: RankedMemory[]): Promise<RankedMemory[]>;
-    /**
-     * Stale-beliefs report (workspace-g9p.4) — bd blocked pointed backward at
-     * beliefs. For each refuted decision (or the given memoryId), walks
-     * decisionLineage(dependents) and surfaces every memory still resting on
-     * it, with hop counts.
-     */
+    /** Memories still resting on refuted decisions — see mesh/decision-graph.ts. */
     staleBeliefs(opts?: {
         memoryId?: string;
         maxHops?: number;
@@ -853,13 +813,7 @@ export declare class MemoryMesh {
             state: string | null;
         }>;
     }>>;
-    /**
-     * Record the observed outcome of a decision, closing the feedback loop.
-     *
-     * Stores `outcome` in the decision's metadata and resets importance_score by
-     * status so retrieval ranking reflects whether the decision actually worked
-     * (not merely how often it was read): validated 0.9, mixed 0.5, refuted 0.2.
-     */
+    /** Record a decision outcome (validated/refuted/mixed) — see mesh/decision-graph.ts. */
     recordOutcome(decisionId: string, outcome: {
         status: "validated" | "refuted" | "mixed";
         note?: string;
