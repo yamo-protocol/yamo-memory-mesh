@@ -516,43 +516,8 @@ export declare class MemoryMesh {
         rationales: string[];
     }): Promise<void>;
     /**
-     * Search memory using hybrid vector + keyword search with Reciprocal Rank Fusion (RRF).
-     *
-     * This method performs semantic search by combining:
-     * 1. **Vector Search**: Uses embeddings to find semantically similar content
-     * 2. **Keyword Search**: Uses BM25-style keyword matching
-     * 3. **RRF Fusion**: Combines both result sets using Reciprocal Rank Fusion
-     *
-     * The RRF algorithm scores each document as: `sum(1 / (k + rank))` where k=60.
-     * This gives higher scores to documents that rank well in BOTH searches.
-     *
-     * **Performance**: Uses adaptive sorting strategy
-     * - Small datasets (≤ 2× limit): Full sort O(n log n)
-     * - Large datasets: Partial selection sort O(n×k) where k=limit
-     *
-     * **Caching**: Results are cached for 5 minutes by default (configurable via options)
-     *
-     * @param query - The search query text
-     * @param options - Search options
-     * @param options.limit - Maximum results to return (default: 10)
-     * @param options.filter - LanceDB filter expression (e.g., "type == 'preference'")
-     * @param options.useCache - Enable/disable result caching (default: true)
-     * @returns Promise with array of search results, sorted by relevance score
-     *
-     * @example
-     * ```typescript
-     * // Simple search
-     * const results = await mesh.search("TypeScript preferences");
-     *
-     * // Search with filter
-     * const code = await mesh.search("bug fix", { filter: "type == 'error'" });
-     *
-     * // Search with limit
-     * const top3 = await mesh.search("security issues", { limit: 3 });
-     * ```
-     *
-     * @throws {Error} If embedding generation fails
-     * @throws {Error} If database client is not initialized
+     * Search memory using hybrid vector + keyword search with RRF fusion —
+     * see mesh/search.ts for the full pipeline (modes: hybrid | vector | keyword).
      */
     search(query: string, options?: {
         limit?: number;
@@ -561,17 +526,17 @@ export declare class MemoryMesh {
         useCache?: boolean;
         includeArchived?: boolean;
     }): Promise<RankedMemory[]>;
+    /** @private 1-hop/2-hop graph-edge score boosting for search() — see mesh/graph-rag.ts. */
     _applyGraphRagBoosting(results: RankedMemory[], query: string): Promise<RankedMemory[]>;
+    /** @private Keyword (FTS/BM25) channel — see mesh/search.ts. */
     _keywordSearch(query: string, limit: number, filter?: any, opts?: {
         includeArchived?: boolean;
     }): Promise<RankedMemory[]>;
+    /** @private Normalize scores to [0,1] — see mesh/search.ts. */
     _normalizeScores(results: RankedMemory[]): RankedMemory[];
-    /**
-     * Tokenize query for keyword matching (private helper for searchSkills)
-     * Converts text to lowercase tokens, filtering out short tokens and punctuation.
-     * Handles camelCase/PascalCase by splitting on uppercase letters.
-     */
+    /** @private Tokenize a query for keyword matching — see mesh/search.ts. */
     _tokenizeQuery(text: string): string[];
+    /** Format results for LLM consumption with injection fencing — see mesh/search.ts. */
     formatResults(results: any[]): string;
     get(id: string): Promise<StoredMemory | null>;
     /**
@@ -781,6 +746,7 @@ export declare class MemoryMesh {
     /**
      * S-MORA: Singularity Memory-Oriented Retrieval Augmentation (RFC-0012)
      * 5-layer pipeline: Scrubbing → HyDE-Lite → Multi-channel retrieval → RRF → Heritage-aware reranking
+     * — see mesh/smora.ts.
      */
     smora(query: string, options?: {
         limit?: number;
@@ -843,42 +809,13 @@ export declare class MemoryMesh {
         mergedContent?: string;
         rationale?: string;
     }, neighborId: string, newContent: string): Promise<void>;
-    /**
-     * Canonicalize an intent string for caching + lookup. Mirrors
-     * _canonicalizeEntity's lightweight normalization but preserves
-     * intent vocabulary (no plural stripping — "debug" and "debugs" are
-     * legitimately different verbs/states in intent chains).
-     * @private
-     */
+    /** @private Canonicalize an intent string for cache keys — see mesh/smora.ts. */
     _canonicalizeIntent(intent: string): string;
-    /**
-     * Embed a single intent string with persistent caching. Intents are
-     * low-cardinality (handfuls per project) and stable across queries, so
-     * the cache hits hard. Cap at 500 entries with LRU eviction. Returns
-     * null on any failure so callers can fall back to raw overlap.
-     * @private
-     */
+    /** @private Embed an intent with LRU caching — see mesh/smora.ts. */
     _embedIntent(intent: string): Promise<any>;
-    /**
-     * Heritage bonus from intent vector matrices. For each session intent,
-     * take its max cosine similarity against any chain intent (MaxSim),
-     * sum, divide by sessionIntent count. Vectors are assumed
-     * L2-normalized (embedding service normalizes by default), so cosine =
-     * dot product. Returns 0 on empty/invalid input.
-     * @private
-     */
+    /** @private Heritage bonus from cosine over intent vectors — see mesh/smora.ts. */
     _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: number): number;
-    /**
-     * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
-     *
-     * When an LLM is available, generates a 2-3 sentence hypothetical passage
-     * that would directly answer the query — typically yields stronger vector
-     * matches than the original short query because the generated text mirrors
-     * the distribution of stored documents. Falls back to a template wrapper
-     * if the LLM is disabled, fails, or times out (HYDE_TIMEOUT_MS, default 5s).
-     *
-     * Results are cached per-query with the same TTL as queryCache.
-     */
+    /** @private LLM HyDE expansion with cache + timeout — see mesh/smora.ts. */
     _generateHyDE(query: string): Promise<string>;
     getAll(options?: {}): Promise<any>;
     stats(): Promise<{
@@ -941,38 +878,18 @@ export declare class MemoryMesh {
      */
     optimize(): Promise<any>;
     close(): Promise<void>;
-    /**
-     * Canonicalize an entity string for graph storage and matching.
-     * Lowercase, leading '#' stripped, hyphens/underscores → spaces,
-     * trailing plural 's' stripped, whitespace collapsed. Lets the graph
-     * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
-     * @private
-     */
+    /** @private Canonicalize an entity (lowercase, separators, plural-strip) — see mesh/graph-rag.ts. */
     _canonicalizeEntity(entity: string): string;
-    /**
-     * Check if a content string mentions an entity using a case-insensitive
-     * word-boundary regex with simple plural tolerance. Fixes the substring
-     * false positives of the old `content.includes(entity)` check (where
-     * "Auth" matched "AuthService" or "auth-token" matched "authorization").
-     * @private
-     */
+    /** @private Does content mention the entity (canonical-aware) — see mesh/graph-rag.ts. */
     _contentMentions(content: string, entity: string): boolean;
-    /**
-     * Heuristic triple extractor — pairs consecutive PascalCase tokens with
-     * a between-window verb guess. Produces low-precision edges that pollute
-     * the Graph-RAG boost step. Disabled by default — return [] so no graph
-     * noise from non-LLM writes.
-     *
-     * Opt in via GRAPH_RAG_HEURISTIC_TRIPLES=on env when running against a
-     * corpus where you actually want PascalCase-pairing as a backstop. The
-     * LLM path (_extractTriplesLLM) is the recommended graph source.
-     */
+    /** @private Heuristic PascalCase triple extraction (off by default) — see mesh/graph-rag.ts. */
     _extractTriplesHeuristics(content: string): {
         source: string;
         target: string;
         relation: string;
         weight: number;
     }[];
+    /** @private LLM triple extraction (recommended source) — see mesh/graph-rag.ts. */
     _extractTriplesLLM(content: string): Promise<{
         source: string;
         target: string;

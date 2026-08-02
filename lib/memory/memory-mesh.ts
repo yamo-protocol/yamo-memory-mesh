@@ -35,6 +35,9 @@ import * as decisionGraph from "./mesh/decision-graph.js";
 import * as lessons from "./mesh/lessons.js";
 import * as maintenance from "./mesh/maintenance.js";
 import * as lifecycle from "./mesh/lifecycle.js";
+import * as smoraMod from "./mesh/smora.js";
+import * as graphRag from "./mesh/graph-rag.js";
+import * as searchMod from "./mesh/search.js";
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("brain");
 
@@ -1912,370 +1915,32 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         return yamoAudit._emitYamoBlock(this, operationType, memoryId, yamoText, heritage);
     }
     /**
-     * Search memory using hybrid vector + keyword search with Reciprocal Rank Fusion (RRF).
-     *
-     * This method performs semantic search by combining:
-     * 1. **Vector Search**: Uses embeddings to find semantically similar content
-     * 2. **Keyword Search**: Uses BM25-style keyword matching
-     * 3. **RRF Fusion**: Combines both result sets using Reciprocal Rank Fusion
-     *
-     * The RRF algorithm scores each document as: `sum(1 / (k + rank))` where k=60.
-     * This gives higher scores to documents that rank well in BOTH searches.
-     *
-     * **Performance**: Uses adaptive sorting strategy
-     * - Small datasets (≤ 2× limit): Full sort O(n log n)
-     * - Large datasets: Partial selection sort O(n×k) where k=limit
-     *
-     * **Caching**: Results are cached for 5 minutes by default (configurable via options)
-     *
-     * @param query - The search query text
-     * @param options - Search options
-     * @param options.limit - Maximum results to return (default: 10)
-     * @param options.filter - LanceDB filter expression (e.g., "type == 'preference'")
-     * @param options.useCache - Enable/disable result caching (default: true)
-     * @returns Promise with array of search results, sorted by relevance score
-     *
-     * @example
-     * ```typescript
-     * // Simple search
-     * const results = await mesh.search("TypeScript preferences");
-     *
-     * // Search with filter
-     * const code = await mesh.search("bug fix", { filter: "type == 'error'" });
-     *
-     * // Search with limit
-     * const top3 = await mesh.search("security issues", { limit: 3 });
-     * ```
-     *
-     * @throws {Error} If embedding generation fails
-     * @throws {Error} If database client is not initialized
+     * Search memory using hybrid vector + keyword search with RRF fusion —
+     * see mesh/search.ts for the full pipeline (modes: hybrid | vector | keyword).
      */
     async search(query: string, options: { limit?: number; filter?: any; mode?: string; useCache?: boolean; includeArchived?: boolean } = {}): Promise<RankedMemory[]> {
-        await this.init();
-        try {
-            const limit = options.limit || 10;
-            const filter = options.filter || null;
-            const mode = options.mode || "hybrid"; // "hybrid" | "vector" | "keyword"
-            const useCache = options.useCache !== undefined ? options.useCache : true;
-            const cacheOpts = { limit, filter, mode, includeArchived: options.includeArchived === true };
-            if (useCache) {
-                const cacheKey = this._generateCacheKey(query, cacheOpts);
-                const cached = this._getCachedResult(cacheKey);
-                if (cached) {
-                    return cached;
-                }
-            }
-
-            // Keyword-only mode: skip embedding and vector search entirely
-            if (mode === "keyword") {
-                const keywordOnly = await this._keywordSearch(query, limit, filter, { includeArchived: options.includeArchived === true });
-                const normalizedKeyword = this._normalizeScores(keywordOnly);
-                const boosted = await this._applyContradictionPenalty(await this._applyGraphRagBoosting(normalizedKeyword, query));
-                if (useCache) {
-                    const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
-                    this._cacheResult(cacheKey, boosted);
-                }
-                if (this.enableYamo) {
-                    this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
-                        query,
-                        resultCount: boosted.length,
-                        limit,
-                        agentId: this.agentId,
-                        searchType: "keyword",
-                    })).catch((error) => {
-                        if (process.env.YAMO_DEBUG === "true") {
-                            logger.warn({ err: error }, "Failed to emit YAMO block (recall)");
-                        }
-                    });
-                }
-                return boosted;
-            }
-
-            const vector = await this.embeddingFactory.embed(query, { isQuery: true });
-            if (!this.client) {
-                throw new Error("Database client not initialized");
-            }
-            const activeClause = this._activeStateClause({ includeArchived: options.includeArchived === true });
-            const combinedFilter = filter ? `(${filter}) AND ${activeClause}` : activeClause;
-            const vectorResults = await this.client.search(vector, {
-                limit: mode === "vector" ? limit : limit * 2,
-                metric: "cosine",
-                filter: combinedFilter,
-            });
-
-            // Vector-only mode: skip keyword search and RRF merge
-            if (mode === "vector") {
-                const normalizedVector = this._normalizeScores(vectorResults.slice(0, limit));
-                const boosted = await this._applyContradictionPenalty(await this._applyGraphRagBoosting(normalizedVector, query));
-                if (useCache) {
-                    const cacheKey = this._generateCacheKey(query, { limit, filter, mode });
-                    this._cacheResult(cacheKey, boosted);
-                }
-                if (this.enableYamo) {
-                    this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
-                        query,
-                        resultCount: boosted.length,
-                        limit,
-                        agentId: this.agentId,
-                        searchType: "vector",
-                    })).catch((error) => {
-                        if (process.env.YAMO_DEBUG === "true") {
-                            logger.warn({ err: error }, "Failed to emit YAMO block (recall)");
-                        }
-                    });
-                }
-                return boosted;
-            }
-
-            // Hybrid mode (default): vector + keyword with RRF merge
-            const keywordResults = await this._keywordSearch(query, limit * 2, filter, { includeArchived: options.includeArchived === true });
-            // Reciprocal Rank Fusion — shared implementation (mesh/rrf.ts).
-            // Keyword docs are pre-mapped to the minimal RankedMemory shape; the
-            // vector list goes first so its richer doc wins when both channels
-            // return the same id. (Replaces a hand-rolled partial-selection-sort
-            // "optimization" that produced identical ordering at worse complexity.)
-            const keywordDocs: RankedMemory[] = keywordResults.map((doc) => ({
-                id: doc.id,
-                content: doc.content,
-                metadata: doc.metadata,
-                score: 0,
-                created_at: new Date().toISOString(),
-            }));
-            const rerankLimit = this.enableReranker ? Math.max(20, limit * 2) : limit;
-            let mergedResults: RankedMemory[] = rrfMerge([
-                { items: vectorResults },
-                { items: keywordDocs },
-            ])
-                .slice(0, rerankLimit)
-                .map(({ doc, rrfScore }) => ({ ...doc, score: rrfScore }));
-
-            // Cross-encoder rerank
-            if (this.enableReranker && mergedResults.length > 0) {
-                try {
-                    const docContents = mergedResults.map(d => d.content);
-                    const ceScores = await this.embeddingFactory.rerank(query, docContents);
-                    const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
-                    for (let i = 0; i < mergedResults.length; i++) {
-                        mergedResults[i].score = sigmoid(ceScores[i]);
-                    }
-                    mergedResults.sort((a, b) => b.score - a.score);
-                } catch (error) {
-                    if (process.env.YAMO_DEBUG === "true") {
-                        logger.warn({ err: error }, "Cross-encoder reranking failed, falling back to RRF scores");
-                    }
-                }
-                mergedResults = mergedResults.slice(0, limit);
-            }
-
-            // Hybrid results already have meaningful RRF scores — normalize them
-            // to [0, 1] instead of re-deriving from _distance (which may not
-            // exist on keyword-only results, causing uniform 0.50 scores).
-            const maxRRF = mergedResults.reduce((mx, r) => Math.max(mx, r.score || 0), 0) || 1;
-            const normalizedResults = mergedResults.map((r) => ({
-                ...r,
-                score: parseFloat((r.score / maxRRF).toFixed(2)),
-            }));
-            
-            const boosted = await this._applyContradictionPenalty(await this._applyGraphRagBoosting(normalizedResults, query));
-
-            if (useCache) {
-                const cacheKey = this._generateCacheKey(query, cacheOpts);
-                this._cacheResult(cacheKey, boosted);
-            }
-            if (this.enableYamo) {
-                this._emitYamoBlock("recall", undefined, YamoEmitter.buildRecallBlock({
-                    query,
-                    resultCount: boosted.length,
-                    limit,
-                    agentId: this.agentId,
-                    searchType: "hybrid",
-                })).catch((error) => {
-                    // Log emission failures in debug mode but don't throw
-                    if (process.env.YAMO_DEBUG === "true") {
-                        logger.warn({ err: error }, "Failed to emit YAMO block (recall)");
-                    }
-                });
-            }
-            return boosted;
-        }
-        catch (error) {
-            throw error instanceof Error ? error : new Error(String(error));
-        }
+        return searchMod.search(this, query, options);
     }
 
+    /** @private 1-hop/2-hop graph-edge score boosting for search() — see mesh/graph-rag.ts. */
     async _applyGraphRagBoosting(results: RankedMemory[], query: string): Promise<RankedMemory[]> {
-        if (!this.graphTable || results.length === 0) {
-            return results;
-        }
-        try {
-            // Extract candidate entities from the query, then canonicalize so
-            // matching against (canonicalized) edge endpoints is case- and
-            // plural-insensitive. Skip empty canonicals (e.g. lone "#" tokens).
-            const rawQueryEntities = query.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g) || [];
-            const queryEntitySet = new Set<string>();
-            for (const raw of rawQueryEntities) {
-                const c = this._canonicalizeEntity(raw);
-                if (c) queryEntitySet.add(c);
-            }
-            if (queryEntitySet.size > 0) {
-                const queryEntities = Array.from(queryEntitySet);
-                const escapedEntities = queryEntities.map(e => e.replace(/'/g, "''"));
-                const listStr = escapedEntities.map(e => `'${e}'`).join(", ");
-                const filterExpr = `source IN (${listStr}) OR target IN (${listStr})`;
-                const edges1 = await this.graphTable.query().where(filterExpr).toArray();
-
-                const c1 = new Set<string>();
-                for (const edge of edges1) {
-                    if (queryEntitySet.has(edge.source)) c1.add(edge.target);
-                    if (queryEntitySet.has(edge.target)) c1.add(edge.source);
-                }
-
-                const c2 = new Set<string>();
-                if (c1.size > 0) {
-                    const escapedC1 = Array.from(c1).map(e => e.replace(/'/g, "''"));
-                    const listStrC1 = escapedC1.map(e => `'${e}'`).join(", ");
-                    const filterExprC1 = `source IN (${listStrC1}) OR target IN (${listStrC1})`;
-                    const edges2 = await this.graphTable.query().where(filterExprC1).toArray();
-
-                    for (const edge of edges2) {
-                        if (c1.has(edge.source)) {
-                            if (!queryEntitySet.has(edge.target) && !c1.has(edge.target)) {
-                                c2.add(edge.target);
-                            }
-                        }
-                        if (c1.has(edge.target)) {
-                            if (!queryEntitySet.has(edge.source) && !c1.has(edge.source)) {
-                                c2.add(edge.source);
-                            }
-                        }
-                    }
-                }
-
-                if (c1.size > 0 || c2.size > 0) {
-                    for (const doc of results) {
-                        let hasC1 = false;
-                        for (const entity of c1) {
-                            if (this._contentMentions(doc.content ?? "", entity)) {
-                                hasC1 = true;
-                                break;
-                            }
-                        }
-                        let hasC2 = false;
-                        if (!hasC1 && c2.size > 0) {
-                            for (const entity of c2) {
-                                if (this._contentMentions(doc.content ?? "", entity)) {
-                                    hasC2 = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (hasC1) {
-                            doc.score = Math.min(1.0, parseFloat((doc.score * 1.15).toFixed(2)));
-                        } else if (hasC2) {
-                            doc.score = Math.min(1.0, parseFloat((doc.score * 1.07).toFixed(2)));
-                        }
-                    }
-                    results.sort((a, b) => b.score - a.score);
-                }
-            }
-        } catch (graphError) {
-            if (process.env.YAMO_DEBUG === "true") {
-                logger.warn({ err: graphError }, "Failed to traverse Graph-RAG edges");
-            }
-        }
-        return results;
+        return graphRag._applyGraphRagBoosting(this, results, query);
     }
-
+    /** @private Keyword (FTS/BM25) channel — see mesh/search.ts. */
     async _keywordSearch(query: string, limit: number, filter: any = null, opts: { includeArchived?: boolean } = {}): Promise<RankedMemory[]> {
-        if (this.client) {
-            try {
-                const activeClause = this._activeStateClause(opts);
-                const combinedFilter = filter ? `(${filter}) AND ${activeClause}` : activeClause;
-                const results = await this.client.searchFts(query, {
-                    limit,
-                    filter: combinedFilter,
-                });
-                return results;
-            }
-            catch (error) {
-                if (process.env.YAMO_DEBUG === "true") {
-                    logger.warn({ err: error }, "LanceDB Native FTS search failed, falling back to in-memory TF-IDF");
-                }
-            }
-        }
-        return this.keywordSearch.search(query, { limit });
+        return searchMod._keywordSearch(this, query, limit, filter, opts);
     }
+    /** @private Normalize scores to [0,1] — see mesh/search.ts. */
     _normalizeScores(results: RankedMemory[]): RankedMemory[] {
-        if (results.length === 0) {
-            return [];
-        }
-        const hasDistance = results.some((r) => r._distance !== undefined);
-        if (!hasDistance) {
-            const maxScore = results.reduce((mx, r) => Math.max(mx, r.score || 0), 0) || 1;
-            return results.map((r) => ({
-                ...r,
-                score: parseFloat(((r.score || 0) / maxScore).toFixed(2)),
-            }));
-        }
-        return results.map((r) => {
-            // LanceDB _distance is squared L2 or cosine distance
-            // For cosine distance in MiniLM, it ranges from 0 to 2
-            const rawDistance = r._distance !== undefined ? r._distance : 1.0;
-            // Convert to similarity score [0, 1]
-            const score = Math.max(0, Math.min(1.0, 1 - rawDistance / 2));
-            return {
-                ...r,
-                score: parseFloat(score.toFixed(2)),
-            };
-        });
+        return searchMod._normalizeScores(this, results);
     }
-    /**
-     * Tokenize query for keyword matching (private helper for searchSkills)
-     * Converts text to lowercase tokens, filtering out short tokens and punctuation.
-     * Handles camelCase/PascalCase by splitting on uppercase letters.
-     */
+    /** @private Tokenize a query for keyword matching — see mesh/search.ts. */
     _tokenizeQuery(text: string) {
-        return text
-            .replace(/([a-z])([A-Z])/g, "$1 $2") // Split camelCase: "targetSkill" → "target Skill"
-            .toLowerCase()
-            .replace(/[^\w\s]/g, "")
-            .split(/\s+/)
-            .filter((t) => t.length > 2); // Filter out very short tokens
+        return searchMod._tokenizeQuery(this, text);
     }
+    /** Format results for LLM consumption with injection fencing — see mesh/search.ts. */
     formatResults(results: any[]) {
-        if (results.length === 0) {
-            return "No relevant memories found.";
-        }
-        // First pass: classify each memory's risk so we know whether to
-        // prepend the [SECURITY NOTICE] preamble. We trust metadata.injection_risk
-        // (set at write time) AND re-scan live for defense in depth — a memory
-        // may have been written before the scanner existed, or by a different
-        // ingest path that bypassed it.
-        const renderable = results.map((res: any) => {
-            const metadata = typeof res.metadata === "string"
-                ? JSON.parse(res.metadata)
-                : res.metadata;
-            const writeTimeRisk = metadata?.injection_risk;
-            const liveScan = scanForInjection(res.content || '');
-            const flagged = writeTimeRisk === 'high' || writeTimeRisk === 'low' || liveScan.score > 0;
-            return { res, metadata, flagged };
-        });
-        const anyFlagged = renderable.some((r) => r.flagged);
-        let output = '';
-        if (anyFlagged) {
-            output += UNTRUSTED_PREAMBLE + '\n';
-        }
-        output += `[ATTENTION DIRECTIVE]\nThe following [MEMORY CONTEXT] is weighted by relevance.
-- ALIGN attention to entries with [IMPORTANCE >= 0.8].
-- TREAT entries with [IMPORTANCE <= 0.4] as auxiliary background info.
-
-[MEMORY CONTEXT]`;
-        renderable.forEach(({ res, metadata, flagged }: any, i: number) => {
-            const body = flagged ? fenceUntrusted(res.content) : res.content;
-            output += `\n\n--- MEMORY ${i + 1}: ${res.id} [IMPORTANCE: ${res.score}] ---\nType: ${metadata.type || "event"} | Source: ${metadata.source || "unknown"}\n${body}`;
-        });
-        return output;
+        return searchMod.formatResults(this, results);
     }
     async get(id: string): Promise<StoredMemory | null> {
         await this.init();
@@ -2506,6 +2171,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
     /**
      * S-MORA: Singularity Memory-Oriented Retrieval Augmentation (RFC-0012)
      * 5-layer pipeline: Scrubbing → HyDE-Lite → Multi-channel retrieval → RRF → Heritage-aware reranking
+     * — see mesh/smora.ts.
      */
     async smora(query: string, options: {
         limit?: number;
@@ -2514,272 +2180,9 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         enableSynthesis?: boolean;
         enableHyDE?: boolean;
         useCache?: boolean;
-    } = {}): Promise<{
-        results: Array<{
-            id: string;
-            content: string;
-            metadata: Record<string, unknown>;
-            score: number;
-            semanticScore: number;
-            heritageBonus: number;
-            recencyDecay: number;
-            rrfRank: number;
-        }>;
-        synthesis?: string;
-        pipeline: {
-            queryExpanded: boolean;
-            heritageAware: boolean;
-            synthesized: boolean;
-            latencyMs: number;
-        };
-    }> {
-        await this.init();
-        const t0 = Date.now();
-        const {
-            limit = 10,
-            retrievalLimit = 30,
-            sessionIntent = [],
-            enableSynthesis = false,
-            enableHyDE = true,
-        } = options;
-
-        // Layer 0: scrub query. Mirror add()'s pattern — scrubber.process() returns
-        // { chunks, metadata, telemetry, success }, not a `content` field, so derive
-        // the cleaned text by joining chunk texts. Falls back to the raw query when
-        // scrubbing fails or yields no chunks.
-        let scrubbed = query;
-        try {
-            if (this.scrubber) {
-                const s = await this.scrubber.process({ content: query });
-                if (s.success && s.chunks.length > 0) {
-                    scrubbed = s.chunks.map((c: any) => c.text).join("\n\n");
-                }
-            }
-        } catch { /* non-fatal */ }
-
-        if (!this.client) {
-            return { results: [], pipeline: { queryExpanded: false, heritageAware: false, synthesized: false, latencyMs: Date.now() - t0 } };
-        }
-
-        // Layer 1: HyDE — LLM-generated hypothetical answer (template fallback)
-        let hydeQuery: string | null = null;
-        if (enableHyDE) {
-            hydeQuery = await this._generateHyDE(scrubbed);
-        }
-
-        // Layer 2: Multi-channel retrieval (semantic original, semantic HyDE, keyword BM25)
-        // HyDE expansion already reads like a document, so embed it as a passage
-        // rather than a query — the prefix difference matters for instruction-aware models.
-        const queryVec = await this.embeddingFactory.embed(scrubbed, { isQuery: true });
-        const hydeVec = hydeQuery ? await this.embeddingFactory.embed(hydeQuery, { isQuery: false }) : null;
-
-        const [semanticOrig, semanticHyde, keywordResults] = await Promise.all([
-            this.client.search(queryVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }),
-            hydeVec ? this.client.search(hydeVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }) : Promise.resolve([]),
-            Promise.resolve(this.keywordSearch.search(scrubbed, { limit: retrievalLimit })),
-        ]);
-
-        // Layer 3: Reciprocal Rank Fusion (k=60, channel weights: 1.0 / 0.8 / 0.6)
-        // Shared implementation — see mesh/rrf.ts.
-        const fusedEntries = rrfMerge<any>([
-            { items: semanticOrig, weight: 1.0 },
-            { items: semanticHyde, weight: 0.8 },
-            {
-                items: keywordResults.map((r: any) => ({ id: r.id, content: r.content, metadata: r.metadata, created_at: r.created_at || new Date().toISOString() })),
-                weight: 0.6,
-            },
-        ]);
-        const rrfScores = new Map(fusedEntries.map((e) => [e.id, e.rrfScore]));
-
-        // Take top pre_rerank_limit candidates
-        const preRerankLimit = 20;
-        let candidates = fusedEntries
-            .slice(0, preRerankLimit)
-            .map((e) => e.doc)
-            .filter(Boolean);
-
-        // Optional Layer 2.5: ColBERT late-interaction rerank
-        // Runs token-level MaxSim over the candidate set before the cross-encoder.
-        // Catches token-level alignment that pooled vectors flatten away — useful
-        // on long-doc / multi-topic candidates. No-op when the model can't produce
-        // token embeddings; cost is amortized across the candidate set (top 20).
-        const enableColbert = (options as any).enableColbert === true;
-        if (enableColbert && candidates.length > 0) {
-            try {
-                const reranked = await this.embeddingFactory.colbertRerank(scrubbed, candidates);
-                if (Array.isArray(reranked) && reranked.length === candidates.length) {
-                    candidates = reranked;
-                }
-            } catch (error) {
-                if (process.env.YAMO_DEBUG === "true") {
-                    logger.warn({ err: error }, "ColBERT rerank in smora failed, falling back to RRF order");
-                }
-            }
-        }
-
-        // Compute cross-encoder scores if enabled
-        let ceScores = null;
-        if (this.enableReranker && candidates.length > 0) {
-            try {
-                const docContents = candidates.map((d) => d.content);
-                ceScores = await this.embeddingFactory.rerank(scrubbed, docContents);
-            } catch (error) {
-                if (process.env.YAMO_DEBUG === "true") {
-                    logger.warn({ err: error }, "Cross-encoder reranking in smora failed, falling back to RRF scores");
-                }
-            }
-        }
-
-        // Layer 4: Heritage-aware reranking
-        // final_score = 0.6×semantic_sim + 0.25×heritage_bonus + 0.15×recency_decay
-        // When no sessionIntent: weights renormalize → α=0.71, γ=0.29
-        const hasHeritage = sessionIntent.length > 0;
-        const α = hasHeritage ? 0.6 : 0.71;
-        const β = hasHeritage ? 0.25 : 0.0;
-        const γ = hasHeritage ? 0.15 : 0.29;
-        const now = Date.now();
-
-        // Pre-embed pass for heritage rerank (workspace-bb4): collect every
-        // unique intent that the doc loop will need (session + each doc's
-        // intentChain), embed in one parallel batch (cache-aware), look up
-        // synchronously inside the per-doc loop. Lets us catch synonymy
-        // (e.g. "debug" ≈ "troubleshoot") without async-ifying the rerank
-        // loop. Falls back to raw token overlap if embedding is unavailable.
-        const intentVecMap: Map<string, number[]> = new Map();
-        if (hasHeritage) {
-            const allIntents = new Set<string>();
-            for (const si of sessionIntent) {
-                const k = this._canonicalizeIntent(si);
-                if (k) allIntents.add(k);
-            }
-            for (const doc of candidates) {
-                try {
-                    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-                    const chain = meta?.heritage_chain;
-                    const parsedChain = typeof chain === 'string' ? JSON.parse(chain) : chain;
-                    const intents: string[] = parsedChain?.intentChain ?? [];
-                    for (const i of intents) {
-                        const k = this._canonicalizeIntent(i);
-                        if (k) allIntents.add(k);
-                    }
-                } catch { /* skip docs with no heritage */ }
-            }
-            if (allIntents.size > 0) {
-                try {
-                    const intentArr = Array.from(allIntents);
-                    const vecs = await Promise.all(intentArr.map((i) => this._embedIntent(i)));
-                    for (let i = 0; i < intentArr.length; i++) {
-                        if (vecs[i]) intentVecMap.set(intentArr[i], vecs[i]!);
-                    }
-                } catch (e) {
-                    if (process.env.YAMO_DEBUG === 'true') {
-                        logger.debug({ err: e }, 'Intent pre-embed failed, heritage will use raw overlap');
-                    }
-                }
-            }
-        }
-
-        const reranked = candidates.map((doc: any, idx: number) => {
-            // Semantic score: use cross-encoder if available, otherwise RRF-based approximation
-            let semanticScore = 0;
-            if (ceScores && ceScores[idx] !== undefined) {
-                const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
-                semanticScore = sigmoid(ceScores[idx]);
-            } else {
-                const rrfScore = rrfScores.get(doc.id) || 0;
-                semanticScore = Math.min(1.0, rrfScore * 20); // scale to ~[0,1]
-            }
-
-            // Heritage bonus: max(raw exact-match, embedded MaxSim) so
-            // embedded synonymy augments rather than replaces exact matches.
-            let heritageBonus = 0;
-            if (hasHeritage) {
-                try {
-                    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-                    const chain = meta?.heritage_chain;
-                    const parsedChain = typeof chain === 'string' ? JSON.parse(chain) : chain;
-                    const intentChain: string[] = parsedChain?.intentChain ?? [];
-                    if (intentChain.length > 0) {
-                        const denom = sessionIntent.length;
-                        const rawOverlap = intentChain.filter((i: string) => sessionIntent.includes(i)).length;
-                        const rawBonus = denom > 0 ? Math.min(1.0, rawOverlap / denom) : 0;
-                        let embeddedBonus = 0;
-                        if (intentVecMap.size > 0) {
-                            const sessionVecs: number[][] = [];
-                            for (const si of sessionIntent) {
-                                const v = intentVecMap.get(this._canonicalizeIntent(si));
-                                if (v) sessionVecs.push(v);
-                            }
-                            const chainVecs: number[][] = [];
-                            for (const ci of intentChain) {
-                                const v = intentVecMap.get(this._canonicalizeIntent(ci));
-                                if (v) chainVecs.push(v);
-                            }
-                            embeddedBonus = this._heritageBonusFromVectors(sessionVecs, chainVecs, denom);
-                        }
-                        heritageBonus = Math.max(rawBonus, embeddedBonus);
-                    }
-                } catch { /* no heritage */ }
-            }
-
-            // Recency decay: exp(-λ × age_days), λ tuned per memory type so
-            // lessons/decisions age slowly and events age fast (workspace-pu2).
-            const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata;
-            const memType = (meta && typeof meta.type === 'string') ? meta.type : undefined;
-            const λ = (memType && DECAY_BY_TYPE[memType] !== undefined)
-                ? DECAY_BY_TYPE[memType]
-                : DEFAULT_DECAY;
-            let recencyDecay = 1.0;
-            try {
-                const createdAt = doc.created_at || doc.metadata?.created_at;
-                if (createdAt) {
-                    const ageDays = (now - new Date(createdAt).getTime()) / 86400000;
-                    recencyDecay = Math.exp(-λ * ageDays);
-                }
-            } catch { /* use 1.0 */ }
-
-            const score = α * semanticScore + β * heritageBonus + γ * recencyDecay;
-            return { doc, score, semanticScore, heritageBonus, recencyDecay, meta };
-        });
-
-        reranked.sort((a, b) => b.score - a.score);
-
-        const results = reranked.slice(0, limit).map(({ doc, score, semanticScore, heritageBonus, recencyDecay, meta }, idx) => ({
-            id: doc.id,
-            content: doc.content,
-            metadata: meta,
-            score,
-            semanticScore,
-            heritageBonus,
-            recencyDecay,
-            rrfRank: idx + 1,
-        }));
-
-        // Layer 5: Synthesis (skip if LLM unavailable)
-        let synthesis: string | undefined;
-        let synthesized = false;
-        if (enableSynthesis && this.llmClient) {
-            try {
-                const excerpts = results.slice(0, 5).map((r, i) => `[${i + 1}] ${r.content}`).join('\n');
-                synthesis = await this.llmClient.complete(
-                    `You are a retrieval synthesis agent. Given the following memory excerpts, produce a coherent summary that directly answers the query.\nQuery: ${scrubbed}\nExcerpts:\n${excerpts}`
-                );
-                synthesized = true;
-            } catch { /* non-fatal, skip synthesis */ }
-        }
-
-        return {
-            results,
-            ...(synthesis !== undefined ? { synthesis } : {}),
-            pipeline: {
-                queryExpanded: enableHyDE,
-                heritageAware: hasHeritage,
-                synthesized,
-                latencyMs: Date.now() - t0,
-            },
-        };
+    } = {}) {
+        return smoraMod.smora(this, query, options);
     }
-
     /**
      * Agentic memory write judge (Mem0 / A-MEM / Letta pattern).
      *
@@ -2872,121 +2275,22 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         await this._emitYamoBlock('agentic_decision', neighborId, yamoText);
     }
 
-    /**
-     * Canonicalize an intent string for caching + lookup. Mirrors
-     * _canonicalizeEntity's lightweight normalization but preserves
-     * intent vocabulary (no plural stripping — "debug" and "debugs" are
-     * legitimately different verbs/states in intent chains).
-     * @private
-     */
+    /** @private Canonicalize an intent string for cache keys — see mesh/smora.ts. */
     _canonicalizeIntent(intent: string) {
-        if (!intent || typeof intent !== 'string') return '';
-        return intent.toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        return smoraMod._canonicalizeIntent(this, intent);
     }
-
-    /**
-     * Embed a single intent string with persistent caching. Intents are
-     * low-cardinality (handfuls per project) and stable across queries, so
-     * the cache hits hard. Cap at 500 entries with LRU eviction. Returns
-     * null on any failure so callers can fall back to raw overlap.
-     * @private
-     */
+    /** @private Embed an intent with LRU caching — see mesh/smora.ts. */
     async _embedIntent(intent: string) {
-        const key = this._canonicalizeIntent(intent);
-        if (!key) return null;
-        if (this.intentEmbedCache.has(key)) return this.intentEmbedCache.get(key);
-        try {
-            const vec = await this.embeddingFactory.embed(key);
-            if (!Array.isArray(vec) || vec.length === 0) return null;
-            // LRU eviction
-            if (this.intentEmbedCache.size >= 500) {
-                const firstKey = this.intentEmbedCache.keys().next().value;
-                if (firstKey !== undefined) this.intentEmbedCache.delete(firstKey);
-            }
-            this.intentEmbedCache.set(key, vec);
-            return vec;
-        } catch (_e) {
-            return null;
-        }
+        return smoraMod._embedIntent(this, intent);
     }
-
-    /**
-     * Heritage bonus from intent vector matrices. For each session intent,
-     * take its max cosine similarity against any chain intent (MaxSim),
-     * sum, divide by sessionIntent count. Vectors are assumed
-     * L2-normalized (embedding service normalizes by default), so cosine =
-     * dot product. Returns 0 on empty/invalid input.
-     * @private
-     */
+    /** @private Heritage bonus from cosine over intent vectors — see mesh/smora.ts. */
     _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: number) {
-        if (!sessionVecs?.length || !chainVecs?.length || !denom) return 0;
-        let total = 0;
-        for (const sv of sessionVecs) {
-            let bestSim = -Infinity;
-            for (const cv of chainVecs) {
-                if (sv.length !== cv.length) continue;
-                let dot = 0;
-                for (let i = 0; i < sv.length; i++) dot += sv[i] * cv[i];
-                if (dot > bestSim) bestSim = dot;
-            }
-            if (bestSim > 0) total += bestSim; // negative cosine = no credit
-        }
-        return Math.min(1.0, total / denom);
+        return smoraMod._heritageBonusFromVectors(this, sessionVecs, chainVecs, denom);
     }
-
-    /**
-     * Generate a HyDE (Hypothetical Document Embedding) expansion for a query.
-     *
-     * When an LLM is available, generates a 2-3 sentence hypothetical passage
-     * that would directly answer the query — typically yields stronger vector
-     * matches than the original short query because the generated text mirrors
-     * the distribution of stored documents. Falls back to a template wrapper
-     * if the LLM is disabled, fails, or times out (HYDE_TIMEOUT_MS, default 5s).
-     *
-     * Results are cached per-query with the same TTL as queryCache.
-     */
+    /** @private LLM HyDE expansion with cache + timeout — see mesh/smora.ts. */
     async _generateHyDE(query: string): Promise<string> {
-        const template = `A document about ${query}. This covers concepts related to ${query} including patterns, insights, and lessons learned.`;
-        if (!this.enableLLM || !this.llmClient) {
-            return template;
-        }
-        const cacheKey = `hyde:${query}`;
-        const cached = this.hydeCache.get(cacheKey);
-        if (cached && Date.now() - cached.timestamp < this.cacheConfig.ttlMs) {
-            return cached.text;
-        }
-        const timeoutMs = parseInt(process.env.HYDE_TIMEOUT_MS || '5000', 10);
-        const systemPrompt = 'You are a search retrieval assistant. Given a user query, write a concise 2-3 sentence hypothetical passage that would directly answer it. Use technical vocabulary that would appear in a real document on this topic. Output only the passage, no preamble or commentary.';
-        let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-        try {
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                timeoutHandle = setTimeout(() => reject(new Error('HyDE LLM timeout')), timeoutMs);
-            });
-            const hydeText = await Promise.race([
-                this.llmClient.complete(systemPrompt, query),
-                timeoutPromise,
-            ]);
-            const cleaned = (hydeText && typeof hydeText === 'string' && hydeText.trim())
-                ? hydeText.trim()
-                : template;
-            // LRU eviction
-            const cap = 200;
-            if (this.hydeCache.size >= cap) {
-                const firstKey = this.hydeCache.keys().next().value;
-                if (firstKey !== undefined) this.hydeCache.delete(firstKey);
-            }
-            this.hydeCache.set(cacheKey, { text: cleaned, timestamp: Date.now() });
-            return cleaned;
-        } catch (error) {
-            if (process.env.YAMO_DEBUG === 'true') {
-                logger.debug({ err: error, query }, 'HyDE LLM call failed, using template');
-            }
-            return template;
-        } finally {
-            if (timeoutHandle) clearTimeout(timeoutHandle);
-        }
+        return smoraMod._generateHyDE(this, query);
     }
-
     async getAll(options = {}) {
         await this.init();
         if (!this.client) {
@@ -3108,111 +2412,22 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         }
     }
 
-    /**
-     * Canonicalize an entity string for graph storage and matching.
-     * Lowercase, leading '#' stripped, hyphens/underscores → spaces,
-     * trailing plural 's' stripped, whitespace collapsed. Lets the graph
-     * unify "JWT", "jwt", "JWTs", "JWT-Token" / "jwt-tokens" etc.
-     * @private
-     */
+    /** @private Canonicalize an entity (lowercase, separators, plural-strip) — see mesh/graph-rag.ts. */
     _canonicalizeEntity(entity: string) {
-        if (!entity || typeof entity !== 'string') return '';
-        return entity
-            .toLowerCase()
-            .replace(/^#/, '')
-            .replace(/[-_]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .replace(/s$/, '')
-            .trim();
+        return graphRag._canonicalizeEntity(this, entity);
     }
-
-    /**
-     * Check if a content string mentions an entity using a case-insensitive
-     * word-boundary regex with simple plural tolerance. Fixes the substring
-     * false positives of the old `content.includes(entity)` check (where
-     * "Auth" matched "AuthService" or "auth-token" matched "authorization").
-     * @private
-     */
+    /** @private Does content mention the entity (canonical-aware) — see mesh/graph-rag.ts. */
     _contentMentions(content: string, entity: string) {
-        if (!entity || !content) return false;
-        const canonical = this._canonicalizeEntity(entity);
-        if (!canonical) return false;
-        const escaped = canonical.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Trailing 's?' adds plural tolerance after canonicalization stripped it.
-        const re = new RegExp(`\\b${escaped}s?\\b`, 'i');
-        return re.test(content);
+        return graphRag._contentMentions(this, content, entity);
     }
-
-    /**
-     * Heuristic triple extractor — pairs consecutive PascalCase tokens with
-     * a between-window verb guess. Produces low-precision edges that pollute
-     * the Graph-RAG boost step. Disabled by default — return [] so no graph
-     * noise from non-LLM writes.
-     *
-     * Opt in via GRAPH_RAG_HEURISTIC_TRIPLES=on env when running against a
-     * corpus where you actually want PascalCase-pairing as a backstop. The
-     * LLM path (_extractTriplesLLM) is the recommended graph source.
-     */
+    /** @private Heuristic PascalCase triple extraction (off by default) — see mesh/graph-rag.ts. */
     _extractTriplesHeuristics(content: string) {
-        if (process.env.GRAPH_RAG_HEURISTIC_TRIPLES !== 'on') return [];
-        const triples = [];
-        const terms = content.match(/\b([A-Z][a-zA-Z0-9_-]+|#[a-zA-Z0-9_-]+)\b/g);
-        if (terms && terms.length >= 2) {
-            const uniqueTerms = Array.from(new Set(terms));
-            for (let i = 0; i < uniqueTerms.length - 1; i++) {
-                const sourceRaw = uniqueTerms[i];
-                const targetRaw = uniqueTerms[i + 1];
-                let relation = "relates_to";
-                const pattern = new RegExp(`${sourceRaw}\\s+(\\w+)\\s+.*?${targetRaw}`, "i");
-                const match = content.match(pattern);
-                if (match && match[1]) {
-                    const verb = match[1].toLowerCase();
-                    if (["uses", "contains", "implements", "is", "has", "creates", "manages", "configures", "calls"].includes(verb)) {
-                        relation = verb;
-                    }
-                }
-                const source = this._canonicalizeEntity(sourceRaw);
-                const target = this._canonicalizeEntity(targetRaw);
-                if (!source || !target || source === target) continue;
-                triples.push({ source, target, relation, weight: 1.0 });
-            }
-        }
-        return triples;
+        return graphRag._extractTriplesHeuristics(this, content);
     }
-
+    /** @private LLM triple extraction (recommended source) — see mesh/graph-rag.ts. */
     async _extractTriplesLLM(content: string) {
-        if (!this.llmClient) return [];
-        try {
-            const prompt = `Extract entity-relation triples (Subject, Predicate, Object) from the following text.
-Format the output as a JSON array of objects with keys: "source", "target", "relation", "weight" (0.0 to 1.0).
-Only output the JSON array, nothing else.
-
-Text: "${content}"`;
-
-            const response = await this.llmClient.complete("You are a Graph-RAG entity extractor. Output ONLY valid JSON array.", prompt);
-
-            const cleanedResponse = response.trim().replace(/^```json/, '').replace(/```$/, '').trim();
-            const triples = JSON.parse(cleanedResponse);
-            if (Array.isArray(triples)) {
-                // Canonicalize entities so the graph unifies casing/plural variants.
-                // Drop self-loops and empty endpoints (LLMs sometimes emit them).
-                return triples
-                    .map((t) => ({
-                        source: this._canonicalizeEntity(String(t.source ?? '')),
-                        target: this._canonicalizeEntity(String(t.target ?? '')),
-                        relation: String(t.relation ?? 'relates_to'),
-                        weight: typeof t.weight === 'number' ? t.weight : 1.0,
-                    }))
-                    .filter((t) => t.source && t.target && t.source !== t.target);
-            }
-        } catch (err) {
-            if (process.env.YAMO_DEBUG === "true") {
-                logger.warn({ err }, "LLM triple extraction failed");
-            }
-        }
-        return [];
+        return graphRag._extractTriplesLLM(this, content);
     }
-
     /** Merkle-anchor unanchored yamo_blocks rows — see mesh/yamo-audit.ts. */
     async anchor() {
         return yamoAudit.anchor(this);
