@@ -29,6 +29,7 @@ import { LLMClient } from "../llm/client.js";
 import { scanForInjection, fenceUntrusted, UNTRUSTED_PREAMBLE } from "../utils/prompt-security.js";
 import * as lancedb from "@lancedb/lancedb";
 import * as yamoAudit from "./mesh/yamo-audit.js";
+import { rrfMerge } from "./mesh/rrf.js";
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("brain");
 
@@ -1889,28 +1890,16 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
                 .filter(c => keywordScores.has(c.id))
                 .sort((a, b) => (keywordScores.get(b.id) || 0) - (keywordScores.get(a.id) || 0));
 
-            // 2e. Apply Reciprocal Rank Fusion (RRF)
-            const k = 60;
-            const rrfScores = new Map();
-            const skillMap = new Map();
-
-            function applyRRF(list: any[], weight: number) {
-                for (let rank = 0; rank < list.length; rank++) {
-                    const skill = list[rank];
-                    if (!skill?.id) continue;
-                    rrfScores.set(skill.id, (rrfScores.get(skill.id) || 0) + weight / (k + rank + 1));
-                    if (!skillMap.has(skill.id)) skillMap.set(skill.id, skill);
-                }
-            }
-
-            applyRRF(vectorResults, 0.4);
-            applyRRF(keywordRanked, 0.6);
+            // 2e. Apply Reciprocal Rank Fusion (RRF) — shared implementation (mesh/rrf.ts)
+            const fused = rrfMerge([
+                { items: vectorResults as Array<{ id: string }>, weight: 0.4 },
+                { items: keywordRanked, weight: 0.6 },
+            ]);
 
             // 2f. Build fused results with combined score compatibility
-            const fusedResults = Array.from(rrfScores.entries())
-                .sort((a, b) => b[1] - a[1])
-                .map(([id]) => {
-                    const r = skillMap.get(id);
+            const fusedResults = fused
+                .map(({ id, doc }) => {
+                    const r: any = doc;
                     // Find vector similarity: 1 - distance / 2
                     const vecMatch = vectorResults.find((v: any) => v.id === id);
                     const rawDistance = vecMatch && vecMatch._distance !== undefined ? vecMatch._distance : 1.0;
@@ -2084,71 +2073,25 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
 
             // Hybrid mode (default): vector + keyword with RRF merge
             const keywordResults = await this._keywordSearch(query, limit * 2, filter, { includeArchived: options.includeArchived === true });
-            // Optimized Reciprocal Rank Fusion (RRF) with min-heap for O(n log k) performance
-            // Instead of sorting all results (O(n log n)), we maintain a heap of size k (O(n log k))
-            const k = 60; // RRF constant
-            const scores = new Map<string, number>();
-            const docMap = new Map<string, RankedMemory>();
-            // Process vector results - O(m) where m = vectorResults.length
-            for (let rank = 0; rank < vectorResults.length; rank++) {
-                const doc = vectorResults[rank];
-                const rrf = 1 / (k + rank + 1);
-                scores.set(doc.id, (scores.get(doc.id) || 0) + rrf);
-                docMap.set(doc.id, doc);
-            }
-            // Process keyword results - O(n) where n = keywordResults.length
-            for (let rank = 0; rank < keywordResults.length; rank++) {
-                const doc = keywordResults[rank];
-                const rrf = 1 / (k + rank + 1);
-                scores.set(doc.id, (scores.get(doc.id) || 0) + rrf);
-                if (!docMap.has(doc.id)) {
-                    docMap.set(doc.id, {
-                        id: doc.id,
-                        content: doc.content,
-                        metadata: doc.metadata,
-                        score: 0,
-                        created_at: new Date().toISOString(),
-                    });
-                }
-            }
-            // Extract top candidates using min-heap pattern
-            const scoreEntries = Array.from(scores.entries());
-            let mergedResults;
+            // Reciprocal Rank Fusion — shared implementation (mesh/rrf.ts).
+            // Keyword docs are pre-mapped to the minimal RankedMemory shape; the
+            // vector list goes first so its richer doc wins when both channels
+            // return the same id. (Replaces a hand-rolled partial-selection-sort
+            // "optimization" that produced identical ordering at worse complexity.)
+            const keywordDocs: RankedMemory[] = keywordResults.map((doc) => ({
+                id: doc.id,
+                content: doc.content,
+                metadata: doc.metadata,
+                score: 0,
+                created_at: new Date().toISOString(),
+            }));
             const rerankLimit = this.enableReranker ? Math.max(20, limit * 2) : limit;
-            if (scoreEntries.length <= rerankLimit * 2) {
-                // Small dataset: standard sort is fine
-                mergedResults = scoreEntries
-                    .sort((a, b) => b[1] - a[1]) // O(n log n) but n is small
-                    .slice(0, rerankLimit)
-                    .map(([id, score]) => {
-                    const doc = docMap.get(id);
-                    return doc ? { ...doc, score } : null;
-                })
-                    .filter((d) => d !== null);
-            }
-            else {
-                // Large dataset: use partial selection sort (O(n*k) but k is small)
-                // This is more efficient than full sort when we only need top k results
-                const topK = [];
-                for (const entry of scoreEntries) {
-                    if (topK.length < rerankLimit) {
-                        topK.push(entry);
-                        // Keep topK sorted in descending order
-                        topK.sort((a, b) => b[1] - a[1]);
-                    }
-                    else if (entry[1] > topK[topK.length - 1][1]) {
-                        // Replace smallest in topK if current is larger
-                        topK[rerankLimit - 1] = entry;
-                        topK.sort((a, b) => b[1] - a[1]);
-                    }
-                }
-                mergedResults = topK
-                    .map(([id, score]) => {
-                    const doc = docMap.get(id);
-                    return doc ? { ...doc, score } : null;
-                })
-                    .filter((d) => d !== null);
-            }
+            let mergedResults: RankedMemory[] = rrfMerge([
+                { items: vectorResults },
+                { items: keywordDocs },
+            ])
+                .slice(0, rerankLimit)
+                .map(({ doc, rrfScore }) => ({ ...doc, score: rrfScore }));
 
             // Cross-encoder rerank
             if (this.enableReranker && mergedResults.length > 0) {
@@ -3736,29 +3679,22 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         ]);
 
         // Layer 3: Reciprocal Rank Fusion (k=60, channel weights: 1.0 / 0.8 / 0.6)
-        const k = 60;
-        const weights = { orig: 1.0, hyde: 0.8, keyword: 0.6 };
-        const rrfScores = new Map<string, number>();
-        const docMap = new Map<string, any>();
-
-        function applyRRF(list: any[], weight: number) {
-            for (let rank = 0; rank < list.length; rank++) {
-                const doc = list[rank];
-                if (!doc?.id) continue;
-                rrfScores.set(doc.id, (rrfScores.get(doc.id) || 0) + weight / (k + rank + 1));
-                if (!docMap.has(doc.id)) docMap.set(doc.id, doc);
-            }
-        }
-        applyRRF(semanticOrig, weights.orig);
-        applyRRF(semanticHyde, weights.hyde);
-        applyRRF(keywordResults.map((r: any) => ({ id: r.id, content: r.content, metadata: r.metadata, created_at: r.created_at || new Date().toISOString() })), weights.keyword);
+        // Shared implementation — see mesh/rrf.ts.
+        const fusedEntries = rrfMerge<any>([
+            { items: semanticOrig, weight: 1.0 },
+            { items: semanticHyde, weight: 0.8 },
+            {
+                items: keywordResults.map((r: any) => ({ id: r.id, content: r.content, metadata: r.metadata, created_at: r.created_at || new Date().toISOString() })),
+                weight: 0.6,
+            },
+        ]);
+        const rrfScores = new Map(fusedEntries.map((e) => [e.id, e.rrfScore]));
 
         // Take top pre_rerank_limit candidates
         const preRerankLimit = 20;
-        let candidates = Array.from(rrfScores.entries())
-            .sort((a, b) => b[1] - a[1])
+        let candidates = fusedEntries
             .slice(0, preRerankLimit)
-            .map(([id]) => docMap.get(id))
+            .map((e) => e.doc)
             .filter(Boolean);
 
         // Optional Layer 2.5: ColBERT late-interaction rerank
