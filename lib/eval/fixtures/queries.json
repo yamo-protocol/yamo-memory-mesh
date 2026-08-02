@@ -1,34 +1,151 @@
 [
   {
     "query": "how do JWT tokens handle expiration and key rotation?",
-    "gold": ["jwt-expiry", "jwt-rotation"]
+    "gold": [
+      "jwt-expiry",
+      "jwt-rotation"
+    ]
   },
   {
     "query": "what causes duplicate payment charges and how to prevent them?",
-    "gold": ["payment-idempotency"]
+    "gold": [
+      "payment-idempotency"
+    ]
   },
   {
     "query": "how should webhook payloads be verified securely?",
-    "gold": ["payment-webhook-verification"]
+    "gold": [
+      "payment-webhook-verification"
+    ]
   },
   {
     "query": "redis performance patterns for high throughput",
-    "gold": ["redis-pipelining", "redis-cache-invalidation"]
+    "gold": [
+      "redis-pipelining",
+      "redis-cache-invalidation"
+    ]
   },
   {
     "query": "running schema migrations without downtime in production",
-    "gold": ["migration-zero-downtime", "migration-lock-timeout"]
+    "gold": [
+      "migration-zero-downtime",
+      "migration-lock-timeout"
+    ]
   },
   {
     "query": "why optimize tail latency instead of average response time?",
-    "gold": ["profiling-p95"]
+    "gold": [
+      "profiling-p95"
+    ]
   },
   {
     "query": "what is the YAMO kernel heartbeat for?",
-    "gold": ["yamo-heartbeat"]
+    "gold": [
+      "yamo-heartbeat"
+    ]
   },
   {
     "query": "test-driven development cycle steps",
-    "gold": ["tdd-red-green-refactor", "tdd-pyramid"]
+    "gold": [
+      "tdd-red-green-refactor",
+      "tdd-pyramid"
+    ]
+  },
+  {
+    "query": "our customers got billed twice after a network blip — what is the root cause?",
+    "gold": [
+      "payment-idempotency"
+    ]
+  },
+  {
+    "query": "grace period when we swap the token signing secret",
+    "gold": [
+      "jwt-rotation"
+    ]
+  },
+  {
+    "query": "what does maxUnavailable zero mean during a rollout?",
+    "gold": [
+      "k8s-rolling-update"
+    ]
+  },
+  {
+    "query": "expand-contract pattern for schema changes while pods roll",
+    "gold": [
+      "migration-zero-downtime",
+      "k8s-rolling-update"
+    ]
+  },
+  {
+    "query": "can a queue guarantee a message is processed exactly once?",
+    "gold": [
+      "exactly-once-myth"
+    ]
+  },
+  {
+    "query": "CPU looks fine but requests stall intermittently in Node — what should we monitor?",
+    "gold": [
+      "gc-pauses"
+    ]
+  },
+  {
+    "query": "SIGTERM handling so in-flight requests finish before the pod exits",
+    "gold": [
+      "k8s-sigterm-drain"
+    ]
+  },
+  {
+    "query": "when is a flat scan better than an approximate nearest neighbor index?",
+    "gold": [
+      "ivf-index-tradeoffs"
+    ]
+  },
+  {
+    "query": "why fuse BM25 with embeddings instead of using a single retriever?",
+    "gold": [
+      "hybrid-fusion"
+    ]
+  },
+  {
+    "query": "keeping money math exact in the ledger",
+    "gold": [
+      "currency-rounding"
+    ]
+  },
+  {
+    "query": "detecting slow consumers falling behind on the event stream",
+    "gold": [
+      "kafka-consumer-lag"
+    ]
+  },
+  {
+    "query": "should internal admin tools escape SQL by hand?",
+    "gold": [
+      "sqli-parameterized"
+    ]
+  },
+  {
+    "query": "what happens to a synthesized skill before it goes live?",
+    "gold": [
+      "yamo-skill-staging"
+    ]
+  },
+  {
+    "query": "tests that pass sometimes and fail sometimes — what is the policy?",
+    "gold": [
+      "flaky-tests"
+    ]
+  },
+  {
+    "query": "our alerts page people for things that fix themselves",
+    "gold": [
+      "alert-fatigue"
+    ]
+  },
+  {
+    "query": "why did CI pass but production run different package versions?",
+    "gold": [
+      "lockfile-ci"
+    ]
   }
 ]

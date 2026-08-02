@@ -2,76 +2,691 @@
   {
     "slug": "jwt-expiry",
     "content": "JWT tokens must include an exp claim for expiry validation; tokens without expiry are rejected by the auth middleware.",
-    "metadata": { "type": "insight", "tags": ["auth", "jwt", "security"] }
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "auth",
+        "jwt",
+        "security"
+      ]
+    }
   },
   {
     "slug": "jwt-rotation",
     "content": "Rotating JWT signing keys requires a grace window where both old and new keys validate to avoid mid-flight session breakage.",
-    "metadata": { "type": "pattern", "tags": ["auth", "jwt", "operations"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "auth",
+        "jwt",
+        "operations"
+      ]
+    }
   },
   {
     "slug": "session-store",
     "content": "User sessions are stored in Redis with a 24-hour TTL and refreshed on each authenticated request.",
-    "metadata": { "type": "pattern", "tags": ["auth", "session", "redis"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "auth",
+        "session",
+        "redis"
+      ]
+    }
   },
   {
     "slug": "redis-cache-invalidation",
     "content": "Cache invalidation in Redis uses pub/sub channels keyed by entity type so all app instances drop stale entries simultaneously.",
-    "metadata": { "type": "pattern", "tags": ["cache", "redis", "scaling"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "cache",
+        "redis",
+        "scaling"
+      ]
+    }
   },
   {
     "slug": "redis-pipelining",
     "content": "Pipelining Redis commands cuts round-trip latency by 5-10x on bulk operations; never issue thousands of single GETs in a loop.",
-    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "redis", "performance"] }
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "redis",
+        "performance"
+      ]
+    }
   },
   {
     "slug": "payment-idempotency",
     "content": "Payment processing must use idempotency keys on every charge; without them, network retries cause duplicate charges and chargebacks.",
-    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "payments", "reliability"] }
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "payments",
+        "reliability"
+      ]
+    }
   },
   {
     "slug": "payment-webhook-verification",
     "content": "Stripe webhook payloads must be HMAC-verified using the signing secret before any side effect; never trust the payload directly.",
-    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "payments", "security"] }
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "payments",
+        "security"
+      ]
+    }
   },
   {
     "slug": "tdd-red-green-refactor",
     "content": "The TDD cycle is red (failing test), green (minimal pass), refactor (clean up). Skipping red means you can't prove the test catches the bug.",
-    "metadata": { "type": "pattern", "tags": ["tdd", "engineering"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "tdd",
+        "engineering"
+      ]
+    }
   },
   {
     "slug": "tdd-pyramid",
     "content": "The test pyramid puts unit tests at the base, integration tests in the middle, e2e at the top — invert it and CI times balloon.",
-    "metadata": { "type": "pattern", "tags": ["testing", "engineering"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "testing",
+        "engineering"
+      ]
+    }
   },
   {
     "slug": "migration-zero-downtime",
     "content": "Zero-downtime schema migrations require expand-contract: add nullable column, backfill, switch reads, drop old column in a later release.",
-    "metadata": { "type": "pattern", "tags": ["database", "migrations", "operations"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "database",
+        "migrations",
+        "operations"
+      ]
+    }
   },
   {
     "slug": "migration-lock-timeout",
     "content": "Long-held migration locks block writes; set lock_timeout to a few seconds and retry rather than blocking production traffic.",
-    "metadata": { "type": "lesson", "tags": ["#lesson_learned", "database", "operations"] }
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "database",
+        "operations"
+      ]
+    }
   },
   {
     "slug": "profiling-p95",
     "content": "Optimize the p95 latency, not the average. Averages hide tail behavior, and tail latency is what users perceive as slowness.",
-    "metadata": { "type": "insight", "tags": ["performance", "engineering"] }
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "performance",
+        "engineering"
+      ]
+    }
   },
   {
     "slug": "profiling-flame-graph",
     "content": "Flame graphs make CPU hotspots obvious; the widest stack frames are where you spend time, not where you think you spend it.",
-    "metadata": { "type": "pattern", "tags": ["performance", "profiling", "engineering"] }
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "performance",
+        "profiling",
+        "engineering"
+      ]
+    }
   },
   {
     "slug": "yamo-heartbeat",
     "content": "The YAMO kernel heartbeat monitors agent drift and triggers skill evolution when reliability drops below threshold.",
-    "metadata": { "type": "insight", "tags": ["yamo", "kernel", "evolution"] }
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "yamo",
+        "kernel",
+        "evolution"
+      ]
+    }
   },
   {
     "slug": "yamo-merkle-anchor",
     "content": "YAMO audit blocks are batched into a SHA-256 Merkle tree and periodically anchored to maintain cryptographic provenance.",
-    "metadata": { "type": "insight", "tags": ["yamo", "audit", "cryptography"] }
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "yamo",
+        "audit",
+        "cryptography"
+      ]
+    }
+  },
+  {
+    "slug": "oauth-scopes",
+    "content": "OAuth access tokens carry scopes that gate endpoint access; requesting overly broad scopes at consent time widens the blast radius when a token leaks.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "auth",
+        "oauth",
+        "security"
+      ]
+    }
+  },
+  {
+    "slug": "api-key-rotation",
+    "content": "Service API keys rotate quarterly via the secrets manager; deploys pick up the new key from the environment while the old key stays valid for 48 hours.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "auth",
+        "secrets",
+        "operations"
+      ]
+    }
+  },
+  {
+    "slug": "password-hashing",
+    "content": "Passwords are hashed with argon2id (64MB memory, 3 iterations); bcrypt remains only for legacy rows and upgrades on the next successful login.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "auth",
+        "security"
+      ]
+    }
+  },
+  {
+    "slug": "csrf-tokens",
+    "content": "State-changing endpoints require a CSRF token bound to the session; pure JSON APIs behind bearer auth skip CSRF because browsers cannot set Authorization headers cross-origin.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "auth",
+        "security",
+        "web"
+      ]
+    }
+  },
+  {
+    "slug": "redis-persistence",
+    "content": "Redis persistence uses AOF with everysec fsync; RDB snapshots alone can lose up to a full snapshot interval of writes on crash.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "redis",
+        "durability"
+      ]
+    }
+  },
+  {
+    "slug": "memcached-vs-redis",
+    "content": "Memcached beats Redis for pure ephemeral caching at high concurrency, but offers no persistence, pub/sub, or rich data structures.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "cache",
+        "redis",
+        "memcached"
+      ]
+    }
+  },
+  {
+    "slug": "cdn-cache-headers",
+    "content": "Static assets ship with immutable Cache-Control and content-hashed filenames; HTML gets no-store so deploys become visible immediately.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "cache",
+        "cdn",
+        "web"
+      ]
+    }
+  },
+  {
+    "slug": "payment-refunds",
+    "content": "Refunds are issued against the original charge id, never as standalone transfers, so reconciliation ties every refund to its capture.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "payments",
+        "reconciliation"
+      ]
+    }
+  },
+  {
+    "slug": "currency-rounding",
+    "content": "Money amounts are stored as integer minor units; floating-point rounding on currency is a compliance bug, not a style choice.",
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "payments",
+        "correctness"
+      ]
+    }
+  },
+  {
+    "slug": "dunning-retry",
+    "content": "Failed subscription renewals enter dunning: retries at 1, 3, and 7 days with customer emails, then cancellation.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "payments",
+        "billing"
+      ]
+    }
+  },
+  {
+    "slug": "migration-rollback",
+    "content": "Every migration ships with a tested down() path; irreversible migrations require a data export step and sign-off before deploy.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "migrations",
+        "safety"
+      ]
+    }
+  },
+  {
+    "slug": "data-backfill",
+    "content": "Large backfills run as batched background jobs with rate limits, never inside the migration itself, to keep deploys fast.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "migrations",
+        "operations"
+      ]
+    }
+  },
+  {
+    "slug": "gc-pauses",
+    "content": "Long garbage-collection pauses in Node surface as event-loop lag; monitor loop delay and heap growth rather than CPU utilization alone.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "performance",
+        "node",
+        "gc"
+      ]
+    }
+  },
+  {
+    "slug": "connection-pooling",
+    "content": "Database connection pools should be sized near cores-times-two on the database server; oversized pools add contention, not throughput.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "performance",
+        "database"
+      ]
+    }
+  },
+  {
+    "slug": "nplusone-queries",
+    "content": "The N+1 query pattern is invisible on dev datasets; eager-load associations or batch with a dataloader before production scale exposes it.",
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "database",
+        "performance"
+      ]
+    }
+  },
+  {
+    "slug": "kafka-partitions",
+    "content": "Kafka guarantees ordering only within a partition; choose the partition key by the entity whose event order matters.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "kafka",
+        "queues",
+        "ordering"
+      ]
+    }
+  },
+  {
+    "slug": "kafka-consumer-lag",
+    "content": "Consumer lag alerts fire on time-lag, not offset-lag; offset deltas are meaningless across topics with different throughput.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "kafka",
+        "monitoring"
+      ]
+    }
+  },
+  {
+    "slug": "queue-dlq",
+    "content": "Messages that fail processing three times land in the dead-letter queue with the original payload and the last error attached.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "queues",
+        "reliability"
+      ]
+    }
+  },
+  {
+    "slug": "exactly-once-myth",
+    "content": "Exactly-once delivery is a myth across process boundaries; build idempotent consumers and accept at-least-once semantics.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "queues",
+        "distributed-systems"
+      ]
+    }
+  },
+  {
+    "slug": "k8s-rolling-update",
+    "content": "Rolling updates keep maxUnavailable at zero for user-facing services; surge pods absorb traffic while old pods drain.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "kubernetes",
+        "deploy"
+      ]
+    }
+  },
+  {
+    "slug": "k8s-sigterm-drain",
+    "content": "Pods handle SIGTERM by failing readiness first, draining in-flight requests, then exiting before the grace period ends.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "kubernetes",
+        "lifecycle"
+      ]
+    }
+  },
+  {
+    "slug": "k8s-resource-limits",
+    "content": "CPU limits cause throttling even at low utilization; set requests accurately and drop CPU limits for latency-sensitive services.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "kubernetes",
+        "performance"
+      ]
+    }
+  },
+  {
+    "slug": "feature-flags",
+    "content": "Risky changes ship dark behind feature flags; the flag lifecycle includes a removal ticket so dead flags do not accumulate.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "deploy",
+        "process"
+      ]
+    }
+  },
+  {
+    "slug": "blue-green-deploy",
+    "content": "Blue-green deploys swap the router between two identical environments; rollback is a router flip, not a redeploy.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "deploy",
+        "operations"
+      ]
+    }
+  },
+  {
+    "slug": "embedding-dimensions",
+    "content": "Embedding dimension trades recall for storage; Matryoshka-trained models tolerate truncation to lower dimensions with modest quality loss.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "embeddings",
+        "vector-search"
+      ]
+    }
+  },
+  {
+    "slug": "ivf-index-tradeoffs",
+    "content": "IVF-PQ indexes trade exact recall for speed; below roughly ten thousand vectors a flat scan is both faster and exact.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "vector-search",
+        "indexing"
+      ]
+    }
+  },
+  {
+    "slug": "reranker-cost",
+    "content": "Cross-encoder rerankers add hundreds of milliseconds; apply them to the top twenty candidates, never the full result set.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "retrieval",
+        "reranking",
+        "latency"
+      ]
+    }
+  },
+  {
+    "slug": "chunking-strategy",
+    "content": "Chunk documents on semantic boundaries rather than fixed windows; mid-sentence splits poison both embedding quality and retrieval.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "retrieval",
+        "chunking"
+      ]
+    }
+  },
+  {
+    "slug": "hybrid-fusion",
+    "content": "Hybrid retrieval fuses vector and BM25 rankings with reciprocal rank fusion; neither channel alone handles both paraphrase and exact-identifier queries.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "retrieval",
+        "hybrid",
+        "bm25"
+      ]
+    }
+  },
+  {
+    "slug": "structured-logging",
+    "content": "Logs are structured JSON with a request id on every line; grep-able prose logs do not survive fan-out across services.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "observability",
+        "logging"
+      ]
+    }
+  },
+  {
+    "slug": "trace-sampling",
+    "content": "Head-based trace sampling at one percent loses the errors you care about; tail-based sampling keeps every trace containing an error span.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "observability",
+        "tracing"
+      ]
+    }
+  },
+  {
+    "slug": "alert-fatigue",
+    "content": "Every page must be actionable; alerts that auto-resolve or lack a runbook get deleted, not snoozed.",
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "observability",
+        "oncall"
+      ]
+    }
+  },
+  {
+    "slug": "slo-error-budget",
+    "content": "SLOs define an error budget; when the budget burns down, feature work pauses in favor of reliability work.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "observability",
+        "reliability"
+      ]
+    }
+  },
+  {
+    "slug": "ts-strict-mode",
+    "content": "TypeScript strict mode pays for itself at refactor time; the any escape hatch concentrates bugs exactly where types were hardest to write.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "typescript",
+        "quality"
+      ]
+    }
+  },
+  {
+    "slug": "esm-cjs-interop",
+    "content": "ESM and CommonJS interop breaks at default exports; dual-publish packages need explicit exports maps tested from both module systems.",
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "node",
+        "packaging"
+      ]
+    }
+  },
+  {
+    "slug": "lockfile-ci",
+    "content": "CI must install from the lockfile with npm ci; a floating install can silently test different dependency versions than production ships.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "ci",
+        "dependencies"
+      ]
+    }
+  },
+  {
+    "slug": "flaky-tests",
+    "content": "A flaky test is a failing test; quarantine it the day it flakes and fix or delete it within the sprint, because trust in the suite decays fast.",
+    "metadata": {
+      "type": "lesson",
+      "tags": [
+        "#lesson_learned",
+        "testing",
+        "process"
+      ]
+    }
+  },
+  {
+    "slug": "property-testing",
+    "content": "Property-based tests generate inputs to falsify invariants; they find edge cases that example-based tests never encode.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "testing",
+        "quality"
+      ]
+    }
+  },
+  {
+    "slug": "test-doubles",
+    "content": "Prefer fakes over mocks for collaborators you own; mock-heavy suites verify call choreography instead of behavior.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "testing",
+        "design"
+      ]
+    }
+  },
+  {
+    "slug": "sqli-parameterized",
+    "content": "SQL injection dies with parameterized queries; string-concatenated WHERE clauses are unacceptable even in internal tools.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "security",
+        "database"
+      ]
+    }
+  },
+  {
+    "slug": "secrets-in-env",
+    "content": "Secrets live in the secrets manager, not in .env files committed to repos; local development uses developer-scoped short-lived credentials.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "security",
+        "secrets"
+      ]
+    }
+  },
+  {
+    "slug": "dependency-audit",
+    "content": "Dependency audits gate CI at high severity; transitive advisories with no exploit path get documented exceptions, not blanket ignores.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "security",
+        "dependencies",
+        "ci"
+      ]
+    }
+  },
+  {
+    "slug": "yamo-decision-graph",
+    "content": "The YAMO decision context graph links memories with typed supersedes and contradicts edges so reversed decisions surface their dependents.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "yamo",
+        "memory",
+        "provenance"
+      ]
+    }
+  },
+  {
+    "slug": "yamo-skill-staging",
+    "content": "Synthesized YAMO skills stage in a quarantine directory until kappa approval commits them to the live skill path.",
+    "metadata": {
+      "type": "pattern",
+      "tags": [
+        "yamo",
+        "skills",
+        "governance"
+      ]
+    }
+  },
+  {
+    "slug": "yamo-route-prior",
+    "content": "The YAMO route prior learns per-intent provider success rates from closed dispatches and overrides rule-based routing only with sufficient evidence.",
+    "metadata": {
+      "type": "insight",
+      "tags": [
+        "yamo",
+        "routing",
+        "learning"
+      ]
+    }
   }
 ]
