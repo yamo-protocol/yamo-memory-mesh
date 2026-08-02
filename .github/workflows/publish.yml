@@ -19,7 +19,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          # npm@latest (12.x) requires Node >=22.22 — keep this at the newest
+          # LTS the CI matrix tests against.
+          node-version: '24'
 
       - name: Install latest npm
         run: npm install -g npm@latest
