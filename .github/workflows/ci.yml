@@ -28,10 +28,23 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Type check
         run: npm run type-check
 
-      - name: Run tests
+      - name: Build
+        run: npm run build
+
+      - name: Committed JS is in sync with TS source
+        run: |
+          git diff --exit-code -- lib || {
+            echo "::error::Committed lib/*.js is stale — run 'npm run build' and commit the output."
+            exit 1
+          }
+
+      - name: Run unit tests
         run: npx tsx --test test/unit/*.test.ts
+
+      - name: Run e2e tests
+        run: npx tsx --test test/e2e/*.test.ts
