@@ -27,7 +27,8 @@ export class LLMClient {
      */
     constructor(config: { provider?: string; apiKey?: string; model?: string; baseUrl?: string; maxTokens?: number; timeout?: number; maxRetries?: number } = {}) {
         this.provider = config.provider || process.env.LLM_PROVIDER || "openai";
-        this.apiKey = config.apiKey || process.env.LLM_API_KEY || "";
+        this.apiKey = config.apiKey || process.env.LLM_API_KEY ||
+            (this.provider === "zai" ? process.env.ZAI_API_KEY || "" : "");
         this.model =
             config.model || process.env.LLM_MODEL || this._getDefaultModel();
         this.baseUrl =
@@ -52,6 +53,7 @@ export class LLMClient {
             openai: "gpt-4o-mini",
             anthropic: "claude-3-5-haiku-20241022",
             ollama: "llama3.2",
+            zai: "glm-4.7",
         };
         return defaults[this.provider as keyof typeof defaults] || "gpt-4o-mini";
     }
@@ -64,6 +66,7 @@ export class LLMClient {
             openai: "https://api.openai.com/v1",
             anthropic: "https://api.anthropic.com/v1",
             ollama: "http://localhost:11434",
+            zai: "https://api.z.ai/api/coding/paas/v4",
         };
         return defaults[this.provider as keyof typeof defaults] || "https://api.openai.com/v1";
     }
@@ -156,6 +159,9 @@ Keep the reflection brief (1-2 sentences) and actionable.`;
     async _callLLM(systemPrompt: string, userContent: string) {
         switch (this.provider) {
             case "openai":
+            // zai (Zhipu GLM via api.z.ai) speaks the OpenAI chat-completions
+            // dialect — same request path, zai-specific defaults above.
+            case "zai":
                 return this._callOpenAI(systemPrompt, userContent);
             case "anthropic":
                 return this._callAnthropic(systemPrompt, userContent);
