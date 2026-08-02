@@ -5,7 +5,11 @@ import type { MemoryMesh } from "../memory-mesh.js";
  */
 export declare function getYamoLog(mesh: MemoryMesh, options?: {
     limit?: number;
-}): Promise<any>;
+}): Promise<{
+    id: any;
+    yamoText: any;
+    timestamp: any;
+}[]>;
 /**
  * Quarantine a corrupt yamo_blocks table without destroying it.
  * Writes a CORRUPT marker (so init() refuses to silently recreate) and moves
@@ -28,6 +32,6 @@ export declare function _emitYamoBlock(mesh: MemoryMesh, operationType: string, 
 }): Promise<void>;
 export declare function anchor(mesh: MemoryMesh): Promise<{
     root: string;
-    count: any;
+    count: number;
     updates: any[];
 } | null>;

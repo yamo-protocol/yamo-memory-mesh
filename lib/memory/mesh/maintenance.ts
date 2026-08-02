@@ -379,7 +379,7 @@ export async function doctor(mesh: MemoryMesh, opts: { indexThreshold?: number }
     // 5. superseded_at ↔ state drift (informational: legacy rows predate
     // the state column; backfill closes it)
     try {
-        const drifted = await mesh.client.getWhere(
+        const drifted = await mesh.client!.getWhere(
             `superseded_at IS NOT NULL AND (state IS NULL OR state != 'superseded')`,
             { limit: 1000 },
         );

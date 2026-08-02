@@ -27,7 +27,9 @@ export async function getYamoLog(mesh: MemoryMesh, options: { limit?: number } =
         try {
             // LanceDB >= 0.30 has a typed orderBy — newest-first at the
             // database, no overscan fallback needed.
-            const results = await mesh.yamoTable
+            // Non-null: guarded on entry; the retry path below may refresh
+            // the handle between attempts.
+            const results = await mesh.yamoTable!
                 .query()
                 .orderBy({ columnName: "timestamp", ascending: false })
                 .limit(limit)

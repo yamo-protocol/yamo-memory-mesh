@@ -8,8 +8,12 @@ export declare function reflect(mesh: MemoryMesh, options?: {
     generate?: boolean;
 }): Promise<{
     topic: string | undefined;
-    count: any;
-    context: any;
+    count: number;
+    context: {
+        content: any;
+        type: any;
+        id: any;
+    }[];
     prompt: string;
     id?: undefined;
     reflection?: undefined;
@@ -22,7 +26,7 @@ export declare function reflect(mesh: MemoryMesh, options?: {
     topic: string;
     reflection: string;
     confidence: number;
-    sourceMemoryCount: any;
+    sourceMemoryCount: number;
     yamoBlock: string | null;
     createdAt: string;
     count?: undefined;

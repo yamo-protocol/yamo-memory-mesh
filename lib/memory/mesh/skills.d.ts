@@ -140,7 +140,7 @@ export declare function pruneSkills(mesh: MemoryMesh, threshold?: number): Promi
  */
 export declare function listSkills(mesh: MemoryMesh, options?: {
     limit?: number;
-}): Promise<any>;
+}): Promise<any[]>;
 /**
  * Search for synthesized skills by semantic intent
  * @param {string} query - Search query (intent description)
@@ -149,4 +149,4 @@ export declare function listSkills(mesh: MemoryMesh, options?: {
  */
 export declare function searchSkills(mesh: MemoryMesh, query: string, options?: {
     limit?: number;
-}): Promise<any>;
+}): Promise<any[]>;

@@ -251,10 +251,10 @@ export async function add(mesh: MemoryMesh, content: string, metadata: Record<st
         const result = await mesh.client.add(record);
         if (process.env.YAMO_DEBUG === "true") {
             try {
-                console.error("[DEBUG] result.metadata.type:", JSON.parse(result.metadata).type);
+                console.error("[DEBUG] result.metadata.type:", JSON.parse((result as any).metadata).type);
             }
             catch {
-                console.error("[DEBUG] result.metadata:", result.metadata);
+                console.error("[DEBUG] result.metadata:", (result as any).metadata);
             }
         }
         // Deferred rows stay out of the in-memory keyword index until due —

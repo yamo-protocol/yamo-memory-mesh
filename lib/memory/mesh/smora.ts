@@ -83,8 +83,8 @@ export async function smora(mesh: MemoryMesh, query: string, options: {
     const hydeVec = hydeQuery ? await mesh.embeddingFactory.embed(hydeQuery, { isQuery: false }) : null;
 
     const [semanticOrig, semanticHyde, keywordResults] = await Promise.all([
-        mesh.client.search(queryVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }),
-        hydeVec ? mesh.client.search(hydeVec, { limit: retrievalLimit, metric: 'cosine', filter: 'superseded_at IS NULL' }) : Promise.resolve([]),
+        mesh.client.search(queryVec, { limit: retrievalLimit, filter: 'superseded_at IS NULL' }),
+        hydeVec ? mesh.client.search(hydeVec, { limit: retrievalLimit, filter: 'superseded_at IS NULL' }) : Promise.resolve([]),
         Promise.resolve(mesh.keywordSearch.search(scrubbed, { limit: retrievalLimit })),
     ]);
 

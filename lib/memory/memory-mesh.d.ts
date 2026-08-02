@@ -1,9 +1,10 @@
-import { MemoryRecord } from "./adapters/client.js";
+import { LanceDBClient, MemoryRecord } from "./adapters/client.js";
 import { MemoryState } from "./schema.js";
 import EmbeddingFactory from "./embeddings/factory.js";
 import { Scrubber } from "../scrubber/scrubber.js";
 import { KeywordSearch } from "./search/keyword-search.js";
 import { LLMClient } from "../llm/client.js";
+import * as lancedb from "@lancedb/lancedb";
 /** RFC-0012 S-MORA types */
 export interface SMORAOptions {
     limit?: number;
@@ -83,7 +84,7 @@ export interface PendingSkillIngest {
  * MemoryMesh class for managing vector memory storage
  */
 export declare class MemoryMesh {
-    client: any;
+    client: LanceDBClient | null;
     config: any;
     embeddingFactory: EmbeddingFactory;
     keywordSearch: KeywordSearch;
@@ -96,11 +97,11 @@ export declare class MemoryMesh {
     enableAgenticOps: boolean;
     _kernel_execute: any;
     agentId: string;
-    yamoTable: any;
-    skillTable: any;
-    graphTable: any;
-    decisionEdgeTable: any;
-    revisionTable: any;
+    yamoTable: lancedb.Table | null;
+    skillTable: lancedb.Table | null;
+    graphTable: lancedb.Table | null;
+    decisionEdgeTable: lancedb.Table | null;
+    revisionTable: lancedb.Table | null;
     llmClient: LLMClient | null;
     scrubber: Scrubber;
     queryCache: Map<string, {
@@ -196,8 +197,12 @@ export declare class MemoryMesh {
         generate?: boolean;
     }): Promise<{
         topic: string | undefined;
-        count: any;
-        context: any;
+        count: number;
+        context: {
+            content: any;
+            type: any;
+            id: any;
+        }[];
         prompt: string;
         id?: undefined;
         reflection?: undefined;
@@ -210,7 +215,7 @@ export declare class MemoryMesh {
         topic: string;
         reflection: string;
         confidence: number;
-        sourceMemoryCount: any;
+        sourceMemoryCount: number;
         yamoBlock: string | null;
         createdAt: string;
         count?: undefined;
@@ -379,18 +384,22 @@ export declare class MemoryMesh {
     /** List synthesized skills — see mesh/skills.ts. */
     listSkills(options?: {
         limit?: number;
-    }): Promise<any>;
+    }): Promise<any[]>;
     /** Hybrid (vector + keyword, RRF) skill search — see mesh/skills.ts. */
     searchSkills(query: string, options?: {
         limit?: number;
-    }): Promise<any>;
+    }): Promise<any[]>;
     /**
      * Get recent YAMO logs for the heartbeat
      * @param {Object} options
      */
     getYamoLog(options?: {
         limit?: number;
-    }): Promise<any>;
+    }): Promise<{
+        id: any;
+        yamoText: any;
+        timestamp: any;
+    }[]>;
     /** @private Quarantine a corrupt yamo_blocks table — see mesh/yamo-audit.ts. */
     _quarantineYamoTable(cause: any): Promise<void>;
     /** @private Emit a YAMO audit block (non-critical, never throws) — see mesh/yamo-audit.ts. */
@@ -680,7 +689,7 @@ export declare class MemoryMesh {
     _heritageBonusFromVectors(sessionVecs: any, chainVecs: any, denom: number): number;
     /** @private LLM HyDE expansion with cache + timeout — see mesh/smora.ts. */
     _generateHyDE(query: string): Promise<string>;
-    getAll(options?: {}): Promise<any>;
+    getAll(options?: {}): Promise<MemoryRecord[]>;
     stats(): Promise<{
         count: number;
         totalMemories: number;
@@ -695,12 +704,12 @@ export declare class MemoryMesh {
         };
         status: string;
     } | {
-        count: any;
-        totalMemories: any;
+        count: number;
+        totalMemories: number;
         totalSkills: number;
-        tableName: any;
-        uri: any;
-        isConnected: any;
+        tableName: string;
+        uri: string;
+        isConnected: boolean;
         embedding: {
             configured: boolean;
             primary: any;
@@ -739,7 +748,7 @@ export declare class MemoryMesh {
      * Compact old data files and prune versions older than 7 days.
      * Best-effort — delegates to LanceDBClient.optimize().
      */
-    optimize(): Promise<any>;
+    optimize(): Promise<void | undefined>;
     close(): Promise<void>;
     /** @private Canonicalize an entity (lowercase, separators, plural-strip) — see mesh/graph-rag.ts. */
     _canonicalizeEntity(entity: string): string;
@@ -762,7 +771,7 @@ export declare class MemoryMesh {
     /** Merkle-anchor unanchored yamo_blocks rows — see mesh/yamo-audit.ts. */
     anchor(): Promise<{
         root: string;
-        count: any;
+        count: number;
         updates: any[];
     } | null>;
 }

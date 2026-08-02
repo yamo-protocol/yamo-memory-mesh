@@ -100,9 +100,11 @@ export async function search(mesh: MemoryMesh, query: string, options: { limit?:
         }
         const activeClause = mesh._activeStateClause({ includeArchived: options.includeArchived === true });
         const combinedFilter = filter ? `(${filter}) AND ${activeClause}` : activeClause;
+        // NOTE: a dead `metric: "cosine"` option was silently passed here for
+        // years — the adapter never consumed it (the index config owns the
+        // distance metric). Surfaced by typing the client (workspace-cg2).
         const vectorResults = await mesh.client.search(vector, {
             limit: mode === "vector" ? limit : limit * 2,
-            metric: "cosine",
             filter: combinedFilter,
         });
 
@@ -145,7 +147,7 @@ export async function search(mesh: MemoryMesh, query: string, options: { limit?:
             created_at: new Date().toISOString(),
         }));
         const rerankLimit = mesh.enableReranker ? Math.max(20, limit * 2) : limit;
-        let mergedResults: RankedMemory[] = rrfMerge([
+        let mergedResults: RankedMemory[] = rrfMerge<RankedMemory>([
             { items: vectorResults },
             { items: keywordDocs },
         ])

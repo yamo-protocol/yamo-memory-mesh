@@ -131,7 +131,7 @@ export interface PendingSkillIngest {
  * MemoryMesh class for managing vector memory storage
  */
 export class MemoryMesh {
-    client: any;
+    client: LanceDBClient | null;
     config: any;
     embeddingFactory;
     keywordSearch;
@@ -144,11 +144,11 @@ export class MemoryMesh {
     enableAgenticOps;
     _kernel_execute: any;
     agentId;
-    yamoTable: any;
-    skillTable: any;
-    graphTable: any;
-    decisionEdgeTable: any;
-    revisionTable: any;
+    yamoTable: lancedb.Table | null;
+    skillTable: lancedb.Table | null;
+    graphTable: lancedb.Table | null = null;
+    decisionEdgeTable: lancedb.Table | null = null;
+    revisionTable: lancedb.Table | null = null;
     llmClient;
     scrubber;
     queryCache: Map<string, { result: RankedMemory[]; timestamp: number }>;
@@ -406,7 +406,8 @@ export class MemoryMesh {
                     }
                     // Migrate manifest paths to V2 layout (idempotent)
                     try {
-                        await this.skillTable.migrateManifestPathsV2();
+                        // Native method not surfaced in the 0.31 Table typings
+                        await (this.skillTable as any).migrateManifestPathsV2();
                     }
                     catch {
                         // Already migrated or not a local table — ignore
