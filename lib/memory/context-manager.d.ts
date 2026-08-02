@@ -1,3 +1,7 @@
+/**
+ * @deprecated Scheduled for removal in v4 — no in-repo callers, no test
+ * coverage. Use MemoryMesh directly; `prime()` covers curated recall.
+ */
 export declare class MemoryContextManager {
     #private;
     /**

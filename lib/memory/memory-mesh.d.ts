@@ -1127,6 +1127,10 @@ export declare class MemoryMesh {
 }
 /**
  * Main CLI handler
+ *
+ * @deprecated Scheduled for removal in v4. Legacy JSON/stdin entry point that
+ * predates and duplicates the commander CLI — use `bin/memory_mesh.js` (the
+ * `memory-mesh` binary) instead.
  */
 export declare function run(): Promise<void>;
 export default MemoryMesh;

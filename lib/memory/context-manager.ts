@@ -1,11 +1,20 @@
 /**
  * MemoryContextManager - High-level memory management for YAMO
+ *
+ * @deprecated Scheduled for removal in v4. This layer (with MemoryScorer and
+ * MemoryTranslator) has no in-repo callers and no test coverage; it survived
+ * the 2026-01 dead-code cleanup only by being exported. Use MemoryMesh
+ * directly — `prime()` covers the curated-recall use case.
  */
 import { MemoryMesh } from "./memory-mesh.js";
 import { MemoryScorer } from "./scorer.js";
 import { MemoryTranslator } from "./memory-translator.js";
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("context-manager");
+/**
+ * @deprecated Scheduled for removal in v4 — no in-repo callers, no test
+ * coverage. Use MemoryMesh directly; `prime()` covers curated recall.
+ */
 export class MemoryContextManager {
     #config;
     #mesh;
