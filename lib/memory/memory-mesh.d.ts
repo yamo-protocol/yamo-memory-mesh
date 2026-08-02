@@ -578,59 +578,30 @@ export declare class MemoryMesh {
      * Delete a memory entry by ID.
      */
     delete(id: string): Promise<void>;
-    /**
-     * SQL clause selecting rows visible to default recall (workspace-g9p.5):
-     * not superseded, not archived (unless opted in), and not deferred to a
-     * future date. Legacy rows with NULL state read as 'active'.
-     */
+    /** @private SQL clause excluding archived and not-yet-due rows — see mesh/lifecycle.ts. */
     _activeStateClause(opts?: {
         includeArchived?: boolean;
     }): string;
-    /**
-     * Coerce a caller-supplied defer_until (Date | ISO string | epoch ms) to a
-     * Date, or null when absent/invalid.
-     */
+    /** @private Coerce a defer-until value to a Date — see mesh/lifecycle.ts. */
     _coerceDeferUntil(value: unknown): Date | null;
-    /**
-     * Set a memory's lifecycle state (workspace-g9p.5). Vocabulary is
-     * MEMORY_STATES: active | superseded | deprecated | archived.
-     *
-     * Archiving removes the row from the in-memory keyword index (it stays in
-     * the DB and remains reachable via search({ includeArchived: true }));
-     * re-activating restores it. Returns { id, state, previous }.
-     */
+    /** Set a memory lifecycle state — see mesh/lifecycle.ts. */
     setState(id: string, state: MemoryState): Promise<{
         id: string;
         state: MemoryState;
         previous: string | null;
     }>;
-    /**
-     * Defer a memory until a future date (workspace-g9p.5) — the bd defer
-     * analog. The row is suppressed from default recall until `until`, then
-     * resurfaces automatically (prime() lists newly-due rows under `due`).
-     * Pass null to clear an existing deferral.
-     */
+    /** Suppress a memory from recall until a date — see mesh/lifecycle.ts. */
     deferMemory(id: string, until: Date | string | number | null): Promise<{
         id: string;
         defer_until: string | null;
     }>;
-    /**
-     * Append revision rows for an in-place mutation (workspace-g9p.3).
-     *
-     * Fire-and-forget by design — history must never add latency or failure
-     * modes to the mutation hot path (same contract as _writeDecisionEdges).
-     * Values are JSON-encoded; null means "absent".
-     */
+    /** @private Fire-and-forget append-only revision log write — see mesh/lifecycle.ts. */
     _recordRevision(memoryId: string, changes: Array<{
         field: string;
         oldValue: unknown;
         newValue: unknown;
     }>, actor?: string): void;
-    /**
-     * Ordered mutation history for a memory or skill id (workspace-g9p.3) —
-     * the bd history analog. Returns oldest-first revision rows with decoded
-     * old/new values.
-     */
+    /** Append-only revision history for a memory or skill id — see mesh/lifecycle.ts. */
     history(memoryId: string): Promise<Array<{
         id: string;
         memory_id: string;
@@ -640,54 +611,29 @@ export declare class MemoryMesh {
         actor: string | null;
         created_at: string;
     }>>;
-    /**
-     * Restore a deleted memory from its 'deleted' revision (workspace-g9p.3) —
-     * the bd restore analog. Re-embeds the captured content and re-inserts the
-     * row under its original id.
-     */
+    /** Restore a deleted memory from its revision snapshot — see mesh/lifecycle.ts. */
     restoreDeleted(id: string): Promise<{
         id: string;
         content: string;
     } | null>;
-    /**
-     * Resolve a memory by id, falling back to newest active row carrying
-     * metadata.key == idOrKey. Used by pin()/unpin() so curated memories can
-     * be addressed by their stable key (the bd remember --key analog).
-     */
+    /** @private Resolve a memory by id or stable metadata.key — see mesh/lifecycle.ts. */
     _resolveIdOrKey(idOrKey: string): Promise<MemoryRecord | null>;
-    /**
-     * Pin a memory so prime() always surfaces it verbatim (workspace-g9p.1).
-     * Accepts a memory id or a stable metadata.key.
-     */
+    /** Pin a memory so prime() always surfaces it — see mesh/lifecycle.ts. */
     pin(idOrKey: string): Promise<{
         id: string;
         pinned: boolean;
     }>;
-    /**
-     * Unpin a memory (workspace-g9p.1). Accepts a memory id or metadata.key.
-     */
+    /** Unpin a memory — see mesh/lifecycle.ts. */
     unpin(idOrKey: string): Promise<{
         id: string;
         pinned: boolean;
     }>;
+    /** @private Shared pin/unpin write path — see mesh/lifecycle.ts. */
     _setPinned(idOrKey: string, pinned: boolean): Promise<{
         id: string;
         pinned: boolean;
     }>;
-    /**
-     * Push-based curated recall (workspace-g9p.1) — the bd prime analog.
-     *
-     * Returns three sections:
-     *   pinned     — ALL pinned, non-superseded, non-archived memories,
-     *                verbatim, regardless of any query similarity. Guaranteed
-     *                surfacing is the whole point: probabilistic recall is the
-     *                wrong tool for "never do X again" facts.
-     *   due        — deferred memories whose defer_until has passed (bd defer
-     *                resurfacing). Excludes rows already in pinned.
-     *   contextual — top-N relevant unpinned memories for `query` via the
-     *                normal search ranking; recent-important actives when no
-     *                query is given.
-     */
+    /** Push-based curated recall: pinned verbatim + newly-due + contextual — see mesh/lifecycle.ts. */
     prime(query?: string, opts?: {
         limit?: number;
     }): Promise<{
@@ -710,27 +656,13 @@ export declare class MemoryMesh {
             score: number;
         }>;
     }>;
-    /**
-     * Passive human-readable JSONL export (workspace-g9p.2) — the issues.jsonl
-     * principle. Vectors are derived data (re-embeddable from content), so the
-     * export carries content + metadata only: git-committable, PR-diffable,
-     * and sufficient for a full rebuild via importJsonl().
-     *
-     * Determinism contract: rows are sorted by (table, id), field order is
-     * fixed, and no volatile values (export timestamps, floats re-derived at
-     * export time) are included — consecutive exports of an unchanged DB are
-     * byte-identical.
-     */
+    /** Deterministic, vector-free JSONL export (git-committable) — see mesh/maintenance.ts. */
     exportJsonl(filePath?: string): Promise<{
         path: string | null;
         lines: number;
         text?: string;
     }>;
-    /**
-     * Import a JSONL export (workspace-g9p.2), re-embedding content locally.
-     * Idempotent: rows whose id already exists in the target table are
-     * skipped, so import-into-nonempty is safe.
-     */
+    /** Import a JSONL export, re-embedding locally (idempotent by id) — see mesh/maintenance.ts. */
     importJsonl(source: string | {
         text: string;
     }): Promise<Record<string, {
@@ -747,10 +679,7 @@ export declare class MemoryMesh {
         relation: string;
         missing: string[];
     }>>;
-    /**
-     * Non-mutating stale-memory report (workspace-g9p.6) — the bd stale
-     * analog: active rows untouched (no access, no update) for `days`.
-     */
+    /** Active memories untouched for N days — see mesh/maintenance.ts. */
     staleMemoriesReport(opts?: {
         days?: number;
         limit?: number;
@@ -759,11 +688,7 @@ export declare class MemoryMesh {
         content: string;
         last_touch: string | null;
     }>>;
-    /**
-     * Hygiene self-diagnosis (workspace-g9p.6) — the bd doctor analog. Runs
-     * mechanical checks for every known mesh footgun; never mutates. Overall
-     * ok is the AND of all non-informational checks.
-     */
+    /** Mechanical health checks (config, edges, index, state drift, skills) — see mesh/maintenance.ts. */
     doctor(opts?: {
         indexThreshold?: number;
     }): Promise<{
@@ -818,10 +743,7 @@ export declare class MemoryMesh {
         status: "validated" | "refuted" | "mixed";
         note?: string;
     }): Promise<void>;
-    /**
-     * Distill a LessonLearned block (RFC-0011 §3.5).
-     * Idempotent: same patternId + equal/higher confidence returns existing.
-     */
+    /** Distill a structured RFC-0011 lesson into an idempotent pattern-keyed memory — see mesh/lessons.ts. */
     distillLesson(context: {
         situation: string;
         errorPattern: string;
@@ -842,9 +764,7 @@ export declare class MemoryMesh {
         wireFormat: string;
         memoryId: string;
     }>;
-    /**
-     * Query lessons from memory (RFC-0011 §4.1).
-     */
+    /** Query stored lessons (semantic or metadata scan) — see mesh/lessons.ts. */
     queryLessons(query?: string, options?: {
         limit?: number;
     }): Promise<any[]>;
@@ -856,9 +776,7 @@ export declare class MemoryMesh {
         hypotheses: string[];
         rationales: string[];
     }): Promise<void>;
-    /**
-     * Return all memories whose lesson_pattern_id matches patternId (RFC-0011 §4.1).
-     */
+    /** Fetch memories by lesson pattern id — see mesh/lessons.ts. */
     getMemoriesByPattern(patternId: string): Promise<any[]>;
     /**
      * S-MORA: Singularity Memory-Oriented Retrieval Augmentation (RFC-0012)
