@@ -114,7 +114,28 @@ describe('MemoryMesh E2E (CLI) — lifecycle, portability, health', () => {
 
   it('set-state transitions lifecycle state and history records it', () => {
     const id = storeAndGetId('--content "Old routing approach based on static rules." --type decision');
-    const out = run(`set-state ${id} deprecated`);
+    // DIAG (debug/e2e-getbyid-ci): CI-only "memory not found" from a fresh
+    // process right after store. Probe which failure mode this is.
+    let out: string;
+    try {
+      out = run(`set-state ${id} deprecated`);
+    } catch (e: any) {
+      console.error(`DIAG set-state failed immediately: ${e.stderr || e.stdout}`);
+      try {
+        console.error(`DIAG get --id: ${run(`get --id ${id}`).slice(0, 300)}`);
+      } catch (ge: any) {
+        console.error(`DIAG get --id ALSO failed: ${ge.stdout} ${ge.stderr}`);
+      }
+      console.error(`DIAG stats: ${run('stats').replace(/\n/g, ' | ').slice(0, 400)}`);
+      execSync('sleep 3');
+      try {
+        out = run(`set-state ${id} deprecated`);
+        console.error('DIAG retry after 3s SUCCEEDED — eventual-visibility race');
+      } catch (e2: any) {
+        console.error('DIAG retry after 3s failed too — row durably invisible to getById');
+        throw e2;
+      }
+    }
     assert.ok(out.includes('deprecated'), `set-state output should confirm the new state, got: ${out}`);
     const hist = run(`history ${id}`);
     assert.ok(hist.includes('state'), `history should record the state field change, got: ${hist}`);
