@@ -33,7 +33,9 @@ const ui = {
   success: (msg) => console.log(`${pc.green('✔')} ${pc.green(msg)}`),
   warn: (msg) => console.log(`${pc.yellow('⚠')} ${pc.yellow(msg)}`),
   error: (msg) => console.error(`${pc.red('✖')} ${pc.red(msg)}`),
-  header: (msg) => console.log(`\n${pc.bold(pc.cyan('── ' + msg + ' ' + '─'.repeat(50 - msg.length - 4)))}\n`)
+  // Math.max guard: a header longer than the rule width (long pull paths,
+  // long ids) must truncate the rule, not crash the command via repeat(-n).
+  header: (msg) => console.log(`\n${pc.bold(pc.cyan('── ' + msg + ' ' + '─'.repeat(Math.max(0, 50 - msg.length - 4))))}\n`)
 };
 
 // 1. Store/Ingest Command
