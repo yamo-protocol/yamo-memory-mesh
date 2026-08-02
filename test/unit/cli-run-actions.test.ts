@@ -1,10 +1,11 @@
 /**
- * Tests for the three new CLI run() actions: get, delete, reflect
- * (RFC-0011 CLI gap closure)
+ * Tests for the get / delete / reflect public-API behaviors and the JSON
+ * action output format (RFC-0011 CLI gap closure).
  *
- * Tests cover:
- *  1. Underlying API methods used by each action (behaviour)
- *  2. Output format helpers mirroring the run() handler logic
+ * History: these originally mirrored the legacy run() handler, removed in v4
+ * (workspace-515). The JSON dispatcher now lives in consumers (see yamo-os
+ * tools/memory_mesh.js); the format helpers here document that contract, and
+ * the API behaviors remain the mesh's own.
  */
 
 import { describe, it, before, after } from 'node:test';
