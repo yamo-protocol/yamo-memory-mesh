@@ -153,3 +153,38 @@ describe('init() honors the yamo_blocks corruption marker', () => {
     await mesh.close();
   });
 });
+
+describe('getYamoLog() ordering — real table (workspace-axl)', () => {
+  let tmpDir: string;
+
+  before(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yamo-order-'));
+  });
+
+  after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns blocks newest-first via DB-side orderBy (LanceDB >= 0.30)', async () => {
+    const mesh = new MemoryMesh({ dbDir: tmpDir, enableLLM: false, enableYamo: true });
+    await mesh.init();
+    assert.ok(mesh.yamoTable, 'yamo table should be enabled');
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    await mesh._emitYamoBlock('retain', 'm1', 'block-oldest');
+    await sleep(20);
+    await mesh._emitYamoBlock('retain', 'm2', 'block-middle');
+    await sleep(20);
+    await mesh._emitYamoBlock('retain', 'm3', 'block-newest');
+
+    const log = await mesh.getYamoLog({ limit: 3 });
+    assert.deepStrictEqual(
+      log.map((r: any) => r.yamoText),
+      ['block-newest', 'block-middle', 'block-oldest'],
+    );
+
+    // Limit is applied AFTER the DB-side sort, so top-1 is the newest row.
+    const top1 = await mesh.getYamoLog({ limit: 1 });
+    assert.deepStrictEqual(top1.map((r: any) => r.yamoText), ['block-newest']);
+    await mesh.close();
+  });
+});

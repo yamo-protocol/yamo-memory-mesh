@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
-    "@lancedb/lancedb": "^0.26.2",
+    "@lancedb/lancedb": "^0.31.0",
     "apache-arrow": "^18.1.0",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.3",

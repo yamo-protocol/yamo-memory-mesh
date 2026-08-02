@@ -1962,20 +1962,14 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         const maxRetries = 5;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // orderBy might not be in LanceDB types but is supported in runtime
-                const query = this.yamoTable.query();
-                let results;
-                try {
-                    results = await query
-                        .orderBy("timestamp", "desc")
-                        .limit(limit)
-                        .toArray();
-                }
-                catch (_e) {
-                    // Fallback if orderBy not supported
-                    results = await query.limit(1000).toArray(); // Get more and sort manually
-                }
-                // Sort newest first in memory
+                // LanceDB >= 0.30 has a typed orderBy — newest-first at the
+                // database, no overscan fallback needed.
+                const results = await this.yamoTable
+                    .query()
+                    .orderBy({ columnName: "timestamp", ascending: false })
+                    .limit(limit)
+                    .toArray();
+                // Defensive re-sort over ≤limit rows (mixed Date/number timestamps)
                 return results
                     .sort((a: any, b: any) => {
                     const tA = a.timestamp instanceof Date
@@ -3375,7 +3369,7 @@ description: Auto-generated skill to handle: ${enrichedPrompt || topic}
         const edges: any[] = [];
         const addEdge = (targetId: string, relation: string) => {
             if (!targetId || targetId === sourceId) return;
-            const key = `${targetId} ${relation}`;
+            const key = `${targetId}\0${relation}`;
             if (seen.has(key)) return;
             seen.add(key);
             edges.push({
