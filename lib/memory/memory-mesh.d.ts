@@ -158,48 +158,18 @@ export declare class MemoryMesh {
         maxSize: number;
         ttlMs: number;
     };
-    /**
-     * Validate and sanitize metadata to prevent prototype pollution
-     * @private
-     */
+    /** @private Validate/normalize caller metadata — see mesh/write.ts. */
     _validateMetadata(metadata: any): Record<string, any>;
-    /**
-     * Sanitize and validate content before storage
-     * @private
-     */
+    /** @private Pre-scrub content sanitation — see mesh/write.ts. */
     _sanitizeContent(content: string): string;
     /**
      * Initialize the LanceDB client
      */
     init(): Promise<void>;
     /**
-     * Add content to memory with auto-generated embedding and scrubbing.
-     *
-     * This is the primary method for storing information in the memory mesh.
-     * The content goes through several processing steps:
-     *
-     * 1. **Scrubbing**: PII and sensitive data are sanitized (if enabled)
-     * 2. **Validation**: Content length and metadata are validated
-     * 3. **Embedding**: Content is converted to a vector representation
-     * 4. **Storage**: Record is stored in LanceDB with metadata
-     * 5. **Emission**: Optional YAMO block emitted for provenance tracking
-     *
-     * @param content - The text content to store in memory
-     * @param metadata - Optional metadata (type, source, tags, etc.)
-     * @returns Promise with memory record containing id, content, metadata, created_at
-     *
-     * @example
-     * ```typescript
-     * const memory = await mesh.add("User likes TypeScript", {
-     *   type: "preference",
-     *   source: "chat",
-     *   tags: ["programming", "languages"]
-     * });
-     * ```
-     *
-     * @throws {Error} If content exceeds max length (100KB)
-     * @throws {Error} If embedding generation fails
-     * @throws {Error} If database client is not initialized
+     * Add a memory: scrub → semantic injection → dedup/agentic judge →
+     * embed → write → belief revision → graph triples → decision edges →
+     * YAMO audit block — see mesh/write.ts for the full pipeline.
      */
     add(content: string, metadata?: Record<string, any>): Promise<{
         id: any;
@@ -219,9 +189,7 @@ export declare class MemoryMesh {
         metadata: Record<string, any>;
         created_at: string;
     }>;
-    /**
-     * Reflect on recent memories
-     */
+    /** Generate reflection insights from recent memories (LLM or heuristic) — see mesh/synthesis.ts. */
     reflect(options?: {
         lookback?: number;
         topic?: string;
@@ -249,25 +217,7 @@ export declare class MemoryMesh {
         context?: undefined;
         prompt?: undefined;
     }>;
-    /**
-     * Multi-chunk document ingest with Late Chunking (Jina, Sep 2024).
-     *
-     * Splits the document into chunks (paragraph-based for now — preserves
-     * char offsets cleanly), embeds them with full-document context via
-     * embedLateChunked() when the underlying model supports token-level
-     * extraction, falls back to per-chunk embedding otherwise. Each chunk
-     * lands as its own memory with provenance metadata linking back to the
-     * parent document.
-     *
-     * Single-shot store path mesh.add() is unchanged — call addDocument()
-     * explicitly when you want chunk-level retrieval granularity.
-     *
-     * Options:
-     *   - minChunkChars / maxChunkChars: paragraph-merging bounds
-     *     (defaults: 200 / 2000)
-     *   - lateChunk: force on/off (default: auto — use Late Chunking if
-     *     the embedder supports it and there's more than one chunk)
-     */
+    /** Multi-chunk document ingest with Late Chunking — see mesh/write.ts. */
     addDocument(content: string, metadata?: Record<string, unknown>, options?: {
         minChunkChars?: number;
         maxChunkChars?: number;
@@ -278,34 +228,12 @@ export declare class MemoryMesh {
         ids: string[];
         lateChunked: boolean;
     }>;
-    /**
-     * Split a document into paragraph-based spans of (start, end) char
-     * offsets, merging short paragraphs to honor minChars and forcing breaks
-     * when exceeding maxChars. Spans are non-overlapping, ordered, and cover
-     * the full content.
-     * @private
-     */
+    /** @private Paragraph-based span splitter for addDocument — see mesh/write.ts. */
     _splitParagraphSpans(content: string, minChars: number, maxChars: number): Array<{
         start: number;
         end: number;
     }>;
-    /**
-     * RAPTOR-style hierarchical summarization (Sarthi et al. 2024).
-     *
-     * Recursively clusters memories by embedding similarity, summarizes each
-     * cluster with the LLM, ingests summaries as a new memory layer, and
-     * repeats with the summary layer as input. Tree levels are tagged via
-     * metadata.type=summary_l1/l2/... and metadata.source_memory_ids links
-     * each summary back to the memories it covers. All summaries land in
-     * the same vector index, so search() naturally returns them alongside
-     * leaves — a query that matches the summary level retrieves an
-     * abstracted answer; a query that matches a leaf retrieves the
-     * concrete fact.
-     *
-     * Returns the per-level breakdown and the root summary id (if a single
-     * root emerged). No-op (returns zeros) when the LLM is disabled or no
-     * memories satisfy the topic/limit.
-     */
+    /** Build a RAPTOR summary tree (requires enableLLM) — see mesh/synthesis.ts. */
     raptor(options?: {
         topic?: string;
         limit?: number;
@@ -322,24 +250,11 @@ export declare class MemoryMesh {
         }>;
         treeRootId?: string;
     }>;
-    /**
-     * K-means clustering with cosine distance. Vectors are assumed L2-normalized
-     * (which they are — embedding service normalizes on output), so cosine
-     * similarity is the dot product and centroids stay on the unit hypersphere
-     * after mean + renormalize. Random-init centroids; k-means++ would be
-     * better for stability but is overkill for this use case.
-     * @private
-     */
+    /** @private Cosine k-means over memory vectors — see mesh/synthesis.ts. */
     _kmeansClusters<T extends {
         vector: number[];
     }>(items: T[], k: number, maxIters?: number): T[][];
-    /**
-     * LLM-summarize a cluster of memories and store the summary as a memory
-     * with type=summary_l{level} and source_memory_ids linking back to leaves.
-     * skipDedup is set so the summary doesn't get collapsed against the very
-     * memories it summarizes.
-     * @private
-     */
+    /** @private LLM-summarize one cluster (singletons promote as-is) — see mesh/synthesis.ts. */
     _summarizeCluster(cluster: Array<{
         id: string;
         content: string;
@@ -349,10 +264,7 @@ export declare class MemoryMesh {
         content: string;
         vector: number[];
     } | null>;
-    /**
-     * Ingest synthesized skill
-     * @param sourceFilePath - If provided, skip file write (file already exists)
-     */
+    /** Ingest a YAMO skill (optionally staged, AGP 3b) — see mesh/skills.ts. */
     ingestSkill(yamoText: string, metadata?: Record<string, any>, sourceFilePath?: string, opts?: {
         stage?: boolean;
     }): Promise<{
@@ -376,12 +288,7 @@ export declare class MemoryMesh {
         intent: any;
         pendingIngest?: undefined;
     }>;
-    /**
-     * Flush a {@link PendingSkillIngest} produced by `synthesize({ ingest: "stage" })`
-     * into the `synthesized_skills` table (AGP Phase 3b κ-commit). Pass `finalSourceFile`
-     * when the staged skill file has been moved to its live location so the indexed
-     * row's `source_file` points at the committed path rather than the staging path.
-     */
+    /** Flush a κ-approved pending skill ingest — see mesh/skills.ts. */
     commitPendingIngest(pending: PendingSkillIngest, opts?: {
         finalSourceFile?: string;
     }): Promise<{
@@ -389,15 +296,9 @@ export declare class MemoryMesh {
         name: any;
         intent: any;
     }>;
-    /**
-     * Serialize the skillDirectories[0] hot-swap window for staged synthesis so two
-     * concurrent staged synthesize() calls can't read each other's redirected path.
-     * Returns a release function the caller MUST invoke in a `finally`.
-     */
+    /** @private Serialize the skillDirectories[0] hot-swap — see mesh/skills.ts. */
     _acquireStagingLock(): Promise<() => void>;
-    /**
-     * Recursive Skill Synthesis
-     */
+    /** Synthesize a skill from memories via LLM (commit or stage) — see mesh/skills.ts. */
     synthesize(options?: {
         topic?: string;
         enrichedPrompt?: string;
@@ -462,41 +363,24 @@ export declare class MemoryMesh {
         pendingIngest?: undefined;
         error?: undefined;
     }>;
-    /**
-     * Update reliability
-     */
+    /** Bounded reliability walk (+0.1/−0.2) + use_count/last_used — see mesh/skills.ts. */
     updateSkillReliability(id: string, success: boolean): Promise<{
         id: string;
         reliability: any;
         use_count: any;
     }>;
-    /**
-     * Get a single synthesized skill by ID
-     * @param {string} id - Skill ID
-     * @returns {Promise<Object|null>} Skill data or null if not found
-     */
+    /** Fetch a synthesized skill by id — see mesh/skills.ts. */
     getSkill(id: string): Promise<any>;
-    /**
-     * Prune skills
-     */
+    /** Remove low-reliability skills — see mesh/skills.ts. */
     pruneSkills(threshold?: number): Promise<{
         pruned_count: number;
         total_remaining: number;
     }>;
-    /**
-     * List all synthesized skills
-     * @param {Object} [options={}] - Search options
-     * @returns {Promise<Array>} Normalized skill results
-     */
+    /** List synthesized skills — see mesh/skills.ts. */
     listSkills(options?: {
         limit?: number;
     }): Promise<any>;
-    /**
-     * Search for synthesized skills by semantic intent
-     * @param {string} query - Search query (intent description)
-     * @param {Object} [options={}] - Search options
-     * @returns {Promise<Array>} Normalized skill results
-     */
+    /** Hybrid (vector + keyword, RRF) skill search — see mesh/skills.ts. */
     searchSkills(query: string, options?: {
         limit?: number;
     }): Promise<any>;
@@ -733,9 +617,7 @@ export declare class MemoryMesh {
     queryLessons(query?: string, options?: {
         limit?: number;
     }): Promise<any[]>;
-    /**
-     * Update a memory entry's heritage_chain (RFC-0011 §8).
-     */
+    /** Insert heritage (intent chain / hypotheses / rationales) for a memory — see mesh/write.ts. */
     insertHeritage(memoryId: string, heritage: {
         intentChain: string[];
         hypotheses: string[];
@@ -774,23 +656,7 @@ export declare class MemoryMesh {
             latencyMs: number;
         };
     }>;
-    /**
-     * Agentic memory write judge (Mem0 / A-MEM / Letta pattern).
-     *
-     * Called from add() when a candidate memory falls in the gray zone of
-     * similarity to an existing neighbor (similar but not a duplicate).
-     * The LLM decides one of:
-     *   - ADD:    new memory is genuinely new info → store alongside
-     *   - UPDATE: new memory supersedes existing one → mark existing as
-     *             superseded via metadata.replaces_memory_id
-     *   - MERGE:  combine the two into a single richer memory → rewrite
-     *             content and supersede the existing
-     *   - NOOP:   new memory adds nothing the existing one doesn't cover
-     *
-     * Falls back to ADD on any failure (LLM disabled, throws, times out,
-     * returns malformed JSON, returns an unknown decision). Latency bounded
-     * by AGENTIC_OPS_TIMEOUT_MS (default 5000ms).
-     */
+    /** @private Agentic-ops LLM judge for gray-zone-similar writes — see mesh/write.ts. */
     _judgeMemoryWrite(newContent: string, neighbor: {
         id: string;
         content: string;
@@ -800,10 +666,7 @@ export declare class MemoryMesh {
         mergedContent?: string;
         rationale?: string;
     }>;
-    /**
-     * Emit a YAMO block recording an agentic ops decision for provenance.
-     * Non-critical — failures are swallowed (caller wraps in .catch).
-     */
+    /** @private YAMO audit block for an agentic-ops decision — see mesh/write.ts. */
     _emitAgenticDecisionBlock(judgment: {
         decision: string;
         mergedContent?: string;
