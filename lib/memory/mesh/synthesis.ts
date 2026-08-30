@@ -55,10 +55,14 @@ export async function reflect(mesh: MemoryMesh, options: { lookback?: number; to
         confidence = 0.5;
     }
     const reflectionId = `reflect_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    // Provenance: record WHICH memories the belief was synthesized from, not
+    // just how many — a count is unauditable (workspace-5bo).
+    const sourceMemoryIds = memories.map((m: any) => m.id).filter(Boolean);
     await mesh.add(reflection, {
         type: "reflection",
         topic: topic || "general",
         source_memory_count: memories.length,
+        source_memory_ids: sourceMemoryIds,
         confidence,
         generated_at: new Date().toISOString(),
     });
@@ -79,6 +83,7 @@ export async function reflect(mesh: MemoryMesh, options: { lookback?: number; to
         reflection,
         confidence,
         sourceMemoryCount: memories.length,
+        sourceMemoryIds,
         yamoBlock,
         createdAt: new Date().toISOString(),
     };

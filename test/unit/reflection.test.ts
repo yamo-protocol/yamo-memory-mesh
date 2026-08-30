@@ -55,6 +55,39 @@ describe('MemoryMesh Reflection', () => {
     assert.ok(result.id);
   });
 
+  it('should record which source memories the reflection drew on (workspace-5bo)', async () => {
+    // Isolated in-memory DB so the id set is self-contained.
+    const mesh = new MemoryMesh({
+      enableLLM: true,
+      enableYamo: false,
+      agentId: `test_${testId}`,
+      dbDir: ':memory:'
+    });
+
+    await mesh.init();
+
+    const a = await mesh.add(`Deploy failed on the staging cluster ${testId}`, { type: 'event' });
+    const b = await mesh.add(`Rollback restored service within minutes ${testId}`, { type: 'event' });
+
+    // No-topic path uses getAll(), so both memories are in scope.
+    const result = await mesh.reflect({ generate: true });
+
+    // Provenance: ids, not just a count — and consistent with each other.
+    assert.ok(Array.isArray(result.sourceMemoryIds));
+    assert.strictEqual(result.sourceMemoryIds.length, result.sourceMemoryCount);
+    for (const id of [a.id, b.id]) {
+      assert.ok(result.sourceMemoryIds.includes(id));
+    }
+
+    // The stored reflection memory carries the same ids in its metadata.
+    const stored = (await mesh.getAll()).find(
+      (m: any) => (typeof m.metadata === 'string' ? JSON.parse(m.metadata) : m.metadata)?.type === 'reflection'
+    );
+    assert.ok(stored, 'reflection memory should be stored');
+    const meta = typeof stored.metadata === 'string' ? JSON.parse(stored.metadata) : stored.metadata;
+    assert.deepStrictEqual([...meta.source_memory_ids].sort(), [...result.sourceMemoryIds].sort());
+  });
+
   it('should handle lookback parameter correctly', async () => {
     const mesh = new MemoryMesh({
       enableLLM: false,

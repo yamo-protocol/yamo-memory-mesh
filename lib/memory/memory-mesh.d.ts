@@ -208,6 +208,7 @@ export declare class MemoryMesh {
         reflection?: undefined;
         confidence?: undefined;
         sourceMemoryCount?: undefined;
+        sourceMemoryIds?: undefined;
         yamoBlock?: undefined;
         createdAt?: undefined;
     } | {
@@ -216,6 +217,7 @@ export declare class MemoryMesh {
         reflection: string;
         confidence: number;
         sourceMemoryCount: number;
+        sourceMemoryIds: any[];
         yamoBlock: string | null;
         createdAt: string;
         count?: undefined;

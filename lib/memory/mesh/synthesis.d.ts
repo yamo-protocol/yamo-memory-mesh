@@ -19,6 +19,7 @@ export declare function reflect(mesh: MemoryMesh, options?: {
     reflection?: undefined;
     confidence?: undefined;
     sourceMemoryCount?: undefined;
+    sourceMemoryIds?: undefined;
     yamoBlock?: undefined;
     createdAt?: undefined;
 } | {
@@ -27,6 +28,7 @@ export declare function reflect(mesh: MemoryMesh, options?: {
     reflection: string;
     confidence: number;
     sourceMemoryCount: number;
+    sourceMemoryIds: any[];
     yamoBlock: string | null;
     createdAt: string;
     count?: undefined;
