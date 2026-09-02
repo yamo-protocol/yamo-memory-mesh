@@ -270,6 +270,56 @@ memory-mesh store -c "Enable WAL journal mode" -t decision \
   --depends-on "mem_abc,mem_def" --justified-by "mem_ghi"
 ```
 
+### Read-time grounding — the `[UNGROUNDED]` fence
+
+Derived memories — `consolidation`, `reflection`, RAPTOR `summary_l*` levels and
+`lesson` — are claims synthesized *from* other memories. When every memory a
+derived row was built on has since been superseded, archived, deferred or
+deleted, the claim has nothing left standing under it. Rather than persisting
+truth-maintenance state, `search()` computes grounding at read time:
+
+1. For each derived hit, the cited sources are collected — `depends-on` /
+   `justified-by` edges in `decision_edges` first (the LLM-cited premises), then
+   `metadata.cited_ids`, `metadata.source_memory_ids` (what `reflect()` /
+   `raptor()` write) and finally `metadata.source_ids` (batch membership — a
+   noisy signal, kept as the last resort).
+2. The sources that currently pass the active-state clause are counted and
+   attached as `grounding_live` / `grounding_total` on the result.
+3. A derived row with cited sources but **zero** live ones gets `ungrounded:
+   true`, its score is multiplied by `UNGROUNDED_SCORE_FACTOR` (default `0.25`)
+   and it sinks in the ranking; `formatResults()` marks it `[UNGROUNDED]`,
+   wraps it in `[UNGROUNDED BEGIN/END]` and adds a directive telling the LLM
+   not to assert it as fact.
+
+The join runs after the cross-encoder rerank and after the contradiction
+penalty, so a stale summary cannot win on rerank score. It is recomputed on
+every query — re-activating or restoring a source un-fences the row with no
+bookkeeping. A derived row with no recorded provenance at all
+(`grounding_total` 0) is left untouched: absence of evidence is not
+invalidation. Primary (non-derived) rows are never annotated.
+
+```javascript
+const rows = await mesh.search('deploy cadence');
+for (const r of rows) {
+  if (r.ungrounded) {
+    console.log(`${r.id}: ${r.grounding_live}/${r.grounding_total} sources live — do not assert`);
+  }
+}
+```
+
+The same change closes a recall gap: the in-memory BM25 fallback used when
+native FTS is unavailable now re-checks its hits against the same active-state
+clause the FTS path applies, so a row superseded or archived by another process
+cannot re-enter through keyword hits.
+
+> **yamo-os caveat.** The feature is live in the mesh and testable with
+> superseded rows, but yamo-os today never supersedes or deletes the memories
+> its consolidations cite — so in that runtime grounding is always 100 % and the
+> fence never fires. It starts biting only once yamo-os grows a
+> supersession/deletion path. Signal quality also depends on provenance quality:
+> grounding over LLM-cited premises (`cited_ids`, `depends_on`) is meaningful;
+> grounding over batch-membership `source_ids` is mostly noise.
+
 ## Using in a Project
 
 To use MemoryMesh with your Claude Code skills (like `yamo-super`) in a new project:
@@ -404,6 +454,16 @@ LLM_BASE_URL=https://...      # Optional: Custom API base URL
 # Optional YAMO settings
 ENABLE_YAMO=true              # Enable YAMO block emission (default: true)
 YAMO_DEBUG=true               # Enable verbose YAMO logging
+```
+
+### Retrieval Tuning
+
+```bash
+# Score multiplier for a derived memory (consolidation / reflection /
+# summary_l* / lesson) whose every cited source is gone — see
+# "Read-time grounding". Finite, in (0, 1]; 1 keeps the ranking but still
+# renders the [UNGROUNDED] fence; anything else falls back to the default.
+UNGROUNDED_SCORE_FACTOR=0.25
 ```
 
 ### LanceDB Configuration

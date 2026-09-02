@@ -48,6 +48,59 @@ export declare function search(mesh: MemoryMesh, query: string, options?: {
 export declare function _keywordSearch(mesh: MemoryMesh, query: string, limit: number, filter?: any, opts?: {
     includeArchived?: boolean;
 }): Promise<RankedMemory[]>;
+/**
+ * Subset of `ids` whose memory row matches `id IN (...)` plus an optional
+ * extra clause (workspace-u2r). Chunked so the IN-list stays bounded; ids are
+ * single-quote-escaped like every other interpolated id in this codebase.
+ * Projects only the id column when the table supports select(), falling back
+ * to the client's full-row read otherwise (same pattern as orphanEdges).
+ */
+export declare function _idSubsetWhere(mesh: MemoryMesh, ids: string[], clause: string | null): Promise<Set<string>>;
+/** Default multiplier applied to the score of an ungrounded derived row. */
+export declare const DEFAULT_UNGROUNDED_SCORE_FACTOR = 0.25;
+/**
+ * Derived (synthesized) memory types subject to the read-time grounding join
+ * (workspace-u2r): consolidations, reflections, RAPTOR summary levels
+ * (summary_l1, summary_l2, …) and distilled lessons. Everything else is a
+ * primary observation and is never grounding-checked.
+ */
+export declare function _isDerivedType(type: unknown): boolean;
+/**
+ * Read-time grounding join (workspace-u2r) — provenance-grounded refusal
+ * without persisted TMS state.
+ *
+ * For each derived hit (see _isDerivedType), collect the sources it cites —
+ * `depends-on` / `justified-by` edges out of decision_edges first, then the
+ * metadata fallbacks in CITED_METADATA_FIELDS — and count how many of them
+ * currently pass _activeStateClause. Attaches grounding_live / grounding_total
+ * to every derived row. A row that cites at least one source and has ZERO live
+ * ones is marked `ungrounded`, its score is multiplied by
+ * UNGROUNDED_SCORE_FACTOR, and the list is re-sorted; formatResults then
+ * renders it inside an [UNGROUNDED] fence. A derived row with no recorded
+ * provenance at all (grounding_total 0) is left alone — absence of evidence is
+ * not evidence of invalidation, and penalizing it would fence every legacy
+ * reflection and every lesson.
+ *
+ * Soft and recomputed per query, so defer/restore/re-activate correctness is
+ * free. Never touches non-derived rows; never breaks search — failures return
+ * the input unchanged.
+ */
+export declare function _applyGroundingJoin(mesh: MemoryMesh, results: RankedMemory[], opts?: {
+    includeArchived?: boolean;
+}): Promise<RankedMemory[]>;
+/**
+ * Parse UNGROUNDED_SCORE_FACTOR (workspace-u2r), the single grounding tunable.
+ * It multiplies the score of a derived row whose every cited source is gone,
+ * so it must be finite and in (0, 1]: 1 keeps the ranking (the [UNGROUNDED]
+ * fence still renders), anything else — unset, empty, NaN, zero, negative,
+ * > 1 — falls back to the default so a typo can neither erase nor boost
+ * ungrounded rows. Mirrors _parseChannelWeight.
+ */
+export declare function _parseGroundingFactor(value: string | undefined, dflt: number): number;
+/** Wrap a derived memory whose cited sources are all gone (workspace-u2r). */
+export declare function fenceUngrounded(content: string): string;
+/** Attention-directive line added when at least one rendered memory is ungrounded. */
+export declare const UNGROUNDED_DIRECTIVE = "- DO NOT assert entries marked [UNGROUNDED] as fact: every source they were derived from has since been superseded, archived, deferred, or deleted. At most report them as a past belief whose basis is gone.";
 export declare function _normalizeScores(_mesh: MemoryMesh, results: RankedMemory[]): RankedMemory[];
 /**
  * Tokenize query for keyword matching (private helper for searchSkills)

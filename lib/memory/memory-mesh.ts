@@ -87,6 +87,23 @@ export interface RankedMemory {
     _distance?: number;
     /** Set by _applyContradictionPenalty: ids of newer validated memories that contradict this one. */
     contradicted_by?: string[];
+    /**
+     * Set by _applyGroundingJoin on derived rows only (workspace-u2r): how many
+     * of the row's cited sources currently pass the active-state clause.
+     */
+    grounding_live?: number;
+    /**
+     * Set by _applyGroundingJoin on derived rows only: distinct cited sources
+     * (premise edges first, else metadata cited_ids / source_memory_ids /
+     * source_ids). 0 means no provenance was recorded — not "ungrounded".
+     */
+    grounding_total?: number;
+    /**
+     * True when grounding_total > 0 and grounding_live == 0: the score has been
+     * multiplied by UNGROUNDED_SCORE_FACTOR and formatResults renders the row
+     * inside an [UNGROUNDED] fence.
+     */
+    ungrounded?: boolean;
 }
 
 interface MemoryMeshOptions {
@@ -223,11 +240,18 @@ export class MemoryMesh {
      * Generate a cache key from query and options
      * @private
      */
-    _generateCacheKey(query: string, options: { limit?: number; filter?: any; mode?: string; includeArchived?: boolean } = {}) {
+    _generateCacheKey(query: string, options: { limit?: number; filter?: any; mode?: string; includeArchived?: boolean; groundingFactor?: number } = {}) {
         const normalizedOptions = {
             limit: options.limit || 10,
             filter: options.filter || null,
             includeArchived: options.includeArchived === true,
+            // The grounding down-rank factor is folded into the key
+            // (workspace-u2r): cached rows carry factor-adjusted scores, so a
+            // re-tuned UNGROUNDED_SCORE_FACTOR must never be served a result
+            // computed under the old one. Grounding *state* is not in the key —
+            // it lives in the cached result, and every visibility transition
+            // (supersede, archive, defer, delete, restore) clears the cache.
+            groundingFactor: typeof options.groundingFactor === "number" ? options.groundingFactor : null,
             // Normalize options that affect results
         };
         return `search:${query}:${JSON.stringify(normalizedOptions)}`;
@@ -565,6 +589,10 @@ export class MemoryMesh {
     /** @private Keyword (FTS/BM25) channel — see mesh/search.ts. */
     async _keywordSearch(query: string, limit: number, filter: any = null, opts: { includeArchived?: boolean } = {}): Promise<RankedMemory[]> {
         return searchMod._keywordSearch(this, query, limit, filter, opts);
+    }
+    /** @private Read-time grounding join for derived rows (workspace-u2r) — see mesh/search.ts. */
+    async _applyGroundingJoin(results: RankedMemory[], opts: { includeArchived?: boolean } = {}): Promise<RankedMemory[]> {
+        return searchMod._applyGroundingJoin(this, results, opts);
     }
     /** @private Normalize scores to [0,1] — see mesh/search.ts. */
     _normalizeScores(results: RankedMemory[]): RankedMemory[] {

@@ -240,6 +240,49 @@ const keywordOnly = await mesh.search('authentication fix', {
 });
 ```
 
+#### Read-time grounding of derived memories
+
+Derived rows — `type` of `consolidation`, `reflection`, `summary_l1…n` (RAPTOR)
+or `lesson` — are annotated at query time with how many of their cited sources
+are still visible to default recall:
+
+```javascript
+const rows = await mesh.search('deploy cadence');
+// rows[i].grounding_total  — distinct cited sources: depends-on / justified-by
+//                            edges first, then metadata cited_ids,
+//                            source_memory_ids, source_ids
+// rows[i].grounding_live   — how many of them currently pass the active-state clause
+// rows[i].ungrounded       — true when grounding_total > 0 and grounding_live === 0
+```
+
+An `ungrounded` row has its score multiplied by `UNGROUNDED_SCORE_FACTOR`
+(default `0.25`) after the cross-encoder rerank and the contradiction penalty,
+and `formatResults()` renders it as:
+
+```
+--- MEMORY 3: mem_… [IMPORTANCE: 0.12] [UNGROUNDED] ---
+Type: consolidation | Source: unknown | Grounding: 0/3 cited sources live
+[UNGROUNDED BEGIN]
+…
+[UNGROUNDED END]
+```
+
+plus an attention-directive line instructing the model not to assert fenced
+entries as fact. Grounding is recomputed on every query — nothing is persisted
+— so restoring or re-activating a source un-fences the row immediately. Rows
+with no recorded provenance (`grounding_total === 0`) are never penalized, and
+non-derived rows are never annotated. `includeArchived: true` counts archived
+sources as live, matching what the query itself can see.
+
+The in-memory keyword fallback (used when native FTS is unavailable) re-checks
+its hits against the same active-state clause, so a row superseded or archived
+by another process cannot resurface through keyword matches.
+
+> **yamo-os:** the runtime currently never supersedes or deletes cited sources,
+> so grounding is always 100 % there and the fence never fires until a
+> supersession/deletion path exists. The mesh itself is fully testable with
+> superseded rows (see `test/unit/grounding-join.test.ts`).
+
 ### Situated Context / Contextual Retrieval
 
 When saving content, you can provide explicit document/source context to preserve semantic meaning across fragmented chunks:
@@ -457,6 +500,11 @@ LLM_MODEL=gpt-4o-mini
 # keeps the exact-identifier rescue). Finite and > 0, else the default wins.
 HYBRID_VECTOR_WEIGHT=1.0
 HYBRID_KEYWORD_WEIGHT=0.4
+
+# Down-rank factor for derived memories whose every cited source is gone
+# (read-time grounding join). Finite, in (0, 1]; 1 keeps the ranking but still
+# renders the [UNGROUNDED] fence. Invalid values fall back to the default.
+UNGROUNDED_SCORE_FACTOR=0.25
 
 # YAMO
 ENABLE_YAMO=true

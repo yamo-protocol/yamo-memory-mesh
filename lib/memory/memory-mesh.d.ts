@@ -55,6 +55,23 @@ export interface RankedMemory {
     _distance?: number;
     /** Set by _applyContradictionPenalty: ids of newer validated memories that contradict this one. */
     contradicted_by?: string[];
+    /**
+     * Set by _applyGroundingJoin on derived rows only (workspace-u2r): how many
+     * of the row's cited sources currently pass the active-state clause.
+     */
+    grounding_live?: number;
+    /**
+     * Set by _applyGroundingJoin on derived rows only: distinct cited sources
+     * (premise edges first, else metadata cited_ids / source_memory_ids /
+     * source_ids). 0 means no provenance was recorded — not "ungrounded".
+     */
+    grounding_total?: number;
+    /**
+     * True when grounding_total > 0 and grounding_live == 0: the score has been
+     * multiplied by UNGROUNDED_SCORE_FACTOR and formatResults renders the row
+     * inside an [UNGROUNDED] fence.
+     */
+    ungrounded?: boolean;
 }
 interface MemoryMeshOptions {
     enableYamo?: boolean;
@@ -132,6 +149,7 @@ export declare class MemoryMesh {
         filter?: any;
         mode?: string;
         includeArchived?: boolean;
+        groundingFactor?: number;
     }): string;
     /**
      * Get cached result if valid
@@ -425,6 +443,10 @@ export declare class MemoryMesh {
     _applyGraphRagBoosting(results: RankedMemory[], query: string): Promise<RankedMemory[]>;
     /** @private Keyword (FTS/BM25) channel — see mesh/search.ts. */
     _keywordSearch(query: string, limit: number, filter?: any, opts?: {
+        includeArchived?: boolean;
+    }): Promise<RankedMemory[]>;
+    /** @private Read-time grounding join for derived rows (workspace-u2r) — see mesh/search.ts. */
+    _applyGroundingJoin(results: RankedMemory[], opts?: {
         includeArchived?: boolean;
     }): Promise<RankedMemory[]>;
     /** @private Normalize scores to [0,1] — see mesh/search.ts. */
