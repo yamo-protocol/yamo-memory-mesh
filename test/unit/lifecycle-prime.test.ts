@@ -41,6 +41,46 @@ describe('MemoryMesh lifecycle + prime', () => {
     await assert.rejects(() => mesh.setState(m.id, 'bogus'), /invalid state/);
   });
 
+  it("setState('superseded') stamps superseded_at, hides the row, and the grounding join counts it dead (workspace-3lq)", async () => {
+    const src = await mesh.add('heron nesting colony counted on the north marsh', { type: 'event', skipDedup: true });
+    const derived = await mesh.add('the north marsh heron colony is stable year over year', {
+      type: 'consolidation', skipDedup: true, cited_ids: [src.id],
+    });
+    const res = await mesh.setState(src.id, 'superseded');
+    assert.equal(res.previous, 'active');
+
+    const row = await mesh.client.getById(src.id);
+    assert.ok(row.superseded_at, 'superseded_at is stamped, not just the state word');
+
+    const hidden = await mesh.search('heron nesting colony north marsh', { mode: 'vector', useCache: false });
+    assert.ok(!hidden.some((r: any) => r.id === src.id), 'state-only supersession hides the row from default recall');
+
+    const [g] = await mesh._applyGroundingJoin([{ id: derived.id, score: 1, content: 'x', metadata: derived.metadata }]);
+    assert.equal(g.grounding_live, 0, 'a source superseded via setState is not a live source');
+    assert.equal(g.ungrounded, true);
+  });
+
+  it("setState('active') after 'superseded' clears superseded_at and the row is visible again", async () => {
+    const m = await mesh.add('kestrel hovering over the east field at dusk', { type: 'note', skipDedup: true });
+    await mesh.setState(m.id, 'superseded');
+    const res = await mesh.setState(m.id, 'active');
+    assert.equal(res.previous, 'superseded');
+    const row = await mesh.client.getById(m.id);
+    assert.ok(!row.superseded_at, 'superseded_at cleared on restore');
+    const visible = await mesh.search('kestrel hovering east field', { mode: 'vector', useCache: false });
+    assert.ok(visible.some((r: any) => r.id === m.id), 'restored row is back in default recall');
+  });
+
+  it('a legacy row with state=superseded but no timestamp is still excluded from default recall', async () => {
+    const m = await mesh.add('legacy osprey platform survey along the tidal creek', { type: 'note', skipDedup: true });
+    // Simulate a row written by a pre-4.1.1 setState: state word only.
+    await mesh.client.update(m.id, { state: 'superseded' });
+    const row = await mesh.client.getById(m.id);
+    assert.ok(!row.superseded_at, 'precondition: no timestamp on the legacy row');
+    const hidden = await mesh.search('osprey platform survey tidal creek', { mode: 'vector', useCache: false });
+    assert.ok(!hidden.some((r: any) => r.id === m.id), 'state word alone is enough to exclude');
+  });
+
   it('deferMemory suppresses until due, then the row surfaces again', async () => {
     const m = await mesh.add('cobalt widget calibration requires a torque wrench', { type: 'note', skipDedup: true });
     await mesh.deferMemory(m.id, new Date(Date.now() + 60 * 60 * 1000));
