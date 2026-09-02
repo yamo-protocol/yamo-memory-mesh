@@ -72,6 +72,12 @@ export interface RankedMemory {
      * inside an [UNGROUNDED] fence.
      */
     ungrounded?: boolean;
+    /**
+     * True on derived rows when the grounding join itself failed: the row was
+     * NOT checked. Distinct from "grounded" so a failed check is never mistaken
+     * for a passing one; formatResults renders "Grounding: UNCHECKED".
+     */
+    grounding_error?: boolean;
 }
 interface MemoryMeshOptions {
     enableYamo?: boolean;

@@ -104,6 +104,12 @@ export interface RankedMemory {
      * inside an [UNGROUNDED] fence.
      */
     ungrounded?: boolean;
+    /**
+     * True on derived rows when the grounding join itself failed: the row was
+     * NOT checked. Distinct from "grounded" so a failed check is never mistaken
+     * for a passing one; formatResults renders "Grounding: UNCHECKED".
+     */
+    grounding_error?: boolean;
 }
 
 interface MemoryMeshOptions {
@@ -244,6 +250,9 @@ export class MemoryMesh {
         const normalizedOptions = {
             limit: options.limit || 10,
             filter: options.filter || null,
+            // mode was missing from the key, so hybrid/vector/keyword results
+            // for the same query shared one cache entry.
+            mode: options.mode || "hybrid",
             includeArchived: options.includeArchived === true,
             // The grounding down-rank factor is folded into the key
             // (workspace-u2r): cached rows carry factor-adjusted scores, so a

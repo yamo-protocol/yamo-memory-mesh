@@ -224,6 +224,35 @@ describe('read-time grounding join', () => {
     }
   });
 
+  it('a failed join is loud and representable: derived rows come back marked grounding_error, scores untouched, primary rows unmarked', async () => {
+    const savedEdges = mesh.decisionEdgeTable;
+    mesh.decisionEdgeTable = { query: () => ({ where: () => ({ toArray: async () => { throw new Error('edges down'); } }) }) };
+    try {
+      const out = await mesh._applyGroundingJoin([
+        { id: 'd', score: 1.0, content: 'x', metadata: { type: 'consolidation', cited_ids: ['whatever'] } },
+        { id: 'p', score: 0.5, content: 'y', metadata: { type: 'event' } },
+      ]);
+      const byId = Object.fromEntries(out.map((r: any) => [r.id, r]));
+      assert.equal(byId.d.grounding_error, true, 'derived row is marked unchecked');
+      assert.equal(byId.d.ungrounded, undefined, 'unchecked is not ungrounded');
+      assert.equal(byId.d.grounding_total, undefined, 'no counts are invented');
+      assert.equal(byId.d.score, 1.0, 'score untouched');
+      assert.equal(byId.p.grounding_error, undefined, 'primary row never marked');
+      const rendered = mesh.formatResults(out);
+      assert.ok(rendered.includes('Grounding: UNCHECKED (join failed)'), 'unchecked state is rendered');
+      assert.ok(!rendered.includes('[UNGROUNDED'), 'unchecked row is not fenced as ungrounded');
+    } finally {
+      mesh.decisionEdgeTable = savedEdges;
+    }
+  });
+
+  it('search cache key distinguishes modes (pre-existing gap fixed alongside the grounding factor)', () => {
+    const q = 'cache key mode probe';
+    assert.notStrictEqual(mesh._generateCacheKey(q, { mode: 'vector' }), mesh._generateCacheKey(q, { mode: 'keyword' }));
+    assert.notStrictEqual(mesh._generateCacheKey(q, { mode: 'hybrid' }), mesh._generateCacheKey(q, { mode: 'vector' }));
+    assert.strictEqual(mesh._generateCacheKey(q, {}), mesh._generateCacheKey(q, { mode: 'hybrid' }), 'default mode is hybrid');
+  });
+
   it('formatResults fences ungrounded rows and adds the refusal directive; grounded rows render plain', () => {
     const rows = [
       { id: 'g', score: 0.9, content: 'grounded belief', metadata: { type: 'reflection' }, grounding_live: 2, grounding_total: 2 },

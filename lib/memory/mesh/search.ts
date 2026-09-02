@@ -448,10 +448,11 @@ export async function _applyGroundingJoin(mesh: MemoryMesh, results: RankedMemor
         return out;
     }
     catch (error) {
-        if (process.env.YAMO_DEBUG === "true") {
-            logger.warn({ err: error }, "Grounding join failed — returning results without grounding annotations");
-        }
-        return results;
+        // Fail LOUD and representable: a derived row the join could not check
+        // must not look identical to a grounded one (third-state principle),
+        // and the failure must not be gated behind a debug flag.
+        logger.warn({ err: error }, "Grounding join failed — derived rows returned UNCHECKED (grounding_error)");
+        return results.map((r) => (_isDerivedType(_metadataOf(r)?.type) ? { ...r, grounding_error: true } : r));
     }
 }
 
@@ -554,9 +555,11 @@ export function formatResults(_mesh: MemoryMesh, results: any[]) {
         if (ungrounded) {
             body = fenceUngrounded(body);
         }
-        const groundingNote = typeof res.grounding_total === 'number' && res.grounding_total > 0
-            ? ` | Grounding: ${res.grounding_live ?? 0}/${res.grounding_total} cited sources live`
-            : '';
+        const groundingNote = res.grounding_error === true
+            ? ' | Grounding: UNCHECKED (join failed)'
+            : typeof res.grounding_total === 'number' && res.grounding_total > 0
+                ? ` | Grounding: ${res.grounding_live ?? 0}/${res.grounding_total} cited sources live`
+                : '';
         const marker = ungrounded ? ' [UNGROUNDED]' : '';
         output += `\n\n--- MEMORY ${i + 1}: ${res.id} [IMPORTANCE: ${res.score}]${marker} ---\nType: ${metadata.type || "event"} | Source: ${metadata.source || "unknown"}${groundingNote}\n${body}`;
     });
