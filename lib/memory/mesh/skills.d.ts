@@ -147,6 +147,13 @@ export declare function listSkills(mesh: MemoryMesh, options?: {
  * @param {Object} [options={}] - Search options
  * @returns {Promise<Array>} Normalized skill results
  */
+/**
+ * Distinct tokens for the database-side LIKE filter, in order of appearance,
+ * capped. Three conditions per token; 32 tokens is 96, well under Lance's
+ * limit of 500 and far from the parser depth that crashes the process.
+ */
+export declare const MAX_KEYWORD_FILTER_TOKENS = 32;
+export declare function keywordFilterTokens(tokens: string[], max?: number): string[];
 export declare function searchSkills(mesh: MemoryMesh, query: string, options?: {
     limit?: number;
 }): Promise<any[]>;

@@ -519,6 +519,25 @@ export async function listSkills(mesh: MemoryMesh, options: { limit?: number } =
  * @returns {Promise<Array>} Normalized skill results
  */
 
+/**
+ * Distinct tokens for the database-side LIKE filter, in order of appearance,
+ * capped. Three conditions per token; 32 tokens is 96, well under Lance's
+ * limit of 500 and far from the parser depth that crashes the process.
+ */
+export const MAX_KEYWORD_FILTER_TOKENS = 32;
+
+export function keywordFilterTokens(tokens: string[], max = MAX_KEYWORD_FILTER_TOKENS): string[] {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const token of tokens) {
+        if (seen.has(token)) continue;
+        seen.add(token);
+        out.push(token);
+        if (out.length >= max) break;
+    }
+    return out;
+}
+
 export async function searchSkills(mesh: MemoryMesh, query: string, options: { limit?: number } = {}) {
     await mesh.init();
     if (!mesh.skillTable) {
@@ -552,10 +571,16 @@ export async function searchSkills(mesh: MemoryMesh, query: string, options: { l
             .limit(limit * 3)
             .toArray();
 
-        // 2b. Parallel Keyword search at database level using LIKE expression
+        // 2b. Parallel Keyword search at database level using LIKE expression.
+        // Bounded: Lance refuses a filter with more than 500 conditions, and a
+        // far larger one overflows its parser before that check runs — a 7.5 KB
+        // prompt made 1,379 tokens, 4,137 LIKE conditions and a SIGSEGV that no
+        // try/catch can catch (workspace-8nj). The vector search and the
+        // in-memory scoring below still see every token of the query.
         let keywordResults = [];
-        if (queryTokens.length > 0) {
-            const escapedTokens = queryTokens.map(t => t.replace(/'/g, "''"));
+        const filterTokens = keywordFilterTokens(queryTokens);
+        if (filterTokens.length > 0) {
+            const escapedTokens = filterTokens.map(t => t.replace(/'/g, "''"));
             const filterExpr = escapedTokens
                 .map(t => `(name LIKE '%${t}%' OR intent LIKE '%${t}%' OR yamo_text LIKE '%${t}%')`)
                 .join(" OR ");
